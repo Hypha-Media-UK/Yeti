@@ -50,34 +50,13 @@
         <div
           v-for="dept in departments"
           :key="dept.id"
-          class="department-item"
+          class="department-accordion"
         >
-          <template v-if="editingDepartmentId === dept.id">
-            <input
-              v-model="editingDepartmentName"
-              type="text"
-              class="form-input"
-              @keyup.enter="handleUpdateDepartment(dept.id)"
-              @keyup.esc="cancelEditingDepartment"
-              ref="editDepartmentInput"
-            />
-            <div class="department-actions">
-              <button class="btn-icon" @click="handleUpdateDepartment(dept.id)" title="Save">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              </button>
-              <button class="btn-icon" @click="cancelEditingDepartment" title="Cancel">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          </template>
-          <template v-else>
+          <!-- Department Header -->
+          <div class="department-header">
             <span class="department-name">{{ dept.name }}</span>
             <div class="department-actions">
-              <button class="btn-icon" @click="startEditingDepartment(dept)" title="Edit">
+              <button class="btn-icon" @click="toggleDepartment(dept.id)" :title="expandedDepartmentId === dept.id ? 'Collapse' : 'Edit'">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                   <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
@@ -90,7 +69,50 @@
                 </svg>
               </button>
             </div>
-          </template>
+          </div>
+
+          <!-- Department Edit Form (Accordion Content) -->
+          <div v-if="expandedDepartmentId === dept.id" class="department-content">
+            <div class="form-group">
+              <label class="form-label">Department Name *</label>
+              <input
+                v-model="editingDepartmentName"
+                type="text"
+                class="form-input"
+                @keyup.enter="handleUpdateDepartment(dept.id)"
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input
+                  v-model="editingIncludeInMainRota"
+                  type="checkbox"
+                  class="checkbox-input"
+                />
+                <span>Include in Main Rota</span>
+              </label>
+            </div>
+
+            <div class="form-group">
+              <OperationalHoursEditor
+                v-model="editingOperationalHours"
+                title="Operational Hours"
+                :show-copy-from="true"
+                copy-from-label="department"
+                @copy="showCopyHoursModal(dept.id)"
+              />
+            </div>
+
+            <div class="form-actions">
+              <button class="btn btn-sm btn-primary" @click="handleUpdateDepartment(dept.id)">
+                Save Changes
+              </button>
+              <button class="btn btn-sm btn-secondary" @click="cancelEditingDepartment">
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       </div>
       <p v-else class="empty-state">No departments</p>
@@ -108,8 +130,17 @@
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue';
 import BaseModal from './BaseModal.vue';
+import OperationalHoursEditor from './OperationalHoursEditor.vue';
+import { api } from '../services/api';
 import type { Building } from '@shared/types/building';
 import type { Department } from '@shared/types/department';
+
+interface HoursEntry {
+  id?: number;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+}
 
 interface Props {
   modelValue: boolean;
@@ -123,7 +154,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean];
   'updateBuilding': [id: number, name: string];
   'addDepartment': [buildingId: number, name: string];
-  'updateDepartment': [id: number, name: string];
+  'updateDepartment': [id: number, name: string, includeInMainRota: boolean, operationalHours: HoursEntry[]];
   'deleteDepartment': [department: Department];
 }>();
 
@@ -136,9 +167,10 @@ const newDepartmentName = ref('');
 const newDepartmentInput = ref<HTMLInputElement | null>(null);
 const savingDepartment = ref(false);
 
-const editingDepartmentId = ref<number | null>(null);
+const expandedDepartmentId = ref<number | null>(null);
 const editingDepartmentName = ref('');
-const editDepartmentInput = ref<HTMLInputElement | null>(null);
+const editingIncludeInMainRota = ref(false);
+const editingOperationalHours = ref<HoursEntry[]>([]);
 
 watch(() => props.modelValue, (value) => {
   isOpen.value = value;
@@ -180,24 +212,58 @@ const handleAddDepartment = () => {
   }
 };
 
-const startEditingDepartment = async (dept: Department) => {
-  editingDepartmentId.value = dept.id;
-  editingDepartmentName.value = dept.name;
-  await nextTick();
-  editDepartmentInput.value?.focus();
+const toggleDepartment = async (deptId: number) => {
+  if (expandedDepartmentId.value === deptId) {
+    // Collapse
+    expandedDepartmentId.value = null;
+    editingDepartmentName.value = '';
+    editingIncludeInMainRota.value = false;
+    editingOperationalHours.value = [];
+  } else {
+    // Expand and load data
+    expandedDepartmentId.value = deptId;
+    const dept = props.departments.find(d => d.id === deptId);
+    if (dept) {
+      editingDepartmentName.value = dept.name;
+      editingIncludeInMainRota.value = Boolean(dept.includeInMainRota);
+
+      // Load operational hours
+      try {
+        const response = await api.getOperationalHoursByArea('department', deptId);
+        editingOperationalHours.value = response.operationalHours.map(h => ({
+          id: h.id,
+          dayOfWeek: h.dayOfWeek,
+          startTime: h.startTime.substring(0, 5), // Convert "HH:mm:ss" to "HH:mm"
+          endTime: h.endTime.substring(0, 5),
+        }));
+      } catch (error) {
+        console.error('Failed to load operational hours:', error);
+        editingOperationalHours.value = [];
+      }
+    }
+  }
 };
 
 const cancelEditingDepartment = () => {
-  editingDepartmentId.value = null;
+  expandedDepartmentId.value = null;
   editingDepartmentName.value = '';
+  editingIncludeInMainRota.value = false;
+  editingOperationalHours.value = [];
 };
 
 const handleUpdateDepartment = (id: number) => {
   if (editingDepartmentName.value.trim()) {
-    emit('updateDepartment', id, editingDepartmentName.value.trim());
-    editingDepartmentId.value = null;
+    emit('updateDepartment', id, editingDepartmentName.value.trim(), editingIncludeInMainRota.value, editingOperationalHours.value);
+    expandedDepartmentId.value = null;
     editingDepartmentName.value = '';
+    editingIncludeInMainRota.value = false;
+    editingOperationalHours.value = [];
   }
+};
+
+const showCopyHoursModal = (deptId: number) => {
+  // TODO: Implement copy hours modal
+  console.log('Copy hours for department', deptId);
 };
 
 const handleDeleteDepartment = (dept: Department) => {
@@ -279,28 +345,65 @@ const handleDeleteDepartment = (dept: Department) => {
 .departments-list {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-1);
+  gap: var(--spacing-2);
 }
 
-.department-item {
+.department-accordion {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-button);
+  overflow: hidden;
+}
+
+.department-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: var(--spacing-2);
   background-color: var(--color-bg);
-  border-radius: var(--radius-button);
   gap: var(--spacing-2);
 }
 
 .department-name {
   flex: 1;
   font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
   color: var(--color-text-primary);
 }
 
 .department-actions {
   display: flex;
   gap: var(--spacing-1);
+}
+
+.department-content {
+  padding: var(--spacing-3);
+  background-color: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  cursor: pointer;
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+}
+
+.checkbox-input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.form-actions {
+  display: flex;
+  gap: var(--spacing-2);
+  padding-top: var(--spacing-2);
+  border-top: 1px solid var(--color-border);
 }
 
 .empty-state {

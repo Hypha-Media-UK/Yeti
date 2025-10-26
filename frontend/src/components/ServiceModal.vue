@@ -34,6 +34,16 @@
         <p class="form-hint">When enabled, this service will be displayed on the main rota screen</p>
       </div>
 
+      <div class="form-group">
+        <OperationalHoursEditor
+          v-model="formData.operationalHours"
+          title="Operational Hours"
+          :show-copy-from="!!service"
+          copy-from-label="service"
+          @copy="showCopyHoursModal"
+        />
+      </div>
+
       <div v-if="error" class="form-error">
         {{ error }}
       </div>
@@ -53,7 +63,16 @@
 <script setup lang="ts">
 import { ref, reactive, watch } from 'vue';
 import BaseModal from './BaseModal.vue';
+import OperationalHoursEditor from './OperationalHoursEditor.vue';
+import { api } from '../services/api';
 import type { Service } from '@shared/types/service';
+
+interface HoursEntry {
+  id?: number;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+}
 
 interface Props {
   modelValue: boolean;
@@ -64,7 +83,7 @@ const props = defineProps<Props>();
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean];
-  submit: [data: { name: string; description: string | null; includeInMainRota: boolean }];
+  submit: [data: { name: string; description: string | null; includeInMainRota: boolean; operationalHours: HoursEntry[] }];
 }>();
 
 const loading = ref(false);
@@ -74,6 +93,7 @@ const formData = reactive({
   name: props.service?.name || '',
   description: props.service?.description || '',
   includeInMainRota: Boolean(props.service?.includeInMainRota),
+  operationalHours: [] as HoursEntry[],
 });
 
 const handleSubmit = () => {
@@ -84,22 +104,43 @@ const handleSubmit = () => {
     name: formData.name.trim(),
     description: formData.description?.trim() || null,
     includeInMainRota: formData.includeInMainRota,
+    operationalHours: formData.operationalHours,
   };
 
   emit('submit', data);
   loading.value = false;
 };
 
+const showCopyHoursModal = () => {
+  // TODO: Implement copy hours modal
+  console.log('Copy hours for service');
+};
+
 // Watch for prop changes (when editing)
-watch(() => props.service, (newService) => {
+watch(() => props.service, async (newService) => {
   if (newService) {
     formData.name = newService.name;
     formData.description = newService.description || '';
     formData.includeInMainRota = Boolean(newService.includeInMainRota);
+
+    // Load operational hours
+    try {
+      const response = await api.getOperationalHoursByArea('service', newService.id);
+      formData.operationalHours = response.operationalHours.map(h => ({
+        id: h.id,
+        dayOfWeek: h.dayOfWeek,
+        startTime: h.startTime.substring(0, 5), // Convert "HH:mm:ss" to "HH:mm"
+        endTime: h.endTime.substring(0, 5),
+      }));
+    } catch (error) {
+      console.error('Failed to load operational hours:', error);
+      formData.operationalHours = [];
+    }
   } else {
     formData.name = '';
     formData.description = '';
     formData.includeInMainRota = false;
+    formData.operationalHours = [];
   }
 }, { immediate: true });
 </script>

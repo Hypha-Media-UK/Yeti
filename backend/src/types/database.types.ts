@@ -75,5 +75,26 @@ export interface ServiceRow extends RowDataPacket {
   updated_at: Date;
 }
 
+export interface AreaOperationalHoursRow extends RowDataPacket {
+  id: number;
+  area_type: 'department' | 'service';
+  area_id: number;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface StaffContractedHoursRow extends RowDataPacket {
+  id: number;
+  staff_id: number;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
 export type InsertResult = ResultSetHeader;
 

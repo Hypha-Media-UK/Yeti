@@ -105,6 +105,16 @@
       </p>
     </div>
 
+    <div class="form-group">
+      <OperationalHoursEditor
+        v-model="formData.contractedHours"
+        title="Contracted Hours"
+        :show-copy-from="!!staff"
+        copy-from-label="staff member"
+        @copy="showCopyHoursModal"
+      />
+    </div>
+
     <div v-if="error" class="form-error">
       {{ error }}
     </div>
@@ -122,11 +132,20 @@
 
 <script setup lang="ts">
 import { ref, reactive, watch, computed } from 'vue';
+import OperationalHoursEditor from './OperationalHoursEditor.vue';
+import { api } from '../services/api';
 import type { StaffMember, StaffStatus, ShiftGroup } from '@shared/types/staff';
 import type { Building } from '@shared/types/building';
 import type { Department } from '@shared/types/department';
 import type { Service } from '@shared/types/service';
 import type { AllocationWithDetails } from '@shared/types/allocation';
+
+interface HoursEntry {
+  id?: number;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+}
 
 interface Props {
   staff?: StaffMember | null;
@@ -146,6 +165,7 @@ const props = withDefaults(defineProps<Props>(), {
 interface SubmitData {
   staff: Partial<StaffMember>;
   allocations: Array<{ areaType: 'department' | 'service'; areaId: number }>;
+  contractedHours: HoursEntry[];
 }
 
 const emit = defineEmits<{
@@ -164,6 +184,7 @@ const formData = reactive({
   departmentId: null as number | null,
   serviceId: null as number | null,
   daysOffset: props.staff?.daysOffset || 0,
+  contractedHours: [] as HoursEntry[],
 });
 
 // Organize departments by building for grouped select
@@ -217,18 +238,39 @@ const handleSubmit = () => {
     allocations.push({ areaType: 'service', areaId: formData.serviceId });
   }
 
-  emit('submit', { staff: staffData, allocations });
+  emit('submit', { staff: staffData, allocations, contractedHours: formData.contractedHours });
   loading.value = false;
 };
 
+const showCopyHoursModal = () => {
+  // TODO: Implement copy hours modal
+  console.log('Copy hours for staff');
+};
+
 // Watch for prop changes (when editing)
-watch(() => props.staff, (newStaff) => {
+watch(() => props.staff, async (newStaff) => {
   if (newStaff) {
     formData.firstName = newStaff.firstName;
     formData.lastName = newStaff.lastName;
     formData.status = newStaff.status;
     formData.group = newStaff.group;
     formData.daysOffset = newStaff.daysOffset;
+
+    // Load contracted hours
+    try {
+      const response = await api.getContractedHoursByStaff(newStaff.id);
+      formData.contractedHours = response.contractedHours.map(h => ({
+        id: h.id,
+        dayOfWeek: h.dayOfWeek,
+        startTime: h.startTime.substring(0, 5), // Convert "HH:mm:ss" to "HH:mm"
+        endTime: h.endTime.substring(0, 5),
+      }));
+    } catch (error) {
+      console.error('Failed to load contracted hours:', error);
+      formData.contractedHours = [];
+    }
+  } else {
+    formData.contractedHours = [];
   }
 }, { immediate: true });
 

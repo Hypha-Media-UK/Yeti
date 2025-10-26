@@ -263,5 +263,83 @@ export const api = {
       method: 'DELETE',
     });
   },
+
+  // Operational Hours
+  async getOperationalHoursByArea(areaType: 'department' | 'service', areaId: number): Promise<{ operationalHours: any[] }> {
+    return fetchApi<{ operationalHours: any[] }>(`/operational-hours/area/${areaType}/${areaId}`);
+  },
+
+  async createOperationalHours(data: { areaType: 'department' | 'service'; areaId: number; dayOfWeek: number; startTime: string; endTime: string }): Promise<{ operationalHours: any }> {
+    return fetchApi<{ operationalHours: any }>('/operational-hours', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateOperationalHours(id: number, updates: { dayOfWeek?: number; startTime?: string; endTime?: string }): Promise<{ operationalHours: any }> {
+    return fetchApi<{ operationalHours: any }>(`/operational-hours/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+  },
+
+  async deleteOperationalHours(id: number): Promise<{ message: string }> {
+    return fetchApi<{ message: string }>(`/operational-hours/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async setOperationalHoursForArea(areaType: 'department' | 'service', areaId: number, hours: Array<{ dayOfWeek: number; startTime: string; endTime: string }>): Promise<{ operationalHours: any[] }> {
+    return fetchApi<{ operationalHours: any[] }>(`/operational-hours/area/${areaType}/${areaId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ hours }),
+    });
+  },
+
+  async copyOperationalHours(fromAreaType: 'department' | 'service', fromAreaId: number, toAreaType: 'department' | 'service', toAreaId: number): Promise<{ operationalHours: any[]; copied: number }> {
+    return fetchApi<{ operationalHours: any[]; copied: number }>('/operational-hours/copy', {
+      method: 'POST',
+      body: JSON.stringify({ fromAreaType, fromAreaId, toAreaType, toAreaId }),
+    });
+  },
+
+  // Contracted Hours
+  async getContractedHoursByStaff(staffId: number): Promise<{ contractedHours: any[] }> {
+    return fetchApi<{ contractedHours: any[] }>(`/contracted-hours/staff/${staffId}`);
+  },
+
+  async createContractedHours(data: { staffId: number; dayOfWeek: number; startTime: string; endTime: string }): Promise<{ contractedHours: any }> {
+    return fetchApi<{ contractedHours: any }>('/contracted-hours', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateContractedHours(id: number, updates: { dayOfWeek?: number; startTime?: string; endTime?: string }): Promise<{ contractedHours: any }> {
+    return fetchApi<{ contractedHours: any }>(`/contracted-hours/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+  },
+
+  async deleteContractedHours(id: number): Promise<{ message: string }> {
+    return fetchApi<{ message: string }>(`/contracted-hours/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async setContractedHoursForStaff(staffId: number, hours: Array<{ dayOfWeek: number; startTime: string; endTime: string }>): Promise<{ contractedHours: any[] }> {
+    return fetchApi<{ contractedHours: any[] }>(`/contracted-hours/staff/${staffId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ hours }),
+    });
+  },
+
+  async copyContractedHours(fromStaffId: number, toStaffId: number): Promise<{ contractedHours: any[]; copied: number }> {
+    return fetchApi<{ contractedHours: any[]; copied: number }>('/contracted-hours/copy', {
+      method: 'POST',
+      body: JSON.stringify({ fromStaffId, toStaffId }),
+    });
+  },
 };
 

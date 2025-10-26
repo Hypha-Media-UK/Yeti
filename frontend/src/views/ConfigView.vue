@@ -336,7 +336,11 @@ const closeStaffModal = () => {
   editingStaffAllocations.value = [];
 };
 
-const handleStaffSubmit = async (data: { staff: Partial<StaffMember>; allocations: Array<{ areaType: 'department' | 'service'; areaId: number }> }) => {
+const handleStaffSubmit = async (data: {
+  staff: Partial<StaffMember>;
+  allocations: Array<{ areaType: 'department' | 'service'; areaId: number }>;
+  contractedHours: Array<{ id?: number; dayOfWeek: number; startTime: string; endTime: string }>;
+}) => {
   try {
     let staffId: number;
 
@@ -352,6 +356,14 @@ const handleStaffSubmit = async (data: { staff: Partial<StaffMember>; allocation
 
     // Update allocations
     await api.setStaffAllocations(staffId, data.allocations);
+
+    // Update contracted hours
+    const hoursToSave = data.contractedHours.map(h => ({
+      dayOfWeek: h.dayOfWeek,
+      startTime: h.startTime,
+      endTime: h.endTime,
+    }));
+    await api.setContractedHoursForStaff(staffId, hoursToSave);
 
     await loadStaff();
     closeStaffModal();
@@ -419,9 +431,24 @@ const handleAddDepartment = async (buildingId: number, name: string) => {
   }
 };
 
-const handleUpdateDepartment = async (id: number, name: string) => {
+const handleUpdateDepartment = async (
+  id: number,
+  name: string,
+  includeInMainRota: boolean,
+  operationalHours: Array<{ id?: number; dayOfWeek: number; startTime: string; endTime: string }>
+) => {
   try {
-    await api.updateDepartment(id, { name });
+    // Update department basic info
+    await api.updateDepartment(id, { name, includeInMainRota });
+
+    // Update operational hours
+    const hoursToSave = operationalHours.map(h => ({
+      dayOfWeek: h.dayOfWeek,
+      startTime: h.startTime,
+      endTime: h.endTime,
+    }));
+    await api.setOperationalHoursForArea('department', id, hoursToSave);
+
     await loadDepartments();
   } catch (error) {
     console.error('Failed to update department:', error);
@@ -447,13 +474,39 @@ const openEditServiceModal = (service: Service) => {
   showServiceModal.value = true;
 };
 
-const handleServiceSubmit = async (data: { name: string; description: string | null; includeInMainRota: boolean }) => {
+const handleServiceSubmit = async (data: {
+  name: string;
+  description: string | null;
+  includeInMainRota: boolean;
+  operationalHours: Array<{ id?: number; dayOfWeek: number; startTime: string; endTime: string }>;
+}) => {
   try {
+    let serviceId: number;
+
     if (editingService.value) {
-      await api.updateService(editingService.value.id, data);
+      await api.updateService(editingService.value.id, {
+        name: data.name,
+        description: data.description,
+        includeInMainRota: data.includeInMainRota,
+      });
+      serviceId = editingService.value.id;
     } else {
-      await api.createService(data);
+      const response = await api.createService({
+        name: data.name,
+        description: data.description,
+        includeInMainRota: data.includeInMainRota,
+      });
+      serviceId = response.service.id;
     }
+
+    // Update operational hours
+    const hoursToSave = data.operationalHours.map(h => ({
+      dayOfWeek: h.dayOfWeek,
+      startTime: h.startTime,
+      endTime: h.endTime,
+    }));
+    await api.setOperationalHoursForArea('service', serviceId, hoursToSave);
+
     await loadServices();
     showServiceModal.value = false;
   } catch (error) {
