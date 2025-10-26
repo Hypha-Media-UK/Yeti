@@ -418,6 +418,7 @@ const handleUpdateBuilding = async (id: number, name: string) => {
     if (selectedBuilding.value && selectedBuilding.value.id === id) {
       selectedBuilding.value.name = name;
     }
+    showBuildingModal.value = false;
   } catch (error) {
     console.error('Failed to update building:', error);
   }
