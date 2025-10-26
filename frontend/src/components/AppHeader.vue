@@ -29,12 +29,6 @@ import { RouterLink } from 'vue-router';
   z-index: 100;
 }
 
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 var(--spacing-3);
-}
-
 .header-content {
   display: flex;
   align-items: center;
