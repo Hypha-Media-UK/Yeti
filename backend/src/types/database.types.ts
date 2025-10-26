@@ -7,6 +7,7 @@ export interface StaffRow extends RowDataPacket {
   status: 'Regular' | 'Relief' | 'Supervisor';
   group: 'Day' | 'Night' | null;
   department_id: number | null;
+  service_id: number | null;
   cycle_type: string | null;
   days_offset: number;
   is_active: boolean;
@@ -59,6 +60,15 @@ export interface DepartmentRow extends RowDataPacket {
   id: number;
   name: string;
   building_id: number | null;
+  description: string | null;
+  is_active: boolean;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface ServiceRow extends RowDataPacket {
+  id: number;
+  name: string;
   description: string | null;
   is_active: boolean;
   created_at: Date;

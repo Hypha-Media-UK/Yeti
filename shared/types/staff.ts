@@ -11,6 +11,7 @@ export interface StaffMember {
   status: StaffStatus;
   group: ShiftGroup | null;
   departmentId: number | null;
+  serviceId: number | null;
   cycleType: CycleType;
   daysOffset: number;
   isActive: boolean;

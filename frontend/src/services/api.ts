@@ -3,6 +3,7 @@ import type { StaffMember, FixedSchedule } from '@shared/types/staff';
 import type { DayRota, ManualAssignment } from '@shared/types/shift';
 import type { Building } from '@shared/types/building';
 import type { Department } from '@shared/types/department';
+import type { Service } from '@shared/types/service';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -197,6 +198,35 @@ export const api = {
 
   async deleteDepartment(id: number): Promise<{ success: boolean }> {
     return fetchApi<{ success: boolean }>(`/departments/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Services
+  async getAllServices(): Promise<{ services: Service[] }> {
+    return fetchApi<{ services: Service[] }>('/services');
+  },
+
+  async getServiceById(id: number): Promise<{ service: Service }> {
+    return fetchApi<{ service: Service }>(`/services/${id}`);
+  },
+
+  async createService(data: { name: string; description?: string | null }): Promise<{ service: Service }> {
+    return fetchApi<{ service: Service }>('/services', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateService(id: number, updates: { name?: string; description?: string | null }): Promise<{ service: Service }> {
+    return fetchApi<{ service: Service }>(`/services/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+  },
+
+  async deleteService(id: number): Promise<{ success: boolean }> {
+    return fetchApi<{ success: boolean }>(`/services/${id}`, {
       method: 'DELETE',
     });
   },

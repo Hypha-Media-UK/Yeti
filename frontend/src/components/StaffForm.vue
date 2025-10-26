@@ -72,6 +72,25 @@
     </div>
 
     <div class="form-group">
+      <label for="service" class="form-label">Service</label>
+      <select
+        id="service"
+        v-model="formData.serviceId"
+        class="form-input"
+      >
+        <option :value="null">No Service</option>
+        <option
+          v-for="service in services"
+          :key="service.id"
+          :value="service.id"
+        >
+          {{ service.name }}
+        </option>
+      </select>
+      <p class="form-hint">Optional: Assign staff to a specific service</p>
+    </div>
+
+    <div class="form-group">
       <label for="daysOffset" class="form-label">Days Offset</label>
       <input
         id="daysOffset"
@@ -106,16 +125,19 @@ import { ref, reactive, watch, computed } from 'vue';
 import type { StaffMember, StaffStatus, ShiftGroup } from '@shared/types/staff';
 import type { Building } from '@shared/types/building';
 import type { Department } from '@shared/types/department';
+import type { Service } from '@shared/types/service';
 
 interface Props {
   staff?: StaffMember | null;
   buildings?: Building[];
   departments?: Department[];
+  services?: Service[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
   buildings: () => [],
   departments: () => [],
+  services: () => [],
 });
 
 const emit = defineEmits<{
@@ -132,6 +154,7 @@ const formData = reactive({
   status: (props.staff?.status || 'Regular') as StaffStatus,
   group: (props.staff?.group || 'Day') as ShiftGroup | null,
   departmentId: props.staff?.departmentId || null,
+  serviceId: props.staff?.serviceId || null,
   daysOffset: props.staff?.daysOffset || 0,
 });
 
@@ -171,6 +194,7 @@ const handleSubmit = () => {
     status: formData.status,
     group: formData.status === 'Regular' ? formData.group : null,
     departmentId: formData.departmentId,
+    serviceId: formData.serviceId,
     cycleType,
     daysOffset: formData.daysOffset,
     isActive: true,
@@ -188,6 +212,7 @@ watch(() => props.staff, (newStaff) => {
     formData.status = newStaff.status;
     formData.group = newStaff.group;
     formData.departmentId = newStaff.departmentId;
+    formData.serviceId = newStaff.serviceId;
     formData.daysOffset = newStaff.daysOffset;
   }
 }, { immediate: true });

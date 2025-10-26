@@ -55,7 +55,7 @@ export class StaffController {
 
   createStaff = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { firstName, lastName, status, group, cycleType, daysOffset, departmentId } = req.body;
+      const { firstName, lastName, status, group, cycleType, daysOffset, departmentId, serviceId } = req.body;
 
       if (!firstName || !lastName || !status) {
         res.status(400).json({ error: 'First name, last name, and status are required' });
@@ -80,6 +80,7 @@ export class StaffController {
         status,
         group: group || null,
         departmentId: departmentId || null,
+        serviceId: serviceId || null,
         cycleType: cycleType || null,
         daysOffset: daysOffset || 0,
         isActive: true,

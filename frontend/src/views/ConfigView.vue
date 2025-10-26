@@ -104,6 +104,26 @@
           </div>
           <p v-else class="empty-state">No buildings</p>
         </div>
+
+        <!-- Services Tab -->
+        <div v-if="activeTab === 'services'" class="tab-content">
+          <div class="section-header">
+            <h2 class="section-title">Services</h2>
+            <button class="btn btn-primary" @click="openAddServiceModal">
+              + Add Service
+            </button>
+          </div>
+          <div v-if="services.length > 0" class="services-grid">
+            <ServiceCard
+              v-for="service in services"
+              :key="service.id"
+              :service="service"
+              @edit="openEditServiceModal"
+              @delete="confirmDeleteService"
+            />
+          </div>
+          <p v-else class="empty-state">No services</p>
+        </div>
       </BaseTabs>
     </div>
 
@@ -113,6 +133,7 @@
         :staff="editingStaff"
         :buildings="buildings"
         :departments="departments"
+        :services="services"
         @submit="handleStaffSubmit"
         @cancel="closeStaffModal"
       />
@@ -154,6 +175,13 @@
       </form>
     </BaseModal>
 
+    <!-- Service Modal -->
+    <ServiceModal
+      v-model="showServiceModal"
+      :service="editingService"
+      @submit="handleServiceSubmit"
+    />
+
     <!-- Confirm Delete Dialog -->
     <ConfirmDialog
       v-model="showDeleteConfirm"
@@ -178,9 +206,12 @@ import StaffForm from '@/components/StaffForm.vue';
 import StaffManagementCard from '@/components/StaffManagementCard.vue';
 import BuildingCard from '@/components/BuildingCard.vue';
 import BuildingModal from '@/components/BuildingModal.vue';
+import ServiceCard from '@/components/ServiceCard.vue';
+import ServiceModal from '@/components/ServiceModal.vue';
 import type { StaffMember, StaffStatus } from '@shared/types/staff';
 import type { Building } from '@shared/types/building';
 import type { Department } from '@shared/types/department';
+import type { Service } from '@shared/types/service';
 
 const activeTab = ref('staff');
 const activeStaffTab = ref('regular');
@@ -188,6 +219,7 @@ const activeStaffTab = ref('regular');
 const allStaff = ref<StaffMember[]>([]);
 const buildings = ref<Building[]>([]);
 const departments = ref<Department[]>([]);
+const services = ref<Service[]>([]);
 
 const showStaffModal = ref(false);
 const editingStaff = ref<StaffMember | null>(null);
@@ -199,16 +231,20 @@ const selectedBuilding = ref<Building | null>(null);
 const showAddBuildingModal = ref(false);
 const newBuildingName = ref('');
 
+const showServiceModal = ref(false);
+const editingService = ref<Service | null>(null);
+
 const showDeleteConfirm = ref(false);
 const deleteConfirmTitle = ref('');
 const deleteConfirmMessage = ref('');
 const deleteTarget = ref<any>(null);
-const deleteType = ref<'staff' | 'building' | 'department'>('staff');
+const deleteType = ref<'staff' | 'building' | 'department' | 'service'>('staff');
 
 // Computed
 const tabs = computed<Tab[]>(() => [
   { label: 'Staff', value: 'staff' },
   { label: 'Locations', value: 'locations' },
+  { label: 'Services', value: 'services' },
 ]);
 
 const regularStaff = computed(() => allStaff.value.filter(s => s.status === 'Regular' && s.isActive));
@@ -256,6 +292,15 @@ const loadDepartments = async () => {
     departments.value = response.departments;
   } catch (error) {
     console.error('Failed to load departments:', error);
+  }
+};
+
+const loadServices = async () => {
+  try {
+    const response = await api.getAllServices();
+    services.value = response.services;
+  } catch (error) {
+    console.error('Failed to load services:', error);
   }
 };
 
@@ -366,6 +411,39 @@ const confirmDeleteDepartment = (department: Department) => {
   showDeleteConfirm.value = true;
 };
 
+// Service handlers
+const openAddServiceModal = () => {
+  editingService.value = null;
+  showServiceModal.value = true;
+};
+
+const openEditServiceModal = (service: Service) => {
+  editingService.value = service;
+  showServiceModal.value = true;
+};
+
+const handleServiceSubmit = async (data: { name: string; description: string | null }) => {
+  try {
+    if (editingService.value) {
+      await api.updateService(editingService.value.id, data);
+    } else {
+      await api.createService(data);
+    }
+    await loadServices();
+    showServiceModal.value = false;
+  } catch (error) {
+    console.error('Failed to save service:', error);
+  }
+};
+
+const confirmDeleteService = (service: Service) => {
+  deleteTarget.value = service;
+  deleteType.value = 'service';
+  deleteConfirmTitle.value = 'Delete Service';
+  deleteConfirmMessage.value = `Are you sure you want to delete ${service.name}?`;
+  showDeleteConfirm.value = true;
+};
+
 // Delete confirmation
 const handleDeleteConfirm = async () => {
   try {
@@ -379,6 +457,9 @@ const handleDeleteConfirm = async () => {
     } else if (deleteType.value === 'department') {
       await api.deleteDepartment(deleteTarget.value.id);
       await loadDepartments();
+    } else if (deleteType.value === 'service') {
+      await api.deleteService(deleteTarget.value.id);
+      await loadServices();
     }
   } catch (error) {
     console.error('Failed to delete:', error);
@@ -393,6 +474,7 @@ onMounted(() => {
   loadStaff();
   loadBuildings();
   loadDepartments();
+  loadServices();
 });
 </script>
 
@@ -441,6 +523,12 @@ onMounted(() => {
 }
 
 .buildings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--spacing-3);
+}
+
+.services-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: var(--spacing-3);
