@@ -1,4 +1,6 @@
 -- Remove legacy allocation columns from staff table
+-- Completes migration from single department/service FK to many-to-many staff_allocations
+-- Removes columns added in migrations 007 and 009
 -- Drop foreign key constraints first
 ALTER TABLE staff 
 DROP FOREIGN KEY staff_ibfk_1;

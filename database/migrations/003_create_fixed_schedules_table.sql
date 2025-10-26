@@ -1,4 +1,6 @@
 -- Create fixed_schedules table for custom shift times
+-- NOTE: This table exists for future use but is not yet implemented in the UI
+-- See docs/FEATURE_STATUS.md for details on planned Fixed Schedules feature
 CREATE TABLE IF NOT EXISTS fixed_schedules (
     id INT PRIMARY KEY AUTO_INCREMENT,
     staff_id INT NOT NULL,
