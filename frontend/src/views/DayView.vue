@@ -22,153 +22,81 @@
       </div>
 
       <div v-else class="rota-content">
-        <!-- Shifts and Areas Grid -->
-        <div class="shifts-areas-grid">
-          <!-- Day Shift Column -->
-          <div class="shift-column">
-            <ShiftGroup
-              shift-type="Day"
-              :assignments="dayShifts"
-            />
+        <!-- Shifts Grid -->
+        <div class="shifts-grid">
+          <ShiftGroup
+            shift-type="Day"
+            :assignments="dayShifts"
+          />
 
-            <!-- Day Shift Departments -->
-            <div v-if="dayDepartments.length > 0" class="areas-section">
-              <h3 class="areas-title">Departments</h3>
-              <div class="areas-list">
-                <div
-                  v-for="area in dayDepartments"
-                  :key="`day-dept-${area.id}`"
-                  class="area-card"
+          <ShiftGroup
+            shift-type="Night"
+            :assignments="nightShifts"
+          />
+        </div>
+
+        <!-- Departments Section -->
+        <div v-if="allDepartments.length > 0" class="areas-section">
+          <h2 class="section-title">Departments</h2>
+          <div class="areas-grid">
+            <div
+              v-for="area in allDepartments"
+              :key="`dept-${area.id}`"
+              class="area-card"
+            >
+              <div class="area-name">{{ area.name }}</div>
+              <div class="area-hours">
+                <span
+                  v-for="(hours, idx) in area.operationalHours"
+                  :key="idx"
+                  class="hours-time"
                 >
-                  <div class="area-name">{{ area.name }}</div>
-                  <div class="area-hours">
-                    <span
-                      v-for="(hours, idx) in area.operationalHours"
-                      :key="idx"
-                      class="hours-time"
-                    >
-                      {{ formatTime(hours.startTime) }} - {{ formatTime(hours.endTime) }}
-                    </span>
-                  </div>
-                  <div v-if="area.staff && area.staff.length > 0" class="area-staff">
-                    <div
-                      v-for="staff in area.staff"
-                      :key="staff.id"
-                      class="staff-item"
-                    >
-                      {{ staff.firstName }} {{ staff.lastName }}
-                    </div>
-                  </div>
-                  <div v-else class="area-no-staff">No staff assigned</div>
+                  {{ formatTime(hours.startTime) }} - {{ formatTime(hours.endTime) }}
+                </span>
+              </div>
+              <div v-if="area.staff && area.staff.length > 0" class="area-staff">
+                <div
+                  v-for="staff in area.staff"
+                  :key="staff.id"
+                  class="staff-item"
+                >
+                  {{ staff.firstName }} {{ staff.lastName }}
                 </div>
               </div>
-            </div>
-
-            <!-- Day Shift Services -->
-            <div v-if="dayServices.length > 0" class="areas-section">
-              <h3 class="areas-title">Services</h3>
-              <div class="areas-list">
-                <div
-                  v-for="area in dayServices"
-                  :key="`day-svc-${area.id}`"
-                  class="area-card"
-                >
-                  <div class="area-name">{{ area.name }}</div>
-                  <div class="area-hours">
-                    <span
-                      v-for="(hours, idx) in area.operationalHours"
-                      :key="idx"
-                      class="hours-time"
-                    >
-                      {{ formatTime(hours.startTime) }} - {{ formatTime(hours.endTime) }}
-                    </span>
-                  </div>
-                  <div v-if="area.staff && area.staff.length > 0" class="area-staff">
-                    <div
-                      v-for="staff in area.staff"
-                      :key="staff.id"
-                      class="staff-item"
-                    >
-                      {{ staff.firstName }} {{ staff.lastName }}
-                    </div>
-                  </div>
-                  <div v-else class="area-no-staff">No staff assigned</div>
-                </div>
-              </div>
+              <div v-else class="area-no-staff">No staff assigned</div>
             </div>
           </div>
+        </div>
 
-          <!-- Night Shift Column -->
-          <div class="shift-column">
-            <ShiftGroup
-              shift-type="Night"
-              :assignments="nightShifts"
-            />
-
-            <!-- Night Shift Departments -->
-            <div v-if="nightDepartments.length > 0" class="areas-section">
-              <h3 class="areas-title">Departments</h3>
-              <div class="areas-list">
-                <div
-                  v-for="area in nightDepartments"
-                  :key="`night-dept-${area.id}`"
-                  class="area-card"
+        <!-- Services Section -->
+        <div v-if="allServices.length > 0" class="areas-section">
+          <h2 class="section-title">Services</h2>
+          <div class="areas-grid">
+            <div
+              v-for="area in allServices"
+              :key="`svc-${area.id}`"
+              class="area-card"
+            >
+              <div class="area-name">{{ area.name }}</div>
+              <div class="area-hours">
+                <span
+                  v-for="(hours, idx) in area.operationalHours"
+                  :key="idx"
+                  class="hours-time"
                 >
-                  <div class="area-name">{{ area.name }}</div>
-                  <div class="area-hours">
-                    <span
-                      v-for="(hours, idx) in area.operationalHours"
-                      :key="idx"
-                      class="hours-time"
-                    >
-                      {{ formatTime(hours.startTime) }} - {{ formatTime(hours.endTime) }}
-                    </span>
-                  </div>
-                  <div v-if="area.staff && area.staff.length > 0" class="area-staff">
-                    <div
-                      v-for="staff in area.staff"
-                      :key="staff.id"
-                      class="staff-item"
-                    >
-                      {{ staff.firstName }} {{ staff.lastName }}
-                    </div>
-                  </div>
-                  <div v-else class="area-no-staff">No staff assigned</div>
+                  {{ formatTime(hours.startTime) }} - {{ formatTime(hours.endTime) }}
+                </span>
+              </div>
+              <div v-if="area.staff && area.staff.length > 0" class="area-staff">
+                <div
+                  v-for="staff in area.staff"
+                  :key="staff.id"
+                  class="staff-item"
+                >
+                  {{ staff.firstName }} {{ staff.lastName }}
                 </div>
               </div>
-            </div>
-
-            <!-- Night Shift Services -->
-            <div v-if="nightServices.length > 0" class="areas-section">
-              <h3 class="areas-title">Services</h3>
-              <div class="areas-list">
-                <div
-                  v-for="area in nightServices"
-                  :key="`night-svc-${area.id}`"
-                  class="area-card"
-                >
-                  <div class="area-name">{{ area.name }}</div>
-                  <div class="area-hours">
-                    <span
-                      v-for="(hours, idx) in area.operationalHours"
-                      :key="idx"
-                      class="hours-time"
-                    >
-                      {{ formatTime(hours.startTime) }} - {{ formatTime(hours.endTime) }}
-                    </span>
-                  </div>
-                  <div v-if="area.staff && area.staff.length > 0" class="area-staff">
-                    <div
-                      v-for="staff in area.staff"
-                      :key="staff.id"
-                      class="staff-item"
-                    >
-                      {{ staff.firstName }} {{ staff.lastName }}
-                    </div>
-                  </div>
-                  <div v-else class="area-no-staff">No staff assigned</div>
-                </div>
-              </div>
+              <div v-else class="area-no-staff">No staff assigned</div>
             </div>
           </div>
         </div>
@@ -202,21 +130,13 @@ const error = computed(() => rotaStore.error);
 const dayShifts = computed(() => rotaStore.dayShifts);
 const nightShifts = computed(() => rotaStore.nightShifts);
 
-// Categorize areas by shift type and area type
-const dayDepartments = computed(() =>
-  areas.value.filter(a => a.type === 'department' && isOperationalDuringShift(a, 'Day'))
+// Categorize areas by area type (all areas, regardless of shift)
+const allDepartments = computed(() =>
+  areas.value.filter(a => a.type === 'department')
 );
 
-const dayServices = computed(() =>
-  areas.value.filter(a => a.type === 'service' && isOperationalDuringShift(a, 'Day'))
-);
-
-const nightDepartments = computed(() =>
-  areas.value.filter(a => a.type === 'department' && isOperationalDuringShift(a, 'Night'))
-);
-
-const nightServices = computed(() =>
-  areas.value.filter(a => a.type === 'service' && isOperationalDuringShift(a, 'Night'))
+const allServices = computed(() =>
+  areas.value.filter(a => a.type === 'service')
 );
 
 // Get day of week from date string (ISO 8601: Monday=1, Sunday=7)
@@ -224,49 +144,6 @@ function getDayOfWeek(dateString: string): number {
   const date = new Date(dateString + 'T00:00:00');
   const jsDay = date.getDay(); // JavaScript: Sunday=0, Monday=1, ..., Saturday=6
   return jsDay === 0 ? 7 : jsDay; // Convert to ISO 8601: Monday=1, Sunday=7
-}
-
-// Check if area is operational during a specific shift
-function isOperationalDuringShift(area: any, shiftType: 'Day' | 'Night'): boolean {
-  if (!area.operationalHours || area.operationalHours.length === 0) return false;
-
-  // Day shift: 08:00 - 20:00
-  // Night shift: 20:00 - 08:00 (crosses midnight)
-
-  for (const hours of area.operationalHours) {
-    const start = parseTime(hours.startTime);
-    const end = parseTime(hours.endTime);
-
-    if (shiftType === 'Day') {
-      // Day shift: 08:00 - 20:00
-      // Area is operational during day if it overlaps with 08:00-20:00
-      if (timeRangesOverlap(start, end, 8 * 60, 20 * 60)) {
-        return true;
-      }
-    } else {
-      // Night shift: 20:00 - 08:00 (next day)
-      // Area is operational during night if it overlaps with 20:00-23:59 or 00:00-08:00
-      if (timeRangesOverlap(start, end, 20 * 60, 24 * 60) ||
-          timeRangesOverlap(start, end, 0, 8 * 60)) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
-// Parse time string (HH:MM:SS or HH:MM) to minutes since midnight
-function parseTime(timeStr: string): number {
-  const parts = timeStr.split(':');
-  const hours = parseInt(parts[0], 10);
-  const minutes = parseInt(parts[1], 10);
-  return hours * 60 + minutes;
-}
-
-// Check if two time ranges overlap
-function timeRangesOverlap(start1: number, end1: number, start2: number, end2: number): boolean {
-  return start1 < end2 && end1 > start2;
 }
 
 // Format time for display (remove seconds)
@@ -368,16 +245,10 @@ onMounted(async () => {
   gap: var(--spacing-4);
 }
 
-.shifts-areas-grid {
+.shifts-grid {
   display: grid;
   gap: var(--spacing-4);
   grid-template-columns: 1fr;
-}
-
-.shift-column {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-3);
 }
 
 .areas-section {
@@ -387,19 +258,19 @@ onMounted(async () => {
   box-shadow: var(--shadow-medium);
 }
 
-.areas-title {
-  font-size: var(--font-size-body);
+.section-title {
+  font-size: var(--font-size-section);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
-  margin-bottom: var(--spacing-2);
-  padding-bottom: var(--spacing-1);
-  border-bottom: 1px solid var(--color-border);
+  margin-bottom: var(--spacing-3);
+  padding-bottom: var(--spacing-2);
+  border-bottom: 2px solid var(--color-border);
 }
 
-.areas-list {
-  display: flex;
-  flex-direction: column;
+.areas-grid {
+  display: grid;
   gap: var(--spacing-2);
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
 }
 
 .area-card {
@@ -472,8 +343,12 @@ onMounted(async () => {
 }
 
 @media (min-width: 961px) {
-  .shifts-areas-grid {
+  .shifts-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .areas-grid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   }
 }
 
