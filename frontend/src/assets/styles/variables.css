@@ -1,80 +1,139 @@
 :root {
-  /* Colors - Material 3 inspired */
-  --color-primary: #1976d2;
-  --color-primary-hover: #1565c0;
-  --color-primary-light: #e3f2fd;
-  
-  --color-secondary: #424242;
-  --color-secondary-hover: #616161;
-  
-  --color-surface: #ffffff;
-  --color-surface-variant: #f5f5f5;
-  --color-surface-container: #fafafa;
-  
-  --color-on-surface: #1c1b1f;
-  --color-on-surface-variant: #49454f;
-  
-  --color-outline: #e0e0e0;
-  --color-outline-variant: #eeeeee;
-  
-  --color-error: #d32f2f;
-  --color-error-light: #ffebee;
-  
-  --color-success: #388e3c;
-  --color-success-light: #e8f5e9;
-  
-  --color-warning: #f57c00;
-  --color-warning-light: #fff3e0;
-  
-  /* Shift colors */
-  --color-day-shift: #1976d2;
-  --color-day-shift-light: #e3f2fd;
-  --color-night-shift: #5e35b1;
-  --color-night-shift-light: #ede7f6;
-  
-  /* Typography */
-  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  --font-size-xs: 0.75rem;
-  --font-size-sm: 0.875rem;
-  --font-size-base: 1rem;
-  --font-size-lg: 1.125rem;
-  --font-size-xl: 1.25rem;
-  --font-size-2xl: 1.5rem;
-  --font-size-3xl: 2rem;
-  
+  /* ============================================
+     COLOUR SYSTEM
+     Bright, open, minimal, highly legible
+     ============================================ */
+
+  /* Primary */
+  --color-primary: #0066CC;
+  --color-primary-hover: #004C99;
+
+  /* Backgrounds & Surfaces */
+  --color-bg: #F9FAFB;
+  --color-surface: #FFFFFF;
+
+  /* Borders */
+  --color-border: #E5E7EB;
+
+  /* Text */
+  --color-text-primary: #111827;
+  --color-text-secondary: #6B7280;
+
+  /* States */
+  --color-success: #16A34A;
+  --color-warning: #F59E0B;
+  --color-error: #DC2626;
+
+  /* Shift-specific colors */
+  --color-day-shift: #0066CC;
+  --color-day-shift-light: #EFF6FF;
+  --color-night-shift: #7C3AED;
+  --color-night-shift-light: #F5F3FF;
+
+  /* Badge colors */
+  --color-badge-regular: #6B7280;
+  --color-badge-regular-bg: #F3F4F6;
+  --color-badge-relief: #0066CC;
+  --color-badge-relief-bg: #EFF6FF;
+  --color-badge-supervisor: #F59E0B;
+  --color-badge-supervisor-bg: #FEF3C7;
+
+  /* Zebra striping */
+  --color-zebra: #F3F4F6;
+
+  /* Modal backdrop */
+  --color-backdrop: rgba(0, 0, 0, 0.4);
+
+  /* ============================================
+     TYPOGRAPHY
+     Inter / Manrope for UI, JetBrains Mono for data
+     ============================================ */
+
+  /* Font families */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-mono: 'JetBrains Mono', 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+
+  /* Font sizes */
+  --font-size-headline: 1.5rem;        /* 24px */
+  --font-size-section: 1.125rem;       /* 18px */
+  --font-size-body: 1rem;              /* 16px */
+  --font-size-body-sm: 0.875rem;       /* 14px */
+  --font-size-secondary: 0.8125rem;    /* 13px */
+  --font-size-mono: 0.8125rem;         /* 13px */
+
+  /* Font weights */
   --font-weight-normal: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
-  --font-weight-bold: 700;
-  
-  /* Spacing */
-  --spacing-xs: 0.25rem;
-  --spacing-sm: 0.5rem;
-  --spacing-md: 1rem;
-  --spacing-lg: 1.5rem;
-  --spacing-xl: 2rem;
-  --spacing-2xl: 3rem;
-  
-  /* Border radius */
-  --radius-sm: 0.25rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
-  
-  /* Shadows */
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-  
-  /* Transitions */
-  --transition-fast: 150ms ease;
-  --transition-base: 250ms ease;
-  --transition-slow: 350ms ease;
-  
+
+  /* Line heights */
+  --line-height-tight: 1.4;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.6;
+
+  /* Letter spacing */
+  --letter-spacing-tight: -0.01em;
+  --letter-spacing-normal: 0;
+
+  /* ============================================
+     SPACING
+     Base unit: 8px
+     ============================================ */
+
+  --spacing-1: 0.5rem;   /* 8px */
+  --spacing-2: 1rem;     /* 16px */
+  --spacing-3: 1.5rem;   /* 24px */
+  --spacing-4: 2rem;     /* 32px */
+  --spacing-5: 2.5rem;   /* 40px */
+  --spacing-6: 3rem;     /* 48px */
+  --spacing-8: 4rem;     /* 64px */
+
+  /* ============================================
+     LAYOUT
+     ============================================ */
+
   /* Container widths */
-  --container-sm: 640px;
-  --container-md: 768px;
-  --container-lg: 1024px;
-  --container-xl: 1280px;
+  --container-mobile: 100%;
+  --container-tablet: 960px;
+  --container-desktop: 1280px;
+
+  /* Grid */
+  --grid-columns: 12;
+  --grid-gutter: 1.5rem;  /* 24px */
+
+  /* Header */
+  --header-height: 4rem;  /* 64px */
+
+  /* ============================================
+     BORDER RADIUS
+     ============================================ */
+
+  --radius-button: 0.5rem;   /* 8px */
+  --radius-card: 1rem;       /* 16px */
+  --radius-badge: 0.75rem;   /* 12px - pill shape */
+
+  /* ============================================
+     ELEVATION (SHADOWS)
+     ============================================ */
+
+  --shadow-low: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-medium: 0 4px 8px rgba(0, 0, 0, 0.08);
+  --shadow-header: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+  /* ============================================
+     TRANSITIONS
+     Material easing: cubic-bezier(0.4, 0, 0.2, 1)
+     ============================================ */
+
+  --easing-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-enter: 150ms var(--easing-standard);
+  --transition-exit: 100ms var(--easing-standard);
+
+  /* ============================================
+     BREAKPOINTS
+     ============================================ */
+
+  --breakpoint-mobile: 600px;
+  --breakpoint-tablet: 960px;
 }
 
