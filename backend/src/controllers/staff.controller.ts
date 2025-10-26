@@ -14,11 +14,12 @@ export class StaffController {
 
   getAllStaff = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { status, group } = req.query;
+      const { status, group, includeInactive } = req.query;
 
       const filters: any = {};
       if (status) filters.status = status as string;
       if (group) filters.group = group as string;
+      if (includeInactive === 'true') filters.includeInactive = true;
 
       const staff = await this.staffRepo.findAll(filters);
 

@@ -18,18 +18,28 @@ export class StaffRepository {
     };
   }
 
-  async findAll(filters?: { status?: string; group?: string }): Promise<StaffMember[]> {
-    let query = 'SELECT * FROM staff WHERE is_active = TRUE';
+  async findAll(filters?: { status?: string; group?: string; includeInactive?: boolean }): Promise<StaffMember[]> {
+    let query = 'SELECT * FROM staff';
     const params: any[] = [];
+    const conditions: string[] = [];
+
+    // Only filter by is_active if not explicitly including inactive
+    if (!filters?.includeInactive) {
+      conditions.push('is_active = TRUE');
+    }
 
     if (filters?.status) {
-      query += ' AND status = ?';
+      conditions.push('status = ?');
       params.push(filters.status);
     }
 
     if (filters?.group) {
-      query += ' AND `group` = ?';
+      conditions.push('`group` = ?');
       params.push(filters.group);
+    }
+
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
     }
 
     query += ' ORDER BY last_name, first_name';

@@ -1,6 +1,8 @@
 import type { AppConfig } from '@shared/types/config';
 import type { StaffMember, FixedSchedule } from '@shared/types/staff';
 import type { DayRota, ManualAssignment } from '@shared/types/shift';
+import type { Building } from '@shared/types/building';
+import type { Department } from '@shared/types/department';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -51,11 +53,12 @@ export const api = {
   },
 
   // Staff
-  async getAllStaff(filters?: { status?: string; group?: string }): Promise<{ staff: StaffMember[] }> {
+  async getAllStaff(filters?: { status?: string; group?: string; includeInactive?: boolean }): Promise<{ staff: StaffMember[] }> {
     const params = new URLSearchParams();
     if (filters?.status) params.append('status', filters.status);
     if (filters?.group) params.append('group', filters.group);
-    
+    if (filters?.includeInactive) params.append('includeInactive', 'true');
+
     const query = params.toString() ? `?${params.toString()}` : '';
     return fetchApi<{ staff: StaffMember[] }>(`/staff${query}`);
   },
@@ -132,6 +135,68 @@ export const api = {
 
   async deleteAssignment(id: number): Promise<{ success: boolean }> {
     return fetchApi<{ success: boolean }>(`/rota/assignments/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Buildings
+  async getAllBuildings(): Promise<{ buildings: Building[] }> {
+    return fetchApi<{ buildings: Building[] }>('/buildings');
+  },
+
+  async getBuildingById(id: number): Promise<{ building: Building }> {
+    return fetchApi<{ building: Building }>(`/buildings/${id}`);
+  },
+
+  async createBuilding(building: { name: string; description?: string | null }): Promise<{ building: Building }> {
+    return fetchApi<{ building: Building }>('/buildings', {
+      method: 'POST',
+      body: JSON.stringify(building),
+    });
+  },
+
+  async updateBuilding(id: number, updates: { name?: string; description?: string | null }): Promise<{ building: Building }> {
+    return fetchApi<{ building: Building }>(`/buildings/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+  },
+
+  async deleteBuilding(id: number): Promise<{ success: boolean }> {
+    return fetchApi<{ success: boolean }>(`/buildings/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Departments
+  async getAllDepartments(filters?: { buildingId?: number }): Promise<{ departments: Department[] }> {
+    const params = new URLSearchParams();
+    if (filters?.buildingId) params.append('buildingId', filters.buildingId.toString());
+
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return fetchApi<{ departments: Department[] }>(`/departments${query}`);
+  },
+
+  async getDepartmentById(id: number): Promise<{ department: Department }> {
+    return fetchApi<{ department: Department }>(`/departments/${id}`);
+  },
+
+  async createDepartment(department: { name: string; buildingId?: number | null; description?: string | null }): Promise<{ department: Department }> {
+    return fetchApi<{ department: Department }>('/departments', {
+      method: 'POST',
+      body: JSON.stringify(department),
+    });
+  },
+
+  async updateDepartment(id: number, updates: { name?: string; buildingId?: number | null; description?: string | null }): Promise<{ department: Department }> {
+    return fetchApi<{ department: Department }>(`/departments/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+  },
+
+  async deleteDepartment(id: number): Promise<{ success: boolean }> {
+    return fetchApi<{ success: boolean }>(`/departments/${id}`, {
       method: 'DELETE',
     });
   },

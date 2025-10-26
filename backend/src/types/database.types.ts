@@ -45,5 +45,24 @@ export interface ManualAssignmentRow extends RowDataPacket {
   updated_at: Date;
 }
 
+export interface BuildingRow extends RowDataPacket {
+  id: number;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface DepartmentRow extends RowDataPacket {
+  id: number;
+  name: string;
+  building_id: number | null;
+  description: string | null;
+  is_active: boolean;
+  created_at: Date;
+  updated_at: Date;
+}
+
 export type InsertResult = ResultSetHeader;
 

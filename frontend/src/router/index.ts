@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import DayView from '@/views/DayView.vue';
+import ConfigView from '@/views/ConfigView.vue';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -15,6 +16,11 @@ const router = createRouter({
       path: '/day/:date',
       name: 'day',
       component: DayView,
+    },
+    {
+      path: '/config',
+      name: 'config',
+      component: ConfigView,
     },
   ],
 });
