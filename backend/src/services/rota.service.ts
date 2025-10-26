@@ -215,27 +215,28 @@ export class RotaService {
       }
 
       // Check if staff had a night shift that started yesterday and overlaps today
-      if (!dutyCheck.onDuty || dutyCheck.shiftType !== 'Night') {
-        const previousDutyCheck = this.isStaffOnDuty(staff, previousDate, appZeroDate);
-        if (previousDutyCheck.onDuty && previousDutyCheck.shiftType === 'Night') {
-          // This night shift started yesterday and ends today
-          const times = this.getDefaultShiftTimes('Night');
-          
-          const shiftAssignment: ShiftAssignment = {
-            staff,
-            shiftType: 'Night',
-            shiftStart: formatLocalTime(times.start),
-            shiftEnd: formatLocalTime(times.end),
-            isManualAssignment: false,
-            isFixedSchedule: false,
-            assignmentDate: previousDate,
-          };
+      // This should be checked regardless of today's shift status
+      const previousDutyCheck = this.isStaffOnDuty(staff, previousDate, appZeroDate);
+      if (previousDutyCheck.onDuty && previousDutyCheck.shiftType === 'Night') {
+        // This night shift started yesterday and ends today at 08:00
+        const times = this.getDefaultShiftTimes('Night');
 
-          // Only add if not already added
-          const alreadyAdded = nightShifts.some(s => s.staff.id === staff.id);
-          if (!alreadyAdded) {
-            nightShifts.push(shiftAssignment);
-          }
+        const shiftAssignment: ShiftAssignment = {
+          staff,
+          shiftType: 'Night',
+          shiftStart: formatLocalTime(times.start),
+          shiftEnd: formatLocalTime(times.end),
+          isManualAssignment: false,
+          isFixedSchedule: false,
+          assignmentDate: previousDate,
+        };
+
+        // Only add if not already added (check by staff ID + assignment date)
+        const alreadyAdded = nightShifts.some(
+          s => s.staff.id === staff.id && s.assignmentDate === previousDate
+        );
+        if (!alreadyAdded) {
+          nightShifts.push(shiftAssignment);
         }
       }
     }

@@ -19,8 +19,16 @@ describe('RotaService', () => {
   let mockOverrideRepo: any;
   let mockScheduleRepo: any;
 
-  const appZeroDate = '2024-01-01'; // Monday
+  const APP_ZERO_DATE = '2024-01-01'; // Monday
 
+  // Helper: Build date string by adding days to zero date (no string concatenation!)
+  const getDateAtPhase = (phase: number): string => {
+    const date = new Date(APP_ZERO_DATE + 'T00:00:00Z');
+    date.setUTCDate(date.getUTCDate() + phase);
+    return date.toISOString().split('T')[0];
+  };
+
+  // Helper: Create mock staff with defaults
   const createMockStaff = (overrides: Partial<StaffMember> = {}): StaffMember => ({
     id: 1,
     firstName: 'Test',
@@ -35,6 +43,13 @@ describe('RotaService', () => {
     ...overrides,
   });
 
+  // Helper: Setup single staff member for testing
+  const setupStaff = (overrides: Partial<StaffMember> = {}) => {
+    const staff = createMockStaff(overrides);
+    mockStaffRepo.findAll.mockResolvedValue([staff]);
+    return staff;
+  };
+
   beforeEach(() => {
     rotaService = new RotaService();
     mockStaffRepo = (rotaService as any).staffRepo;
@@ -43,203 +58,237 @@ describe('RotaService', () => {
     mockScheduleRepo = (rotaService as any).scheduleRepo;
 
     // Default mocks
-    mockConfigRepo.getByKey.mockResolvedValue(appZeroDate);
+    mockConfigRepo.getByKey.mockResolvedValue(APP_ZERO_DATE);
     mockOverrideRepo.findByDate.mockResolvedValue([]);
     mockScheduleRepo.findByStaffIdAndDate.mockResolvedValue(null);
   });
 
-  describe('Regular Staff - 4-on-4-off Pattern', () => {
-    it('should calculate Day shift for staff with 0 offset on day 0', async () => {
-      const staff = createMockStaff({ id: 1, group: 'Day', daysOffset: 0 });
-      mockStaffRepo.findAll.mockResolvedValue([staff]);
+  describe('Regular Staff - 4-on-4-off Cycle State', () => {
+    it('should follow 8-day cycle pattern (golden table)', async () => {
+      setupStaff({ group: 'Day', daysOffset: 0 });
 
-      const rota = await rotaService.getRotaForDate('2024-01-01'); // Day 0
+      // Golden table: phase -> expected state
+      const pattern = [
+        { phase: 0, onDuty: true },
+        { phase: 1, onDuty: true },
+        { phase: 2, onDuty: true },
+        { phase: 3, onDuty: true },
+        { phase: 4, onDuty: false },
+        { phase: 5, onDuty: false },
+        { phase: 6, onDuty: false },
+        { phase: 7, onDuty: false },
+      ];
 
-      expect(rota.dayShifts).toHaveLength(1);
-      expect(rota.dayShifts[0].staff.id).toBe(1);
-      expect(rota.nightShifts).toHaveLength(0);
-    });
-
-    it('should calculate Day shift for staff with 0 offset on days 0-3', async () => {
-      const staff = createMockStaff({ id: 1, group: 'Day', daysOffset: 0 });
-      mockStaffRepo.findAll.mockResolvedValue([staff]);
-
-      // Days 0-3 should be on duty
-      for (let day = 0; day < 4; day++) {
-        const date = `2024-01-0${day + 1}`;
-        const rota = await rotaService.getRotaForDate(date);
-        expect(rota.dayShifts).toHaveLength(1);
+      for (const { phase, onDuty } of pattern) {
+        const rota = await rotaService.getRotaForDate(getDateAtPhase(phase));
+        expect(rota.dayShifts).toHaveLength(onDuty ? 1 : 0);
       }
     });
 
-    it('should not schedule staff on days 4-7 (off days)', async () => {
-      const staff = createMockStaff({ id: 1, group: 'Day', daysOffset: 0 });
-      mockStaffRepo.findAll.mockResolvedValue([staff]);
+    it('should repeat pattern after 8 days', async () => {
+      setupStaff({ group: 'Day', daysOffset: 0 });
 
-      // Days 4-7 should be off
-      for (let day = 4; day < 8; day++) {
-        const date = `2024-01-0${day + 1}`;
-        const rota = await rotaService.getRotaForDate(date);
-        expect(rota.dayShifts).toHaveLength(0);
-      }
+      const phase0 = await rotaService.getRotaForDate(getDateAtPhase(0));
+      const phase8 = await rotaService.getRotaForDate(getDateAtPhase(8));
+      const phase16 = await rotaService.getRotaForDate(getDateAtPhase(16));
+
+      expect(phase0.dayShifts).toHaveLength(1);
+      expect(phase8.dayShifts).toHaveLength(1);
+      expect(phase16.dayShifts).toHaveLength(1);
     });
 
-    it('should handle positive offset correctly', async () => {
-      const staff = createMockStaff({ id: 1, group: 'Day', daysOffset: 4 });
-      mockStaffRepo.findAll.mockResolvedValue([staff]);
+    it('should handle positive offset (shifts cycle forward)', async () => {
+      setupStaff({ group: 'Day', daysOffset: 4 });
 
-      // With offset 4, staff should be off on days 0-3 and on duty days 4-7
-      const rotaDay0 = await rotaService.getRotaForDate('2024-01-01');
-      expect(rotaDay0.dayShifts).toHaveLength(0);
+      // Offset 4 means: phase 0 -> cycle position -4 (wraps to 4) -> OFF
+      const phase0 = await rotaService.getRotaForDate(getDateAtPhase(0));
+      expect(phase0.dayShifts).toHaveLength(0);
 
-      const rotaDay4 = await rotaService.getRotaForDate('2024-01-05');
-      expect(rotaDay4.dayShifts).toHaveLength(1);
+      // Phase 4 -> cycle position 0 -> ON
+      const phase4 = await rotaService.getRotaForDate(getDateAtPhase(4));
+      expect(phase4.dayShifts).toHaveLength(1);
     });
 
-    it('should handle negative offset correctly', async () => {
-      const staff = createMockStaff({ id: 1, group: 'Day', daysOffset: -2 });
-      mockStaffRepo.findAll.mockResolvedValue([staff]);
+    it('should handle negative offset (shifts cycle backward)', async () => {
+      setupStaff({ group: 'Day', daysOffset: -2 });
 
-      // With offset -2, cycle shifts back 2 days
-      // Day 0 becomes position 2 in cycle (on duty)
-      const rotaDay0 = await rotaService.getRotaForDate('2024-01-01');
-      expect(rotaDay0.dayShifts).toHaveLength(1);
+      // Offset -2 means: phase 0 -> cycle position 2 -> ON
+      const phase0 = await rotaService.getRotaForDate(getDateAtPhase(0));
+      expect(phase0.dayShifts).toHaveLength(1);
     });
 
-    it('should handle Night shift staff', async () => {
-      const staff = createMockStaff({ id: 1, group: 'Night', daysOffset: 0 });
-      mockStaffRepo.findAll.mockResolvedValue([staff]);
+    it('should assign Night group to night shifts', async () => {
+      setupStaff({ group: 'Night', daysOffset: 0 });
 
-      const rota = await rotaService.getRotaForDate('2024-01-01');
-
+      const rota = await rotaService.getRotaForDate(getDateAtPhase(0));
       expect(rota.nightShifts).toHaveLength(1);
       expect(rota.dayShifts).toHaveLength(0);
     });
   });
 
-  describe('Supervisor Pattern', () => {
-    it('should schedule supervisor on Day shift for days 0-3', async () => {
-      const staff = createMockStaff({ 
-        id: 1, 
-        status: 'Supervisor', 
-        group: null,
-        cycleType: 'supervisor',
-        daysOffset: 0 
-      });
-      mockStaffRepo.findAll.mockResolvedValue([staff]);
+  describe('Supervisor - Cycle State (Pure Logic, No Overlaps)', () => {
+    it('should follow 16-day cycle pattern (golden table)', async () => {
+      const staff = setupStaff({ status: 'Supervisor', group: null, cycleType: 'supervisor', daysOffset: 0 });
+      const appZeroDate = '2024-01-01';
 
-      for (let day = 0; day < 4; day++) {
-        const date = `2024-01-0${day + 1}`;
-        const rota = await rotaService.getRotaForDate(date);
-        expect(rota.dayShifts).toHaveLength(1);
-        expect(rota.nightShifts).toHaveLength(0);
+      // Golden table: Supervisor 16-day wheel (CYCLE STATE ONLY - tests isStaffOnDuty directly)
+      // 0-3: DAY | 4-7: OFF | 8-11: NIGHT | 12-15: OFF
+      const goldenPattern = [
+        // Days 0-3: DAY shift
+        { phase: 0, onDuty: true, shiftType: 'Day' },
+        { phase: 1, onDuty: true, shiftType: 'Day' },
+        { phase: 2, onDuty: true, shiftType: 'Day' },
+        { phase: 3, onDuty: true, shiftType: 'Day' },
+        // Days 4-7: OFF
+        { phase: 4, onDuty: false, shiftType: null },
+        { phase: 5, onDuty: false, shiftType: null },
+        { phase: 6, onDuty: false, shiftType: null },
+        { phase: 7, onDuty: false, shiftType: null },
+        // Days 8-11: NIGHT shift
+        { phase: 8, onDuty: true, shiftType: 'Night' },
+        { phase: 9, onDuty: true, shiftType: 'Night' },
+        { phase: 10, onDuty: true, shiftType: 'Night' },
+        { phase: 11, onDuty: true, shiftType: 'Night' },
+        // Days 12-15: OFF
+        { phase: 12, onDuty: false, shiftType: null },
+        { phase: 13, onDuty: false, shiftType: null },
+        { phase: 14, onDuty: false, shiftType: null },
+        { phase: 15, onDuty: false, shiftType: null },
+      ];
+
+      for (const { phase, onDuty, shiftType } of goldenPattern) {
+        const result = rotaService.isStaffOnDuty(staff, getDateAtPhase(phase), appZeroDate);
+        expect(result.onDuty).toBe(onDuty);
+        expect(result.shiftType).toBe(shiftType);
       }
     });
 
-    it('should schedule supervisor off for days 4-7', async () => {
-      const staff = createMockStaff({ 
-        id: 1, 
-        status: 'Supervisor', 
-        group: null,
-        cycleType: 'supervisor',
-        daysOffset: 0 
-      });
-      mockStaffRepo.findAll.mockResolvedValue([staff]);
+    it('should repeat pattern after 16 days', async () => {
+      const staff = setupStaff({ status: 'Supervisor', group: null, cycleType: 'supervisor', daysOffset: 0 });
+      const appZeroDate = '2024-01-01';
 
-      for (let day = 4; day < 8; day++) {
-        const date = `2024-01-0${day + 1}`;
-        const rota = await rotaService.getRotaForDate(date);
-        expect(rota.dayShifts).toHaveLength(0);
-        expect(rota.nightShifts).toHaveLength(0);
-      }
+      const phase0 = rotaService.isStaffOnDuty(staff, getDateAtPhase(0), appZeroDate);
+      const phase16 = rotaService.isStaffOnDuty(staff, getDateAtPhase(16), appZeroDate);
+      const phase32 = rotaService.isStaffOnDuty(staff, getDateAtPhase(32), appZeroDate);
+
+      expect(phase0.onDuty).toBe(true);
+      expect(phase0.shiftType).toBe('Day');
+      expect(phase16.onDuty).toBe(true);
+      expect(phase16.shiftType).toBe('Day');
+      expect(phase32.onDuty).toBe(true);
+      expect(phase32.shiftType).toBe('Day');
     });
 
-    it('should schedule supervisor on Night shift for days 8-11', async () => {
-      const staff = createMockStaff({
-        id: 1,
-        status: 'Supervisor',
-        group: null,
-        cycleType: 'supervisor',
-        daysOffset: 0
-      });
-      mockStaffRepo.findAll.mockResolvedValue([staff]);
+    it('should handle offset correctly', async () => {
+      const staff = setupStaff({ status: 'Supervisor', group: null, cycleType: 'supervisor', daysOffset: 4 });
+      const appZeroDate = '2024-01-01';
 
-      for (let day = 8; day < 12; day++) {
-        const dayNum = day + 1;
-        const date = `2024-01-${dayNum < 10 ? '0' + dayNum : dayNum}`;
-        const rota = await rotaService.getRotaForDate(date);
-        expect(rota.nightShifts).toHaveLength(1);
-        expect(rota.dayShifts).toHaveLength(0);
-      }
-    });
+      // Offset 4: phase 0 -> cycle position -4 (wraps to 12) -> OFF
+      const phase0 = rotaService.isStaffOnDuty(staff, getDateAtPhase(0), appZeroDate);
+      expect(phase0.onDuty).toBe(false);
+      expect(phase0.shiftType).toBe(null);
 
-    it('should schedule supervisor off for days 12-15', async () => {
-      const staff = createMockStaff({
-        id: 1,
-        status: 'Supervisor',
-        group: null,
-        cycleType: 'supervisor',
-        daysOffset: 0
-      });
-      mockStaffRepo.findAll.mockResolvedValue([staff]);
-
-      // Day 12 (Jan 13) will have night shift overlap from day 11 (Jan 12)
-      const date12 = '2024-01-13';
-      const rota12 = await rotaService.getRotaForDate(date12);
-      expect(rota12.dayShifts).toHaveLength(0);
-      expect(rota12.nightShifts).toHaveLength(1); // Overlap from previous night
-
-      // Days 13-15 (Jan 14-16) should be completely off
-      for (let day = 13; day < 16; day++) {
-        const dayNum = day + 1;
-        const date = `2024-01-${dayNum}`;
-        const rota = await rotaService.getRotaForDate(date);
-        expect(rota.dayShifts).toHaveLength(0);
-        expect(rota.nightShifts).toHaveLength(0);
-      }
-    });
-
-    it('should repeat supervisor pattern after 16 days', async () => {
-      const staff = createMockStaff({ 
-        id: 1, 
-        status: 'Supervisor', 
-        group: null,
-        cycleType: 'supervisor',
-        daysOffset: 0 
-      });
-      mockStaffRepo.findAll.mockResolvedValue([staff]);
-
-      // Day 16 should be same as day 0 (Day shift)
-      const rota = await rotaService.getRotaForDate('2024-01-17');
-      expect(rota.dayShifts).toHaveLength(1);
+      // Phase 4 -> cycle position 0 -> DAY
+      const phase4 = rotaService.isStaffOnDuty(staff, getDateAtPhase(4), appZeroDate);
+      expect(phase4.onDuty).toBe(true);
+      expect(phase4.shiftType).toBe('Day');
     });
   });
 
-  describe('Night Shift Overlap', () => {
-    it('should show night shift on both days it spans', async () => {
-      const staff = createMockStaff({ id: 1, group: 'Night', daysOffset: 0 });
-      mockStaffRepo.findAll.mockResolvedValue([staff]);
+  describe('Supervisor - Day View (With Night Shift Overlaps)', () => {
+    it('should show night shift overlap on phase 12 from phase 11', async () => {
+      setupStaff({ status: 'Supervisor', group: null, cycleType: 'supervisor', daysOffset: 0 });
 
-      // Night shift starts on Jan 1 at 20:00 and ends Jan 2 at 08:00
-      const rotaJan1 = await rotaService.getRotaForDate('2024-01-01');
-      const rotaJan2 = await rotaService.getRotaForDate('2024-01-02');
+      // Phase 11: Last night shift day (cycle state = NIGHT)
+      // Should show: today's shift + yesterday's overlap = 2 shifts
+      const phase11 = await rotaService.getRotaForDate(getDateAtPhase(11));
+      expect(phase11.nightShifts).toHaveLength(2);
+      expect(phase11.nightShifts.some(s => s.assignmentDate === getDateAtPhase(11))).toBe(true); // Today's
+      expect(phase11.nightShifts.some(s => s.assignmentDate === getDateAtPhase(10))).toBe(true); // Yesterday's overlap
 
-      // Should appear on both days
-      expect(rotaJan1.nightShifts).toHaveLength(1);
-      expect(rotaJan2.nightShifts).toHaveLength(1);
+      // Phase 12: OFF in cycle state, but shows overlap from phase 11
+      const phase12 = await rotaService.getRotaForDate(getDateAtPhase(12));
+      expect(phase12.dayShifts).toHaveLength(0);
+      expect(phase12.nightShifts).toHaveLength(1); // Overlap only
+      expect(phase12.nightShifts[0].assignmentDate).toBe(getDateAtPhase(11)); // Started yesterday
+
+      // Phase 13-15: Completely off (no overlaps)
+      for (let phase = 13; phase <= 15; phase++) {
+        const rota = await rotaService.getRotaForDate(getDateAtPhase(phase));
+        expect(rota.dayShifts).toHaveLength(0);
+        expect(rota.nightShifts).toHaveLength(0);
+      }
+    });
+
+    it('should show overlaps during night shift period (phases 8-11)', async () => {
+      setupStaff({ status: 'Supervisor', group: null, cycleType: 'supervisor', daysOffset: 0 });
+
+      // Phase 8: First night, no overlap from previous day (phase 7 is OFF)
+      const phase8 = await rotaService.getRotaForDate(getDateAtPhase(8));
+      expect(phase8.nightShifts).toHaveLength(1);
+      expect(phase8.nightShifts[0].assignmentDate).toBe(getDateAtPhase(8));
+
+      // Phase 9: Night shift + overlap from phase 8
+      const phase9 = await rotaService.getRotaForDate(getDateAtPhase(9));
+      expect(phase9.nightShifts).toHaveLength(2); // Today's + yesterday's
+      expect(phase9.nightShifts.some(s => s.assignmentDate === getDateAtPhase(9))).toBe(true);
+      expect(phase9.nightShifts.some(s => s.assignmentDate === getDateAtPhase(8))).toBe(true);
+
+      // Phase 10: Night shift + overlap from phase 9
+      const phase10 = await rotaService.getRotaForDate(getDateAtPhase(10));
+      expect(phase10.nightShifts).toHaveLength(2);
+      expect(phase10.nightShifts.some(s => s.assignmentDate === getDateAtPhase(10))).toBe(true);
+      expect(phase10.nightShifts.some(s => s.assignmentDate === getDateAtPhase(9))).toBe(true);
+
+      // Phase 11: Night shift + overlap from phase 10
+      const phase11 = await rotaService.getRotaForDate(getDateAtPhase(11));
+      expect(phase11.nightShifts).toHaveLength(2);
+      expect(phase11.nightShifts.some(s => s.assignmentDate === getDateAtPhase(11))).toBe(true);
+      expect(phase11.nightShifts.some(s => s.assignmentDate === getDateAtPhase(10))).toBe(true);
     });
   });
 
-  describe('Manual Assignments', () => {
+  describe('Night Shift Overlap - General Behavior', () => {
+    it('should show regular night shift on both days it spans (20:00-08:00)', async () => {
+      setupStaff({ group: 'Night', daysOffset: 0 });
+
+      // Night group: phases 0-3 ON, 4-7 OFF
+      // Phase 0: First night shift (no previous night shift)
+      const phase0 = await rotaService.getRotaForDate(getDateAtPhase(0));
+      expect(phase0.nightShifts).toHaveLength(1);
+      expect(phase0.nightShifts[0].assignmentDate).toBe(getDateAtPhase(0));
+
+      // Phase 1: Night shift + overlap from phase 0
+      const phase1 = await rotaService.getRotaForDate(getDateAtPhase(1));
+      expect(phase1.nightShifts).toHaveLength(2); // Today's + yesterday's overlap
+      expect(phase1.nightShifts.some(s => s.assignmentDate === getDateAtPhase(1))).toBe(true);
+      expect(phase1.nightShifts.some(s => s.assignmentDate === getDateAtPhase(0))).toBe(true);
+    });
+
+    it('should show overlap on first OFF day after night shifts', async () => {
+      setupStaff({ group: 'Night', daysOffset: 0 });
+
+      // Night group: phases 0-3 ON, 4-7 OFF
+      // Phase 4 is OFF in cycle state, but shows overlap from phase 3
+      const phase4 = await rotaService.getRotaForDate(getDateAtPhase(4));
+      expect(phase4.nightShifts).toHaveLength(1); // Overlap from phase 3
+      expect(phase4.nightShifts[0].assignmentDate).toBe(getDateAtPhase(3));
+
+      // Phase 5: OFF, no overlap (phase 4 was OFF)
+      const phase5 = await rotaService.getRotaForDate(getDateAtPhase(5));
+      expect(phase5.nightShifts).toHaveLength(0);
+    });
+  });
+
+  describe('Manual Assignments - Override Behavior', () => {
     it('should override calculated schedule with manual assignment', async () => {
-      const staff = createMockStaff({ id: 1, group: 'Day', daysOffset: 0 });
-      mockStaffRepo.findAll.mockResolvedValue([staff]);
+      setupStaff({ group: 'Day', daysOffset: 0 });
 
       // Mock manual assignment for Night shift (overriding Day shift)
       mockOverrideRepo.findByDate.mockResolvedValue([{
         id: 1,
         staffId: 1,
-        assignmentDate: '2024-01-01',
+        assignmentDate: getDateAtPhase(0),
         shiftType: 'Night',
         shiftStart: null,
         shiftEnd: null,
@@ -248,7 +297,7 @@ describe('RotaService', () => {
         updatedAt: '2024-01-01T00:00:00Z',
       }]);
 
-      const rota = await rotaService.getRotaForDate('2024-01-01');
+      const rota = await rotaService.getRotaForDate(getDateAtPhase(0));
 
       // Should show Night shift (manual) instead of Day shift (calculated)
       expect(rota.nightShifts).toHaveLength(1);
@@ -257,13 +306,12 @@ describe('RotaService', () => {
     });
 
     it('should allow Relief staff to be manually assigned', async () => {
-      const staff = createMockStaff({ id: 1, status: 'Relief', group: null, cycleType: null });
-      mockStaffRepo.findAll.mockResolvedValue([staff]);
+      setupStaff({ status: 'Relief', group: null, cycleType: null });
 
       mockOverrideRepo.findByDate.mockResolvedValue([{
         id: 1,
         staffId: 1,
-        assignmentDate: '2024-01-01',
+        assignmentDate: getDateAtPhase(0),
         shiftType: 'Day',
         shiftStart: null,
         shiftEnd: null,
@@ -272,7 +320,7 @@ describe('RotaService', () => {
         updatedAt: '2024-01-01T00:00:00Z',
       }]);
 
-      const rota = await rotaService.getRotaForDate('2024-01-01');
+      const rota = await rotaService.getRotaForDate(getDateAtPhase(0));
 
       expect(rota.dayShifts).toHaveLength(1);
       expect(rota.dayShifts[0].staff.status).toBe('Relief');
@@ -280,12 +328,11 @@ describe('RotaService', () => {
     });
   });
 
-  describe('Relief Staff', () => {
+  describe('Relief Staff - No Automatic Scheduling', () => {
     it('should not schedule Relief staff automatically', async () => {
-      const staff = createMockStaff({ id: 1, status: 'Relief', group: null, cycleType: null });
-      mockStaffRepo.findAll.mockResolvedValue([staff]);
+      setupStaff({ status: 'Relief', group: null, cycleType: null });
 
-      const rota = await rotaService.getRotaForDate('2024-01-01');
+      const rota = await rotaService.getRotaForDate(getDateAtPhase(0));
 
       expect(rota.dayShifts).toHaveLength(0);
       expect(rota.nightShifts).toHaveLength(0);
