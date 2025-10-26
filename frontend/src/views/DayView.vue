@@ -60,7 +60,8 @@
                   :key="staff.id"
                   class="staff-item"
                 >
-                  {{ staff.firstName }} {{ staff.lastName }}
+                  <span class="staff-name">{{ staff.firstName }} {{ staff.lastName }}</span>
+                  <span class="staff-hours">{{ calculateTotalHours(staff.contractedHours) }}h</span>
                 </div>
               </div>
               <div v-else class="area-no-staff">No staff assigned</div>
@@ -93,7 +94,8 @@
                   :key="staff.id"
                   class="staff-item"
                 >
-                  {{ staff.firstName }} {{ staff.lastName }}
+                  <span class="staff-name">{{ staff.firstName }} {{ staff.lastName }}</span>
+                  <span class="staff-hours">{{ calculateTotalHours(staff.contractedHours) }}h</span>
                 </div>
               </div>
               <div v-else class="area-no-staff">No staff assigned</div>
@@ -150,6 +152,35 @@ function getDayOfWeek(dateString: string): number {
 function formatTime(timeStr: string): string {
   const parts = timeStr.split(':');
   return `${parts[0]}:${parts[1]}`;
+}
+
+// Calculate total contracted hours per week for a staff member
+function calculateTotalHours(contractedHours: any[]): number {
+  if (!contractedHours || contractedHours.length === 0) return 0;
+
+  let totalMinutes = 0;
+
+  for (const hours of contractedHours) {
+    const start = parseTimeToMinutes(hours.startTime);
+    const end = parseTimeToMinutes(hours.endTime);
+
+    // Handle shifts crossing midnight
+    if (end < start) {
+      totalMinutes += (24 * 60 - start) + end;
+    } else {
+      totalMinutes += end - start;
+    }
+  }
+
+  return Math.round(totalMinutes / 60 * 10) / 10; // Round to 1 decimal place
+}
+
+// Parse time string (HH:MM:SS or HH:MM) to minutes since midnight
+function parseTimeToMinutes(timeStr: string): number {
+  const parts = timeStr.split(':');
+  const hours = parseInt(parts[0], 10);
+  const minutes = parseInt(parts[1], 10);
+  return hours * 60 + minutes;
 }
 
 // Watch for date changes and update URL
@@ -323,6 +354,24 @@ onMounted(async () => {
   padding: var(--spacing-1);
   background-color: var(--color-surface);
   border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.staff-name {
+  flex: 1;
+}
+
+.staff-hours {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-body-sm);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+  background-color: var(--color-bg);
+  padding: 2px var(--spacing-1);
+  border-radius: 4px;
+  margin-left: var(--spacing-2);
 }
 
 .area-no-staff {

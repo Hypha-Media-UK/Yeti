@@ -2,10 +2,11 @@ import { DepartmentRepository } from '../repositories/department.repository';
 import { ServiceRepository } from '../repositories/service.repository';
 import { AreaOperationalHoursRepository } from '../repositories/area-operational-hours.repository';
 import { AllocationRepository } from '../repositories/allocation.repository';
+import { StaffContractedHoursRepository } from '../repositories/staff-contracted-hours.repository';
 import { RotaService } from './rota.service';
 import type { Department } from '../../shared/types/department';
 import type { Service } from '../../shared/types/service';
-import type { AreaOperationalHours } from '../../shared/types/operational-hours';
+import type { AreaOperationalHours, StaffContractedHours } from '../../shared/types/operational-hours';
 import type { StaffMember, ShiftGroup } from '../../shared/types/staff';
 
 export interface StaffAssignmentForArea {
@@ -15,6 +16,7 @@ export interface StaffAssignmentForArea {
   status: string;
   group: ShiftGroup | null;
   shiftType: ShiftGroup;
+  contractedHours: StaffContractedHours[];
 }
 
 export interface AreaWithHours {
@@ -31,6 +33,7 @@ export class AreaService {
   private serviceRepo: ServiceRepository;
   private operationalHoursRepo: AreaOperationalHoursRepository;
   private allocationRepo: AllocationRepository;
+  private contractedHoursRepo: StaffContractedHoursRepository;
   private rotaService: RotaService;
 
   constructor() {
@@ -38,6 +41,7 @@ export class AreaService {
     this.serviceRepo = new ServiceRepository();
     this.operationalHoursRepo = new AreaOperationalHoursRepository();
     this.allocationRepo = new AllocationRepository();
+    this.contractedHoursRepo = new StaffContractedHoursRepository();
     this.rotaService = new RotaService();
   }
 
@@ -130,16 +134,24 @@ export class AreaService {
     const allShifts = [...dayRota.dayShifts, ...dayRota.nightShifts];
 
     // Filter to only staff allocated to this area
-    const staffAssignments: StaffAssignmentForArea[] = allShifts
-      .filter(shift => allocatedStaffIds.has(shift.staff.id))
-      .map(shift => ({
-        id: shift.staff.id,
-        firstName: shift.staff.firstName,
-        lastName: shift.staff.lastName,
-        status: shift.staff.status,
-        group: shift.staff.group,
-        shiftType: shift.shiftType,
-      }));
+    const staffAssignments: StaffAssignmentForArea[] = [];
+
+    for (const shift of allShifts) {
+      if (allocatedStaffIds.has(shift.staff.id)) {
+        // Fetch contracted hours for this staff member
+        const contractedHours = await this.contractedHoursRepo.findByStaff(shift.staff.id);
+
+        staffAssignments.push({
+          id: shift.staff.id,
+          firstName: shift.staff.firstName,
+          lastName: shift.staff.lastName,
+          status: shift.staff.status,
+          group: shift.staff.group,
+          shiftType: shift.shiftType,
+          contractedHours,
+        });
+      }
+    }
 
     // Sort by shift type (Day first, then Night), then by name
     staffAssignments.sort((a, b) => {
