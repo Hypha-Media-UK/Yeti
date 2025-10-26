@@ -323,14 +323,6 @@ onMounted(async () => {
   padding: var(--spacing-1);
   background-color: var(--color-surface);
   border-radius: 4px;
-  display: flex;
-  align-items: center;
-}
-
-.staff-item::before {
-  content: '👤';
-  margin-right: var(--spacing-1);
-  font-size: 14px;
 }
 
 .area-no-staff {
