@@ -78,6 +78,7 @@
     margin-right: auto;
     padding-left: var(--spacing-3);
     padding-right: var(--spacing-3);
+    place-self: center;
   }
 
   @media (max-width: 960px) {
