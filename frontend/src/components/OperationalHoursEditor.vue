@@ -2,8 +2,8 @@
   <div class="operational-hours-editor">
     <div class="hours-header">
       <h4 class="hours-title">{{ title }}</h4>
-      <button type="button" class="btn btn-sm btn-secondary" @click="addEntry">
-        + Add Day
+      <button v-if="showCopyFrom" type="button" class="btn btn-sm btn-secondary" @click="$emit('copy')">
+        Copy from another {{ copyFromLabel }}
       </button>
     </div>
 
@@ -50,9 +50,9 @@
       </div>
     </div>
 
-    <div v-if="showCopyFrom" class="copy-section">
-      <button type="button" class="btn btn-sm btn-secondary" @click="$emit('copy')">
-        Copy from another {{ copyFromLabel }}
+    <div class="add-section">
+      <button type="button" class="btn btn-sm btn-secondary" @click="addEntry">
+        + Add Day
       </button>
     </div>
   </div>
@@ -189,7 +189,7 @@ function emitChange() {
   font-size: 14px;
 }
 
-.copy-section {
+.add-section {
   padding-top: 8px;
   border-top: 1px solid var(--border-primary);
 }
