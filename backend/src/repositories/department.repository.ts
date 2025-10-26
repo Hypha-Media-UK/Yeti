@@ -48,10 +48,16 @@ export class DepartmentRepository {
     return rows.map(row => this.mapRowToDepartment(row));
   }
 
-  async create(department: { name: string; buildingId?: number | null; description?: string | null }): Promise<Department> {
+  async create(department: { name: string; buildingId?: number | null; description?: string | null; includeInMainRota?: boolean; is24_7?: boolean }): Promise<Department> {
     const [result] = await pool.query<InsertResult>(
-      'INSERT INTO departments (name, building_id, description, is_active) VALUES (?, ?, ?, TRUE)',
-      [department.name, department.buildingId || null, department.description || null]
+      'INSERT INTO departments (name, building_id, description, include_in_main_rota, is_24_7, is_active) VALUES (?, ?, ?, ?, ?, TRUE)',
+      [
+        department.name,
+        department.buildingId || null,
+        department.description || null,
+        department.includeInMainRota ?? false,
+        department.is24_7 ?? false
+      ]
     );
 
     const created = await this.findById(result.insertId);

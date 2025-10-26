@@ -183,14 +183,14 @@ export const api = {
     return fetchApi<{ department: Department }>(`/departments/${id}`);
   },
 
-  async createDepartment(department: { name: string; buildingId?: number | null; description?: string | null }): Promise<{ department: Department }> {
+  async createDepartment(department: { name: string; buildingId?: number | null; description?: string | null; includeInMainRota?: boolean; is24_7?: boolean }): Promise<{ department: Department }> {
     return fetchApi<{ department: Department }>('/departments', {
       method: 'POST',
       body: JSON.stringify(department),
     });
   },
 
-  async updateDepartment(id: number, updates: { name?: string; buildingId?: number | null; description?: string | null }): Promise<{ department: Department }> {
+  async updateDepartment(id: number, updates: { name?: string; buildingId?: number | null; description?: string | null; includeInMainRota?: boolean; is24_7?: boolean }): Promise<{ department: Department }> {
     return fetchApi<{ department: Department }>(`/departments/${id}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
@@ -212,14 +212,14 @@ export const api = {
     return fetchApi<{ service: Service }>(`/services/${id}`);
   },
 
-  async createService(data: { name: string; description?: string | null; includeInMainRota?: boolean }): Promise<{ service: Service }> {
+  async createService(data: { name: string; description?: string | null; includeInMainRota?: boolean; is24_7?: boolean }): Promise<{ service: Service }> {
     return fetchApi<{ service: Service }>('/services', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   },
 
-  async updateService(id: number, updates: { name?: string; description?: string | null; includeInMainRota?: boolean }): Promise<{ service: Service }> {
+  async updateService(id: number, updates: { name?: string; description?: string | null; includeInMainRota?: boolean; is24_7?: boolean }): Promise<{ service: Service }> {
     return fetchApi<{ service: Service }>(`/services/${id}`, {
       method: 'PUT',
       body: JSON.stringify(updates),

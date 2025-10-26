@@ -48,7 +48,7 @@ export class DepartmentController {
 
   createDepartment = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { name, buildingId, description } = req.body;
+      const { name, buildingId, description, includeInMainRota, is24_7 } = req.body;
 
       if (!name || name.trim() === '') {
         res.status(400).json({ error: 'Department name is required' });
@@ -59,6 +59,8 @@ export class DepartmentController {
         name: name.trim(),
         buildingId: buildingId || null,
         description: description || null,
+        includeInMainRota: includeInMainRota ?? false,
+        is24_7: is24_7 ?? false,
       });
 
       res.status(201).json({ department });
