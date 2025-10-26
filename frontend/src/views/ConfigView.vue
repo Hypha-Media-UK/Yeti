@@ -111,6 +111,8 @@
     <BaseModal v-model="showStaffModal" :title="editingStaff ? 'Edit Staff' : 'Add Staff'">
       <StaffForm
         :staff="editingStaff"
+        :buildings="buildings"
+        :departments="departments"
         @submit="handleStaffSubmit"
         @cancel="closeStaffModal"
       />

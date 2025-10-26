@@ -51,6 +51,27 @@
     </div>
 
     <div class="form-group">
+      <label for="department" class="form-label">Department</label>
+      <select
+        id="department"
+        v-model="formData.departmentId"
+        class="form-input"
+      >
+        <option :value="null">No Department</option>
+        <optgroup v-for="building in buildingsWithDepartments" :key="building.id" :label="building.name">
+          <option
+            v-for="dept in building.departments"
+            :key="dept.id"
+            :value="dept.id"
+          >
+            {{ dept.name }}
+          </option>
+        </optgroup>
+      </select>
+      <p class="form-hint">Optional: Assign staff to a specific department</p>
+    </div>
+
+    <div class="form-group">
       <label for="daysOffset" class="form-label">Days Offset</label>
       <input
         id="daysOffset"
@@ -81,14 +102,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue';
+import { ref, reactive, watch, computed } from 'vue';
 import type { StaffMember, StaffStatus, ShiftGroup } from '@shared/types/staff';
+import type { Building } from '@shared/types/building';
+import type { Department } from '@shared/types/department';
 
 interface Props {
   staff?: StaffMember | null;
+  buildings?: Building[];
+  departments?: Department[];
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  buildings: () => [],
+  departments: () => [],
+});
 
 const emit = defineEmits<{
   submit: [data: Partial<StaffMember>];
@@ -103,7 +131,19 @@ const formData = reactive({
   lastName: props.staff?.lastName || '',
   status: (props.staff?.status || 'Regular') as StaffStatus,
   group: (props.staff?.group || 'Day') as ShiftGroup | null,
+  departmentId: props.staff?.departmentId || null,
   daysOffset: props.staff?.daysOffset || 0,
+});
+
+// Organize departments by building for grouped select
+const buildingsWithDepartments = computed(() => {
+  return props.buildings
+    .map(building => ({
+      ...building,
+      departments: props.departments.filter(d => d.buildingId === building.id),
+    }))
+    .filter(building => building.departments.length > 0)
+    .sort((a, b) => a.name.localeCompare(b.name));
 });
 
 // Auto-set cycle type and group based on status
@@ -130,6 +170,7 @@ const handleSubmit = () => {
     lastName: formData.lastName.trim(),
     status: formData.status,
     group: formData.status === 'Regular' ? formData.group : null,
+    departmentId: formData.departmentId,
     cycleType,
     daysOffset: formData.daysOffset,
     isActive: true,

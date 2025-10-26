@@ -58,13 +58,14 @@ export class StaffRepository {
 
   async create(staff: Omit<StaffMember, 'id' | 'createdAt' | 'updatedAt'>): Promise<StaffMember> {
     const [result] = await pool.query<InsertResult>(
-      `INSERT INTO staff (first_name, last_name, status, \`group\`, cycle_type, days_offset, is_active)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO staff (first_name, last_name, status, \`group\`, department_id, cycle_type, days_offset, is_active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         staff.firstName,
         staff.lastName,
         staff.status,
         staff.group,
+        staff.departmentId,
         staff.cycleType,
         staff.daysOffset,
         staff.isActive,
@@ -97,6 +98,10 @@ export class StaffRepository {
     if (updates.group !== undefined) {
       fields.push('`group` = ?');
       values.push(updates.group);
+    }
+    if (updates.departmentId !== undefined) {
+      fields.push('department_id = ?');
+      values.push(updates.departmentId);
     }
     if (updates.cycleType !== undefined) {
       fields.push('cycle_type = ?');
