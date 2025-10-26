@@ -60,6 +60,7 @@ export interface DepartmentRow extends RowDataPacket {
   building_id: number | null;
   description: string | null;
   include_in_main_rota: boolean;
+  is_24_7: boolean;
   is_active: boolean;
   created_at: Date;
   updated_at: Date;
@@ -70,6 +71,7 @@ export interface ServiceRow extends RowDataPacket {
   name: string;
   description: string | null;
   include_in_main_rota: boolean;
+  is_24_7: boolean;
   is_active: boolean;
   created_at: Date;
   updated_at: Date;

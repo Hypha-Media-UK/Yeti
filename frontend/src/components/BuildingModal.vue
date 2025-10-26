@@ -95,6 +95,18 @@
             </div>
 
             <div class="form-group">
+              <label class="checkbox-label">
+                <input
+                  v-model="editingIs24_7"
+                  type="checkbox"
+                  class="checkbox-input"
+                />
+                <span>Operates 24/7/365</span>
+              </label>
+              <p class="form-hint">When enabled, operational hours are not required</p>
+            </div>
+
+            <div v-if="!editingIs24_7" class="form-group">
               <OperationalHoursEditor
                 v-model="editingOperationalHours"
                 title="Operational Hours"
@@ -152,7 +164,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean];
   'updateBuilding': [id: number, name: string];
   'addDepartment': [buildingId: number, name: string];
-  'updateDepartment': [id: number, name: string, includeInMainRota: boolean, operationalHours: HoursEntry[]];
+  'updateDepartment': [id: number, name: string, includeInMainRota: boolean, is24_7: boolean, operationalHours: HoursEntry[]];
   'deleteDepartment': [department: Department];
 }>();
 
@@ -168,6 +180,7 @@ const savingDepartment = ref(false);
 const expandedDepartmentId = ref<number | null>(null);
 const editingDepartmentName = ref('');
 const editingIncludeInMainRota = ref(false);
+const editingIs24_7 = ref(false);
 const editingOperationalHours = ref<HoursEntry[]>([]);
 
 watch(() => props.modelValue, (value) => {
@@ -216,6 +229,7 @@ const toggleDepartment = async (deptId: number) => {
     expandedDepartmentId.value = null;
     editingDepartmentName.value = '';
     editingIncludeInMainRota.value = false;
+    editingIs24_7.value = false;
     editingOperationalHours.value = [];
   } else {
     // Expand and load data
@@ -224,6 +238,7 @@ const toggleDepartment = async (deptId: number) => {
     if (dept) {
       editingDepartmentName.value = dept.name;
       editingIncludeInMainRota.value = Boolean(dept.includeInMainRota);
+      editingIs24_7.value = Boolean(dept.is24_7);
 
       // Load operational hours
       try {
@@ -246,15 +261,17 @@ const cancelEditingDepartment = () => {
   expandedDepartmentId.value = null;
   editingDepartmentName.value = '';
   editingIncludeInMainRota.value = false;
+  editingIs24_7.value = false;
   editingOperationalHours.value = [];
 };
 
 const handleUpdateDepartment = (id: number) => {
   if (editingDepartmentName.value.trim()) {
-    emit('updateDepartment', id, editingDepartmentName.value.trim(), editingIncludeInMainRota.value, editingOperationalHours.value);
+    emit('updateDepartment', id, editingDepartmentName.value.trim(), editingIncludeInMainRota.value, editingIs24_7.value, editingOperationalHours.value);
     expandedDepartmentId.value = null;
     editingDepartmentName.value = '';
     editingIncludeInMainRota.value = false;
+    editingIs24_7.value = false;
     editingOperationalHours.value = [];
   }
 };

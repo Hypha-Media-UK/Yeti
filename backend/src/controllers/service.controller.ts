@@ -43,7 +43,7 @@ export class ServiceController {
 
   createService = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { name, description, includeInMainRota } = req.body;
+      const { name, description, includeInMainRota, is24_7 } = req.body;
 
       if (!name) {
         res.status(400).json({ error: 'Service name is required' });
@@ -54,6 +54,7 @@ export class ServiceController {
         name,
         description: description || null,
         includeInMainRota: includeInMainRota ?? false,
+        is24_7: is24_7 ?? false,
         isActive: true,
       });
 

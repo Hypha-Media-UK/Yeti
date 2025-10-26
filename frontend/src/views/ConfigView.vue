@@ -439,21 +439,27 @@ const handleUpdateDepartment = async (
   id: number,
   name: string,
   includeInMainRota: boolean,
+  is24_7: boolean,
   operationalHours: Array<{ id?: number; dayOfWeek: number; startTime: string; endTime: string }>
 ) => {
   try {
     // Update department basic info
-    await api.updateDepartment(id, { name, includeInMainRota });
+    await api.updateDepartment(id, { name, includeInMainRota, is24_7 });
 
-    // Update operational hours - deduplicate first
-    const hoursToSave = operationalHours.map(h => ({
-      dayOfWeek: h.dayOfWeek,
-      startTime: h.startTime,
-      endTime: h.endTime,
-    }));
+    // Update operational hours - deduplicate first (only if not 24/7)
+    if (!is24_7) {
+      const hoursToSave = operationalHours.map(h => ({
+        dayOfWeek: h.dayOfWeek,
+        startTime: h.startTime,
+        endTime: h.endTime,
+      }));
 
-    const uniqueHours = deduplicateHours(hoursToSave);
-    await api.setOperationalHoursForArea('department', id, uniqueHours);
+      const uniqueHours = deduplicateHours(hoursToSave);
+      await api.setOperationalHoursForArea('department', id, uniqueHours);
+    } else {
+      // Clear operational hours for 24/7 departments
+      await api.setOperationalHoursForArea('department', id, []);
+    }
 
     await loadDepartments();
   } catch (error) {
@@ -484,6 +490,7 @@ const handleServiceSubmit = async (data: {
   name: string;
   description: string | null;
   includeInMainRota: boolean;
+  is24_7: boolean;
   operationalHours: Array<{ id?: number; dayOfWeek: number; startTime: string; endTime: string }>;
 }) => {
   try {
@@ -494,6 +501,7 @@ const handleServiceSubmit = async (data: {
         name: data.name,
         description: data.description,
         includeInMainRota: data.includeInMainRota,
+        is24_7: data.is24_7,
       });
       serviceId = editingService.value.id;
     } else {
@@ -501,19 +509,25 @@ const handleServiceSubmit = async (data: {
         name: data.name,
         description: data.description,
         includeInMainRota: data.includeInMainRota,
+        is24_7: data.is24_7,
       });
       serviceId = response.service.id;
     }
 
-    // Update operational hours - deduplicate first
-    const hoursToSave = data.operationalHours.map(h => ({
-      dayOfWeek: h.dayOfWeek,
-      startTime: h.startTime,
-      endTime: h.endTime,
-    }));
+    // Update operational hours - deduplicate first (only if not 24/7)
+    if (!data.is24_7) {
+      const hoursToSave = data.operationalHours.map(h => ({
+        dayOfWeek: h.dayOfWeek,
+        startTime: h.startTime,
+        endTime: h.endTime,
+      }));
 
-    const uniqueHours = deduplicateHours(hoursToSave);
-    await api.setOperationalHoursForArea('service', serviceId, uniqueHours);
+      const uniqueHours = deduplicateHours(hoursToSave);
+      await api.setOperationalHoursForArea('service', serviceId, uniqueHours);
+    } else {
+      // Clear operational hours for 24/7 services
+      await api.setOperationalHoursForArea('service', serviceId, []);
+    }
 
     await loadServices();
     showServiceModal.value = false;

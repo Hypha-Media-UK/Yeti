@@ -3,6 +3,7 @@ export interface Service {
   name: string;
   description: string | null;
   includeInMainRota: boolean;
+  is24_7: boolean;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

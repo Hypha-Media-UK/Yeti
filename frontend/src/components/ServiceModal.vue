@@ -35,6 +35,18 @@
       </div>
 
       <div class="form-group">
+        <label class="checkbox-label">
+          <input
+            type="checkbox"
+            v-model="formData.is24_7"
+            class="checkbox-input"
+          />
+          <span>Operates 24/7/365</span>
+        </label>
+        <p class="form-hint">When enabled, operational hours are not required</p>
+      </div>
+
+      <div v-if="!formData.is24_7" class="form-group">
         <OperationalHoursEditor
           v-model="formData.operationalHours"
           title="Operational Hours"
@@ -81,7 +93,7 @@ const props = defineProps<Props>();
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean];
-  submit: [data: { name: string; description: string | null; includeInMainRota: boolean; operationalHours: HoursEntry[] }];
+  submit: [data: { name: string; description: string | null; includeInMainRota: boolean; is24_7: boolean; operationalHours: HoursEntry[] }];
 }>();
 
 const loading = ref(false);
@@ -91,6 +103,7 @@ const formData = reactive({
   name: props.service?.name || '',
   description: props.service?.description || '',
   includeInMainRota: Boolean(props.service?.includeInMainRota),
+  is24_7: Boolean(props.service?.is24_7),
   operationalHours: [] as HoursEntry[],
 });
 
@@ -102,6 +115,7 @@ const handleSubmit = () => {
     name: formData.name.trim(),
     description: formData.description?.trim() || null,
     includeInMainRota: formData.includeInMainRota,
+    is24_7: formData.is24_7,
     operationalHours: formData.operationalHours,
   };
 
@@ -117,6 +131,7 @@ watch(() => props.service, async (newService) => {
     formData.name = newService.name;
     formData.description = newService.description || '';
     formData.includeInMainRota = Boolean(newService.includeInMainRota);
+    formData.is24_7 = Boolean(newService.is24_7);
 
     // Load operational hours
     try {
@@ -135,6 +150,7 @@ watch(() => props.service, async (newService) => {
     formData.name = '';
     formData.description = '';
     formData.includeInMainRota = false;
+    formData.is24_7 = false;
     formData.operationalHours = [];
   }
 }, { immediate: true });

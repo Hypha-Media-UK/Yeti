@@ -46,6 +46,9 @@
             >
               <div class="area-name">{{ area.name }}</div>
               <div class="area-hours">
+                <span v-if="area.operationalHours.length === 0" class="hours-24-7">
+                  24/7/365
+                </span>
                 <span
                   v-for="(hours, idx) in area.operationalHours"
                   :key="idx"
@@ -80,6 +83,9 @@
             >
               <div class="area-name">{{ area.name }}</div>
               <div class="area-hours">
+                <span v-if="area.operationalHours.length === 0" class="hours-24-7">
+                  24/7/365
+                </span>
                 <span
                   v-for="(hours, idx) in area.operationalHours"
                   :key="idx"
@@ -335,6 +341,15 @@ onMounted(async () => {
   font-family: var(--font-family-mono);
   color: var(--color-text-secondary);
   background-color: var(--color-surface);
+  padding: 2px var(--spacing-1);
+  border-radius: 4px;
+}
+
+.hours-24-7 {
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-primary);
+  background-color: var(--color-primary-light);
   padding: 2px var(--spacing-1);
   border-radius: 4px;
 }

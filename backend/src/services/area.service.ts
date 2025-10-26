@@ -75,8 +75,8 @@ export class AreaService {
         h => h.areaType === 'department' && h.areaId === dept.id
       );
 
-      // Only include if department has operational hours for this day
-      if (deptHours.length > 0) {
+      // Include if department has operational hours for this day OR is 24/7
+      if (deptHours.length > 0 || dept.is24_7) {
         const staff = date ? await this.getStaffForArea('department', dept.id, dayRota) : [];
 
         areas.push({
@@ -84,7 +84,7 @@ export class AreaService {
           name: dept.name,
           type: 'department',
           buildingId: dept.buildingId ?? undefined,
-          operationalHours: deptHours,
+          operationalHours: dept.is24_7 ? [] : deptHours, // Empty hours for 24/7 areas
           staff,
         });
       }
@@ -96,15 +96,15 @@ export class AreaService {
         h => h.areaType === 'service' && h.areaId === service.id
       );
 
-      // Only include if service has operational hours for this day
-      if (serviceHours.length > 0) {
+      // Include if service has operational hours for this day OR is 24/7
+      if (serviceHours.length > 0 || service.is24_7) {
         const staff = date ? await this.getStaffForArea('service', service.id, dayRota) : [];
 
         areas.push({
           id: service.id,
           name: service.name,
           type: 'service',
-          operationalHours: serviceHours,
+          operationalHours: service.is24_7 ? [] : serviceHours, // Empty hours for 24/7 areas
           staff,
         });
       }
