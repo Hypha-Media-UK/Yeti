@@ -401,12 +401,6 @@ onMounted(() => {
   background-color: var(--color-bg);
 }
 
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 var(--spacing-3);
-}
-
 .page-title {
   font-size: var(--font-size-headline);
   font-weight: var(--font-weight-semibold);
