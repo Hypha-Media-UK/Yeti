@@ -1,6 +1,6 @@
 <template>
-  <BaseModal :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)" :title="service ? 'Edit Service' : 'Add Service'">
-    <form @submit.prevent="handleSubmit" class="service-form">
+  <BaseModal :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)" :title="service ? 'Edit Service' : 'Add Service'" modal-class="service-form">
+    <form @submit.prevent="handleSubmit">
       <div class="form-group">
         <label for="serviceName" class="form-label">Service Name *</label>
         <input
@@ -18,8 +18,20 @@
           id="serviceDescription"
           v-model="formData.description"
           class="form-input"
-          rows="3"
+          rows="2"
         />
+      </div>
+
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input
+            type="checkbox"
+            v-model="formData.includeInMainRota"
+            class="checkbox-input"
+          />
+          <span>Include in Main Rota</span>
+        </label>
+        <p class="form-hint">When enabled, this service will be displayed on the main rota screen</p>
       </div>
 
       <div v-if="error" class="form-error">
@@ -52,7 +64,7 @@ const props = defineProps<Props>();
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean];
-  submit: [data: { name: string; description: string | null }];
+  submit: [data: { name: string; description: string | null; includeInMainRota: boolean }];
 }>();
 
 const loading = ref(false);
@@ -61,6 +73,7 @@ const error = ref('');
 const formData = reactive({
   name: props.service?.name || '',
   description: props.service?.description || '',
+  includeInMainRota: Boolean(props.service?.includeInMainRota),
 });
 
 const handleSubmit = () => {
@@ -70,6 +83,7 @@ const handleSubmit = () => {
   const data = {
     name: formData.name.trim(),
     description: formData.description?.trim() || null,
+    includeInMainRota: formData.includeInMainRota,
   };
 
   emit('submit', data);
@@ -81,9 +95,11 @@ watch(() => props.service, (newService) => {
   if (newService) {
     formData.name = newService.name;
     formData.description = newService.description || '';
+    formData.includeInMainRota = Boolean(newService.includeInMainRota);
   } else {
     formData.name = '';
     formData.description = '';
+    formData.includeInMainRota = false;
   }
 }, { immediate: true });
 </script>
@@ -140,6 +156,76 @@ textarea.form-input {
   gap: var(--spacing-2);
   justify-content: flex-end;
   margin-top: var(--spacing-2);
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  cursor: pointer;
+  font-size: var(--font-size-body);
+}
+
+.checkbox-input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.form-hint {
+  font-size: var(--font-size-body-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+</style>
+
+<!-- Unscoped button styles to ensure global classes work -->
+<style>
+.service-form .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-1);
+  padding: 0.625rem var(--spacing-2);
+  font-family: var(--font-family);
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--font-weight-medium);
+  line-height: 1;
+  border: none;
+  border-radius: var(--radius-button);
+  cursor: pointer;
+  transition: background-color var(--transition-enter),
+              box-shadow var(--transition-enter);
+  white-space: nowrap;
+}
+
+.service-form .btn:hover:not(:disabled) {
+  box-shadow: var(--shadow-low);
+}
+
+.service-form .btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.service-form .btn-primary {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.service-form .btn-primary:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.service-form .btn-secondary {
+  background-color: transparent;
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+}
+
+.service-form .btn-secondary:hover:not(:disabled) {
+  background-color: var(--color-bg);
+  border-color: var(--color-text-secondary);
 }
 </style>
 

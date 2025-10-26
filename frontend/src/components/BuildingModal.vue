@@ -1,9 +1,9 @@
 <template>
-  <BaseModal v-model="isOpen" :title="building.name">
-    <!-- Building Edit Section -->
-    <div class="building-edit-section">
-      <h3 class="section-title">Building Details</h3>
-      <form @submit.prevent="handleUpdateBuilding" class="building-form">
+  <BaseModal v-model="isOpen" :title="building.name" modal-class="building-modal">
+    <div>
+      <!-- Building Edit Section -->
+      <div class="building-edit-section">
+        <h3 class="section-title">Building Details</h3>
         <div class="form-group">
           <label for="buildingName" class="form-label">Building Name *</label>
           <input
@@ -14,11 +14,7 @@
             required
           />
         </div>
-        <button type="submit" class="btn btn-primary" :disabled="savingBuilding">
-          {{ savingBuilding ? 'Saving...' : 'Update Building' }}
-        </button>
-      </form>
-    </div>
+      </div>
 
     <!-- Departments Section -->
     <div class="departments-section">
@@ -99,6 +95,13 @@
       </div>
       <p v-else class="empty-state">No departments</p>
     </div>
+    </div>
+
+    <template #footer>
+      <button class="btn btn-primary" @click="handleUpdateBuilding" :disabled="savingBuilding || !buildingName.trim()">
+        {{ savingBuilding ? 'Saving...' : 'Update Building' }}
+      </button>
+    </template>
   </BaseModal>
 </template>
 
@@ -308,43 +311,10 @@ const handleDeleteDepartment = (dept: Department) => {
   margin: 0;
 }
 
-.btn {
-  padding: var(--spacing-2) var(--spacing-3);
-  border-radius: var(--radius-button);
-  font-size: var(--font-size-body);
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-  transition: var(--transition-base);
-  border: none;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
+/* Component-specific button styles (btn-sm and btn-icon not in global styles) */
 .btn-sm {
   padding: var(--spacing-1) var(--spacing-2);
   font-size: var(--font-size-body-sm);
-}
-
-.btn-primary {
-  background-color: var(--color-primary);
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background-color: var(--color-primary-hover);
-}
-
-.btn-secondary {
-  background-color: var(--color-bg);
-  color: var(--color-text-primary);
-  border: 1px solid var(--color-border);
-}
-
-.btn-secondary:hover {
-  background-color: var(--color-border);
 }
 
 .btn-icon {
@@ -368,6 +338,56 @@ const handleDeleteDepartment = (dept: Department) => {
 .btn-icon.btn-danger:hover {
   background-color: rgba(220, 38, 38, 0.1);
   color: var(--color-error);
+}
+</style>
+
+<!-- Unscoped button styles -->
+<style>
+.building-modal .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-1);
+  padding: 0.625rem var(--spacing-2);
+  font-family: var(--font-family);
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--font-weight-medium);
+  line-height: 1;
+  border: none;
+  border-radius: var(--radius-button);
+  cursor: pointer;
+  transition: background-color var(--transition-enter),
+              box-shadow var(--transition-enter);
+  white-space: nowrap;
+}
+
+.building-modal .btn:hover:not(:disabled) {
+  box-shadow: var(--shadow-low);
+}
+
+.building-modal .btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.building-modal .btn-primary {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.building-modal .btn-primary:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.building-modal .btn-secondary {
+  background-color: transparent;
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+}
+
+.building-modal .btn-secondary:hover:not(:disabled) {
+  background-color: var(--color-bg);
+  border-color: var(--color-text-secondary);
 }
 </style>
 

@@ -4,6 +4,7 @@ import type { DayRota, ManualAssignment } from '@shared/types/shift';
 import type { Building } from '@shared/types/building';
 import type { Department } from '@shared/types/department';
 import type { Service } from '@shared/types/service';
+import type { StaffAllocation, AllocationWithDetails, AreaType } from '@shared/types/allocation';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -211,14 +212,14 @@ export const api = {
     return fetchApi<{ service: Service }>(`/services/${id}`);
   },
 
-  async createService(data: { name: string; description?: string | null }): Promise<{ service: Service }> {
+  async createService(data: { name: string; description?: string | null; includeInMainRota?: boolean }): Promise<{ service: Service }> {
     return fetchApi<{ service: Service }>('/services', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   },
 
-  async updateService(id: number, updates: { name?: string; description?: string | null }): Promise<{ service: Service }> {
+  async updateService(id: number, updates: { name?: string; description?: string | null; includeInMainRota?: boolean }): Promise<{ service: Service }> {
     return fetchApi<{ service: Service }>(`/services/${id}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
@@ -227,6 +228,38 @@ export const api = {
 
   async deleteService(id: number): Promise<{ success: boolean }> {
     return fetchApi<{ success: boolean }>(`/services/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Allocations
+  async getStaffAllocations(staffId: number): Promise<{ allocations: AllocationWithDetails[] }> {
+    return fetchApi<{ allocations: AllocationWithDetails[] }>(`/allocations/staff/${staffId}`);
+  },
+
+  async setStaffAllocations(
+    staffId: number,
+    allocations: Array<{ areaType: AreaType; areaId: number }>
+  ): Promise<{ allocations: AllocationWithDetails[] }> {
+    return fetchApi<{ allocations: AllocationWithDetails[] }>(`/allocations/staff/${staffId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ allocations }),
+    });
+  },
+
+  async getAreaAllocations(areaType: AreaType, areaId: number): Promise<{ allocations: StaffAllocation[] }> {
+    return fetchApi<{ allocations: StaffAllocation[] }>(`/allocations/area/${areaType}/${areaId}`);
+  },
+
+  async createAllocation(staffId: number, areaType: AreaType, areaId: number): Promise<{ allocation: StaffAllocation }> {
+    return fetchApi<{ allocation: StaffAllocation }>('/allocations', {
+      method: 'POST',
+      body: JSON.stringify({ staffId, areaType, areaId }),
+    });
+  },
+
+  async deleteAllocation(id: number): Promise<{ success: boolean }> {
+    return fetchApi<{ success: boolean }>(`/allocations/${id}`, {
       method: 'DELETE',
     });
   },

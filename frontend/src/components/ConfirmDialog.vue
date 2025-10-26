@@ -1,12 +1,12 @@
 <template>
-  <BaseModal v-model="isOpen" :title="title" :close-on-overlay="false">
+  <BaseModal v-model="isOpen" :title="title" :close-on-overlay="false" modal-class="confirm-dialog">
     <p class="confirm-message">{{ message }}</p>
-    
+
     <template #footer>
       <button class="btn btn-secondary" @click="cancel">
         {{ cancelText }}
       </button>
-      <button :class="['btn', dangerMode ? 'btn-danger' : 'btn-primary']" @click="confirm">
+      <button :class="['btn', dangerMode ? 'btn-destructive' : 'btn-primary']" @click="confirm">
         {{ confirmText }}
       </button>
     </template>
@@ -67,42 +67,66 @@ const cancel = () => {
   margin: 0;
 }
 
-.btn {
-  padding: var(--spacing-2) var(--spacing-3);
-  border-radius: var(--radius-button);
-  font-size: var(--font-size-body);
+/* Button styles inherited from global main.css */
+/* Note: .btn-danger uses global .btn-destructive class instead */
+</style>
+
+<!-- Unscoped button styles -->
+<style>
+.confirm-dialog .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-1);
+  padding: 0.625rem var(--spacing-2);
+  font-family: var(--font-family);
+  font-size: var(--font-size-body-sm);
   font-weight: var(--font-weight-medium);
-  cursor: pointer;
-  transition: var(--transition-base);
+  line-height: 1;
   border: none;
+  border-radius: var(--radius-button);
+  cursor: pointer;
+  transition: background-color var(--transition-enter),
+              box-shadow var(--transition-enter);
+  white-space: nowrap;
 }
 
-.btn-primary {
+.confirm-dialog .btn:hover:not(:disabled) {
+  box-shadow: var(--shadow-low);
+}
+
+.confirm-dialog .btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.confirm-dialog .btn-primary {
   background-color: var(--color-primary);
   color: white;
 }
 
-.btn-primary:hover {
+.confirm-dialog .btn-primary:hover:not(:disabled) {
   background-color: var(--color-primary-hover);
 }
 
-.btn-secondary {
-  background-color: var(--color-bg);
+.confirm-dialog .btn-secondary {
+  background-color: transparent;
   color: var(--color-text-primary);
   border: 1px solid var(--color-border);
 }
 
-.btn-secondary:hover {
-  background-color: var(--color-border);
+.confirm-dialog .btn-secondary:hover:not(:disabled) {
+  background-color: var(--color-bg);
+  border-color: var(--color-text-secondary);
 }
 
-.btn-danger {
+.confirm-dialog .btn-destructive {
   background-color: var(--color-error);
   color: white;
 }
 
-.btn-danger:hover {
-  background-color: var(--color-error-hover);
+.confirm-dialog .btn-destructive:hover:not(:disabled) {
+  background-color: #B91C1C;
 }
 </style>
 

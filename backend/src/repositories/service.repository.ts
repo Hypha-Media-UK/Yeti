@@ -8,6 +8,7 @@ export class ServiceRepository {
       id: row.id,
       name: row.name,
       description: row.description,
+      includeInMainRota: row.include_in_main_rota,
       isActive: row.is_active,
       createdAt: row.created_at.toISOString(),
       updatedAt: row.updated_at.toISOString(),
@@ -31,8 +32,8 @@ export class ServiceRepository {
 
   async create(service: Omit<Service, 'id' | 'createdAt' | 'updatedAt'>): Promise<Service> {
     const [result] = await pool.query<InsertResult>(
-      'INSERT INTO services (name, description, is_active) VALUES (?, ?, ?)',
-      [service.name, service.description, service.isActive]
+      'INSERT INTO services (name, description, include_in_main_rota, is_active) VALUES (?, ?, ?, ?)',
+      [service.name, service.description, service.includeInMainRota, service.isActive]
     );
 
     const created = await this.findById(result.insertId);
@@ -53,6 +54,10 @@ export class ServiceRepository {
     if (updates.description !== undefined) {
       fields.push('description = ?');
       values.push(updates.description);
+    }
+    if (updates.includeInMainRota !== undefined) {
+      fields.push('include_in_main_rota = ?');
+      values.push(updates.includeInMainRota);
     }
     if (updates.isActive !== undefined) {
       fields.push('is_active = ?');

@@ -128,9 +128,10 @@
     </div>
 
     <!-- Staff Modal -->
-    <BaseModal v-model="showStaffModal" :title="editingStaff ? 'Edit Staff' : 'Add Staff'">
+    <BaseModal v-model="showStaffModal" :title="editingStaff ? 'Edit Staff' : 'Add Staff'" modal-class="staff-form">
       <StaffForm
         :staff="editingStaff"
+        :staff-allocations="editingStaffAllocations"
         :buildings="buildings"
         :departments="departments"
         :services="services"
@@ -152,8 +153,8 @@
     />
 
     <!-- Add Building Modal -->
-    <BaseModal v-model="showAddBuildingModal" title="Add Building">
-      <form @submit.prevent="handleAddBuilding" class="building-form">
+    <BaseModal v-model="showAddBuildingModal" title="Add Building" modal-class="config-view">
+      <form @submit.prevent="handleAddBuilding">
         <div class="form-group">
           <label for="buildingName" class="form-label">Building Name *</label>
           <input
@@ -212,6 +213,7 @@ import type { StaffMember, StaffStatus } from '@shared/types/staff';
 import type { Building } from '@shared/types/building';
 import type { Department } from '@shared/types/department';
 import type { Service } from '@shared/types/service';
+import type { AllocationWithDetails } from '@shared/types/allocation';
 
 const activeTab = ref('staff');
 const activeStaffTab = ref('regular');
@@ -223,6 +225,7 @@ const services = ref<Service[]>([]);
 
 const showStaffModal = ref(false);
 const editingStaff = ref<StaffMember | null>(null);
+const editingStaffAllocations = ref<AllocationWithDetails[]>([]);
 const defaultStaffStatus = ref<StaffStatus>('Regular');
 
 const showBuildingModal = ref(false);
@@ -307,27 +310,49 @@ const loadServices = async () => {
 // Staff handlers
 const openAddStaffModal = (status: StaffStatus) => {
   editingStaff.value = null;
+  editingStaffAllocations.value = [];
   defaultStaffStatus.value = status;
   showStaffModal.value = true;
 };
 
-const openEditStaffModal = (staff: StaffMember) => {
+const openEditStaffModal = async (staff: StaffMember) => {
   editingStaff.value = staff;
+
+  // Load allocations for this staff member
+  try {
+    const response = await api.getStaffAllocations(staff.id);
+    editingStaffAllocations.value = response.allocations;
+  } catch (error) {
+    console.error('Failed to load staff allocations:', error);
+    editingStaffAllocations.value = [];
+  }
+
   showStaffModal.value = true;
 };
 
 const closeStaffModal = () => {
   showStaffModal.value = false;
   editingStaff.value = null;
+  editingStaffAllocations.value = [];
 };
 
-const handleStaffSubmit = async (data: Partial<StaffMember>) => {
+const handleStaffSubmit = async (data: { staff: Partial<StaffMember>; allocations: Array<{ areaType: 'department' | 'service'; areaId: number }> }) => {
   try {
+    let staffId: number;
+
     if (editingStaff.value) {
-      await api.updateStaff(editingStaff.value.id, data);
+      // Update existing staff
+      await api.updateStaff(editingStaff.value.id, data.staff);
+      staffId = editingStaff.value.id;
     } else {
-      await api.createStaff(data as any);
+      // Create new staff
+      const response = await api.createStaff(data.staff as any);
+      staffId = response.staff.id;
     }
+
+    // Update allocations
+    await api.setStaffAllocations(staffId, data.allocations);
+
     await loadStaff();
     closeStaffModal();
   } catch (error) {
@@ -422,7 +447,7 @@ const openEditServiceModal = (service: Service) => {
   showServiceModal.value = true;
 };
 
-const handleServiceSubmit = async (data: { name: string; description: string | null }) => {
+const handleServiceSubmit = async (data: { name: string; description: string | null; includeInMainRota: boolean }) => {
   try {
     if (editingService.value) {
       await api.updateService(editingService.value.id, data);
@@ -542,34 +567,7 @@ onMounted(() => {
   margin: 0;
 }
 
-.btn {
-  padding: var(--spacing-2) var(--spacing-3);
-  border-radius: var(--radius-button);
-  font-size: var(--font-size-body);
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-  transition: var(--transition-base);
-  border: none;
-}
-
-.btn-primary {
-  background-color: var(--color-primary);
-  color: white;
-}
-
-.btn-primary:hover {
-  background-color: var(--color-primary-hover);
-}
-
-.btn-secondary {
-  background-color: var(--color-bg);
-  color: var(--color-text-primary);
-  border: 1px solid var(--color-border);
-}
-
-.btn-secondary:hover {
-  background-color: var(--color-border);
-}
+/* Button styles inherited from global main.css */
 
 .building-form {
   display: flex;
@@ -631,3 +629,54 @@ onMounted(() => {
 }
 </style>
 
+
+
+<!-- Unscoped button styles -->
+<style>
+.config-view .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-1);
+  padding: 0.625rem var(--spacing-2);
+  font-family: var(--font-family);
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--font-weight-medium);
+  line-height: 1;
+  border: none;
+  border-radius: var(--radius-button);
+  cursor: pointer;
+  transition: background-color var(--transition-enter),
+              box-shadow var(--transition-enter);
+  white-space: nowrap;
+}
+
+.config-view .btn:hover:not(:disabled) {
+  box-shadow: var(--shadow-low);
+}
+
+.config-view .btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.config-view .btn-primary {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.config-view .btn-primary:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.config-view .btn-secondary {
+  background-color: transparent;
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+}
+
+.config-view .btn-secondary:hover:not(:disabled) {
+  background-color: var(--color-bg);
+  border-color: var(--color-text-secondary);
+}
+</style>

@@ -5,6 +5,7 @@ import rotaRoutes from './rota.routes';
 import buildingRoutes from './building.routes';
 import departmentRoutes from './department.routes';
 import serviceRoutes from './service.routes';
+import allocationRoutes from './allocation.routes';
 
 const router = Router();
 
@@ -14,6 +15,7 @@ router.use('/rota', rotaRoutes);
 router.use('/buildings', buildingRoutes);
 router.use('/departments', departmentRoutes);
 router.use('/services', serviceRoutes);
+router.use('/allocations', allocationRoutes);
 
 export default router;
 

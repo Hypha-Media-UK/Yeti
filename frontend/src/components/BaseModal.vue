@@ -2,7 +2,7 @@
   <Teleport to="body">
     <Transition name="modal">
       <div v-if="modelValue" class="modal-overlay" @click="handleOverlayClick">
-        <div class="modal-container" @click.stop>
+        <div :class="['modal-container', modalClass]" @click.stop>
           <div class="modal-header">
             <h2 class="modal-title">{{ title }}</h2>
             <button class="modal-close" @click="close" aria-label="Close">
@@ -30,10 +30,12 @@ interface Props {
   modelValue: boolean;
   title: string;
   closeOnOverlay?: boolean;
+  modalClass?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   closeOnOverlay: true,
+  modalClass: '',
 });
 
 const emit = defineEmits<{

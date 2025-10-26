@@ -9,6 +9,7 @@ export class DepartmentRepository {
       name: row.name,
       buildingId: row.building_id,
       description: row.description,
+      includeInMainRota: row.include_in_main_rota,
       isActive: row.is_active,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -59,7 +60,7 @@ export class DepartmentRepository {
     return created;
   }
 
-  async update(id: number, updates: { name?: string; buildingId?: number | null; description?: string | null; isActive?: boolean }): Promise<Department | null> {
+  async update(id: number, updates: { name?: string; buildingId?: number | null; description?: string | null; includeInMainRota?: boolean; isActive?: boolean }): Promise<Department | null> {
     const fields: string[] = [];
     const values: any[] = [];
 
@@ -76,6 +77,11 @@ export class DepartmentRepository {
     if (updates.description !== undefined) {
       fields.push('description = ?');
       values.push(updates.description);
+    }
+
+    if (updates.includeInMainRota !== undefined) {
+      fields.push('include_in_main_rota = ?');
+      values.push(updates.includeInMainRota);
     }
 
     if (updates.isActive !== undefined) {

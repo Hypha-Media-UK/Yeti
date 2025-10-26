@@ -126,22 +126,30 @@ import type { StaffMember, StaffStatus, ShiftGroup } from '@shared/types/staff';
 import type { Building } from '@shared/types/building';
 import type { Department } from '@shared/types/department';
 import type { Service } from '@shared/types/service';
+import type { AllocationWithDetails } from '@shared/types/allocation';
 
 interface Props {
   staff?: StaffMember | null;
+  staffAllocations?: AllocationWithDetails[];
   buildings?: Building[];
   departments?: Department[];
   services?: Service[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  staffAllocations: () => [],
   buildings: () => [],
   departments: () => [],
   services: () => [],
 });
 
+interface SubmitData {
+  staff: Partial<StaffMember>;
+  allocations: Array<{ areaType: 'department' | 'service'; areaId: number }>;
+}
+
 const emit = defineEmits<{
-  submit: [data: Partial<StaffMember>];
+  submit: [data: SubmitData];
   cancel: [];
 }>();
 
@@ -153,8 +161,8 @@ const formData = reactive({
   lastName: props.staff?.lastName || '',
   status: (props.staff?.status || 'Regular') as StaffStatus,
   group: (props.staff?.group || 'Day') as ShiftGroup | null,
-  departmentId: props.staff?.departmentId || null,
-  serviceId: props.staff?.serviceId || null,
+  departmentId: null as number | null,
+  serviceId: null as number | null,
   daysOffset: props.staff?.daysOffset || 0,
 });
 
@@ -185,22 +193,31 @@ const handleSubmit = () => {
   error.value = '';
   loading.value = true;
 
-  const cycleType = formData.status === 'Supervisor' ? 'supervisor' : 
+  const cycleType = formData.status === 'Supervisor' ? 'supervisor' :
                     formData.status === 'Regular' ? '4-on-4-off' : null;
 
-  const data: Partial<StaffMember> = {
+  const staffData: Partial<StaffMember> = {
     firstName: formData.firstName.trim(),
     lastName: formData.lastName.trim(),
     status: formData.status,
     group: formData.status === 'Regular' ? formData.group : null,
-    departmentId: formData.departmentId,
-    serviceId: formData.serviceId,
     cycleType,
     daysOffset: formData.daysOffset,
     isActive: true,
   };
 
-  emit('submit', data);
+  // Build allocations array from selected department and service
+  const allocations: Array<{ areaType: 'department' | 'service'; areaId: number }> = [];
+
+  if (formData.departmentId) {
+    allocations.push({ areaType: 'department', areaId: formData.departmentId });
+  }
+
+  if (formData.serviceId) {
+    allocations.push({ areaType: 'service', areaId: formData.serviceId });
+  }
+
+  emit('submit', { staff: staffData, allocations });
   loading.value = false;
 };
 
@@ -211,9 +228,23 @@ watch(() => props.staff, (newStaff) => {
     formData.lastName = newStaff.lastName;
     formData.status = newStaff.status;
     formData.group = newStaff.group;
-    formData.departmentId = newStaff.departmentId;
-    formData.serviceId = newStaff.serviceId;
     formData.daysOffset = newStaff.daysOffset;
+  }
+}, { immediate: true });
+
+// Watch for allocation changes to populate form
+watch(() => props.staffAllocations, (allocations) => {
+  if (allocations && allocations.length > 0) {
+    // Find department allocation
+    const deptAlloc = allocations.find(a => a.areaType === 'department');
+    formData.departmentId = deptAlloc ? deptAlloc.areaId : null;
+
+    // Find service allocation
+    const serviceAlloc = allocations.find(a => a.areaType === 'service');
+    formData.serviceId = serviceAlloc ? serviceAlloc.areaId : null;
+  } else {
+    formData.departmentId = null;
+    formData.serviceId = null;
   }
 }, { immediate: true });
 </script>
@@ -274,38 +305,56 @@ watch(() => props.staff, (newStaff) => {
   margin-top: var(--spacing-2);
 }
 
-.btn {
-  padding: var(--spacing-2) var(--spacing-3);
-  border-radius: var(--radius-button);
-  font-size: var(--font-size-body);
+/* Button styles inherited from global main.css */
+</style>
+
+<!-- Unscoped button styles -->
+<style>
+.staff-form .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-1);
+  padding: 0.625rem var(--spacing-2);
+  font-family: var(--font-family);
+  font-size: var(--font-size-body-sm);
   font-weight: var(--font-weight-medium);
-  cursor: pointer;
-  transition: var(--transition-base);
+  line-height: 1;
   border: none;
+  border-radius: var(--radius-button);
+  cursor: pointer;
+  transition: background-color var(--transition-enter),
+              box-shadow var(--transition-enter);
+  white-space: nowrap;
 }
 
-.btn:disabled {
-  opacity: 0.5;
+.staff-form .btn:hover:not(:disabled) {
+  box-shadow: var(--shadow-low);
+}
+
+.staff-form .btn:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
-.btn-primary {
+.staff-form .btn-primary {
   background-color: var(--color-primary);
   color: white;
 }
 
-.btn-primary:hover:not(:disabled) {
+.staff-form .btn-primary:hover:not(:disabled) {
   background-color: var(--color-primary-hover);
 }
 
-.btn-secondary {
-  background-color: var(--color-bg);
+.staff-form .btn-secondary {
+  background-color: transparent;
   color: var(--color-text-primary);
   border: 1px solid var(--color-border);
 }
 
-.btn-secondary:hover {
-  background-color: var(--color-border);
+.staff-form .btn-secondary:hover:not(:disabled) {
+  background-color: var(--color-bg);
+  border-color: var(--color-text-secondary);
 }
 </style>
 

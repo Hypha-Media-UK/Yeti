@@ -43,7 +43,7 @@ export class ServiceController {
 
   createService = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { name, description } = req.body;
+      const { name, description, includeInMainRota } = req.body;
 
       if (!name) {
         res.status(400).json({ error: 'Service name is required' });
@@ -53,18 +53,19 @@ export class ServiceController {
       const service = await this.serviceRepo.create({
         name,
         description: description || null,
+        includeInMainRota: includeInMainRota ?? false,
         isActive: true,
       });
 
       res.status(201).json({ service });
     } catch (error: any) {
       console.error('Error creating service:', error);
-      
+
       if (error.code === 'ER_DUP_ENTRY') {
         res.status(409).json({ error: 'A service with this name already exists' });
         return;
       }
-      
+
       res.status(500).json({ error: 'Failed to create service' });
     }
   };

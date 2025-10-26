@@ -5,6 +5,7 @@ export interface Department {
   name: string;
   buildingId: number | null;
   description: string | null;
+  includeInMainRota: boolean;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -24,6 +25,7 @@ export interface UpdateDepartmentDto {
   name?: string;
   buildingId?: number | null;
   description?: string | null;
+  includeInMainRota?: boolean;
   isActive?: boolean;
 }
 
