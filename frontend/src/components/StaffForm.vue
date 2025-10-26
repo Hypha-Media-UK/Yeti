@@ -187,6 +187,7 @@ watch(() => props.staff, (newStaff) => {
     formData.lastName = newStaff.lastName;
     formData.status = newStaff.status;
     formData.group = newStaff.group;
+    formData.departmentId = newStaff.departmentId;
     formData.daysOffset = newStaff.daysOffset;
   }
 }, { immediate: true });
