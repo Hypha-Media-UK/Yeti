@@ -1,5 +1,5 @@
-import { StaffMember, ShiftGroup } from '@shared/types/staff';
-import { ShiftAssignment, DayRota, ManualAssignment } from '@shared/types/shift';
+import { StaffMember, ShiftGroup } from '../../shared/types/staff';
+import { ShiftAssignment, DayRota, ManualAssignment } from '../../shared/types/shift';
 import { StaffRepository } from '../repositories/staff.repository';
 import { ScheduleRepository } from '../repositories/schedule.repository';
 import { OverrideRepository } from '../repositories/override.repository';

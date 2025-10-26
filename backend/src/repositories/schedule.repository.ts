@@ -1,6 +1,6 @@
 import { pool } from '../config/database';
 import { FixedScheduleRow, InsertResult } from '../types/database.types';
-import { FixedSchedule } from '@shared/types/staff';
+import { FixedSchedule } from '../../shared/types/staff';
 
 export class ScheduleRepository {
   private mapRowToFixedSchedule(row: FixedScheduleRow): FixedSchedule {

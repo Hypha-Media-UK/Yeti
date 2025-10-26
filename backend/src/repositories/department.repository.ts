@@ -1,6 +1,6 @@
 import { pool } from '../config/database';
 import { DepartmentRow, InsertResult } from '../types/database.types';
-import { Department } from '@shared/types/department';
+import { Department } from '../../shared/types/department';
 
 export class DepartmentRepository {
   private mapRowToDepartment(row: DepartmentRow): Department {

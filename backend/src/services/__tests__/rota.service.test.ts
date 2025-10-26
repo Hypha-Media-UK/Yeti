@@ -4,7 +4,7 @@ import { StaffRepository } from '../../repositories/staff.repository';
 import { ConfigRepository } from '../../repositories/config.repository';
 import { OverrideRepository } from '../../repositories/override.repository';
 import { ScheduleRepository } from '../../repositories/schedule.repository';
-import type { StaffMember } from '@shared/types/staff';
+import type { StaffMember } from '../../../shared/types/staff';
 
 // Mock the repositories
 vi.mock('../../repositories/staff.repository');

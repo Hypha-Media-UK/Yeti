@@ -1,6 +1,6 @@
 import { pool } from '../config/database';
 import { StaffRow, InsertResult } from '../types/database.types';
-import { StaffMember } from '@shared/types/staff';
+import { StaffMember } from '../../shared/types/staff';
 
 export class StaffRepository {
   private mapRowToStaffMember(row: StaffRow): StaffMember {

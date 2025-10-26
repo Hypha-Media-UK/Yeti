@@ -1,6 +1,6 @@
 import { pool } from '../config/database';
 import { BuildingRow, InsertResult } from '../types/database.types';
-import { Building } from '@shared/types/building';
+import { Building } from '../../shared/types/building';
 
 export class BuildingRepository {
   private mapRowToBuilding(row: BuildingRow): Building {

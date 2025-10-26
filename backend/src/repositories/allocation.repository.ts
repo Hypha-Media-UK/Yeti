@@ -1,6 +1,6 @@
 import { pool } from '../config/database';
 import type { ResultSetHeader, RowDataPacket } from 'mysql2';
-import type { StaffAllocation, AllocationWithDetails, AreaType } from '@shared/types/allocation';
+import type { StaffAllocation, AllocationWithDetails, AreaType } from '../../shared/types/allocation';
 
 interface AllocationRow extends RowDataPacket {
   id: number;
@@ -33,8 +33,8 @@ export class AllocationRepository {
     return {
       ...this.mapRowToAllocation(row),
       areaName: row.area_name,
-      buildingId: row.building_id,
-      buildingName: row.building_name || undefined,
+      buildingId: row.building_id ?? undefined,
+      buildingName: row.building_name ?? undefined,
     };
   }
 

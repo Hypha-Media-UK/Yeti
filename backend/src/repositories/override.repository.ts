@@ -1,6 +1,6 @@
 import { pool } from '../config/database';
 import { ManualAssignmentRow, InsertResult } from '../types/database.types';
-import { ManualAssignment } from '@shared/types/shift';
+import { ManualAssignment } from '../../shared/types/shift';
 
 export class OverrideRepository {
   private mapRowToManualAssignment(row: ManualAssignmentRow): ManualAssignment {

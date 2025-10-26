@@ -1,6 +1,6 @@
 import { pool } from '../config/database';
 import { ServiceRow, InsertResult } from '../types/database.types';
-import { Service } from '@shared/types/service';
+import { Service } from '../../shared/types/service';
 
 export class ServiceRepository {
   private mapRowToService(row: ServiceRow): Service {
