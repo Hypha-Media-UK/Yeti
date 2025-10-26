@@ -62,8 +62,14 @@ export class DepartmentController {
       });
 
       res.status(201).json({ department });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating department:', error);
+
+      if (error.code === 'ER_DUP_ENTRY') {
+        res.status(409).json({ error: 'A department with this name already exists in this building' });
+        return;
+      }
+
       res.status(500).json({ error: 'Failed to create department' });
     }
   };
@@ -92,8 +98,14 @@ export class DepartmentController {
       }
 
       res.json({ department });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating department:', error);
+
+      if (error.code === 'ER_DUP_ENTRY') {
+        res.status(409).json({ error: 'A department with this name already exists in this building' });
+        return;
+      }
+
       res.status(500).json({ error: 'Failed to update department' });
     }
   };

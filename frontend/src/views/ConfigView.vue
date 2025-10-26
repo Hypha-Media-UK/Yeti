@@ -214,6 +214,7 @@ import type { Building } from '@shared/types/building';
 import type { Department } from '@shared/types/department';
 import type { Service } from '@shared/types/service';
 import type { AllocationWithDetails } from '@shared/types/allocation';
+import { deduplicateHours } from '@/utils/hours';
 
 const activeTab = ref('staff');
 const activeStaffTab = ref('regular');
@@ -364,15 +365,7 @@ const handleStaffSubmit = async (data: {
       endTime: h.endTime,
     }));
 
-    // Remove duplicates based on dayOfWeek, startTime, endTime
-    const uniqueHours = hoursToSave.filter((hour, index, self) =>
-      index === self.findIndex(h =>
-        h.dayOfWeek === hour.dayOfWeek &&
-        h.startTime === hour.startTime &&
-        h.endTime === hour.endTime
-      )
-    );
-
+    const uniqueHours = deduplicateHours(hoursToSave);
     await api.setContractedHoursForStaff(staffId, uniqueHours);
 
     await loadStaff();
@@ -459,15 +452,7 @@ const handleUpdateDepartment = async (
       endTime: h.endTime,
     }));
 
-    // Remove duplicates based on dayOfWeek, startTime, endTime
-    const uniqueHours = hoursToSave.filter((hour, index, self) =>
-      index === self.findIndex(h =>
-        h.dayOfWeek === hour.dayOfWeek &&
-        h.startTime === hour.startTime &&
-        h.endTime === hour.endTime
-      )
-    );
-
+    const uniqueHours = deduplicateHours(hoursToSave);
     await api.setOperationalHoursForArea('department', id, uniqueHours);
 
     await loadDepartments();
@@ -527,15 +512,7 @@ const handleServiceSubmit = async (data: {
       endTime: h.endTime,
     }));
 
-    // Remove duplicates based on dayOfWeek, startTime, endTime
-    const uniqueHours = hoursToSave.filter((hour, index, self) =>
-      index === self.findIndex(h =>
-        h.dayOfWeek === hour.dayOfWeek &&
-        h.startTime === hour.startTime &&
-        h.endTime === hour.endTime
-      )
-    );
-
+    const uniqueHours = deduplicateHours(hoursToSave);
     await api.setOperationalHoursForArea('service', serviceId, uniqueHours);
 
     await loadServices();

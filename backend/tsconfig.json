@@ -15,7 +15,9 @@
     "sourceMap": true,
     "baseUrl": ".",
     "paths": {
-      "@shared/*": ["shared/*", "../shared/*"]
+      // Note: Path aliases don't work with tsx in Docker environment
+      // Backend code uses relative imports (../../shared/*) instead
+      "@shared/*": ["../shared/*"]
     }
   },
   "include": ["src/**/*", "shared/**/*", "../shared/**/*"],

@@ -98,9 +98,7 @@
               <OperationalHoursEditor
                 v-model="editingOperationalHours"
                 title="Operational Hours"
-                :show-copy-from="true"
-                copy-from-label="department"
-                @copy="showCopyHoursModal(dept.id)"
+                :show-copy-from="false"
               />
             </div>
 
@@ -261,10 +259,7 @@ const handleUpdateDepartment = (id: number) => {
   }
 };
 
-const showCopyHoursModal = (deptId: number) => {
-  // TODO: Implement copy hours modal
-  console.log('Copy hours for department', deptId);
-};
+
 
 const handleDeleteDepartment = (dept: Department) => {
   emit('deleteDepartment', dept);

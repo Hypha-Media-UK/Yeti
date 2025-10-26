@@ -38,9 +38,7 @@
         <OperationalHoursEditor
           v-model="formData.operationalHours"
           title="Operational Hours"
-          :show-copy-from="!!service"
-          copy-from-label="service"
-          @copy="showCopyHoursModal"
+          :show-copy-from="false"
         />
       </div>
 
@@ -111,10 +109,7 @@ const handleSubmit = () => {
   loading.value = false;
 };
 
-const showCopyHoursModal = () => {
-  // TODO: Implement copy hours modal
-  console.log('Copy hours for service');
-};
+
 
 // Watch for prop changes (when editing)
 watch(() => props.service, async (newService) => {

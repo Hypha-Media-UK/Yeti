@@ -109,9 +109,7 @@
       <OperationalHoursEditor
         v-model="formData.contractedHours"
         title="Contracted Hours"
-        :show-copy-from="!!staff"
-        copy-from-label="staff member"
-        @copy="showCopyHoursModal"
+        :show-copy-from="false"
       />
     </div>
 
@@ -242,10 +240,7 @@ const handleSubmit = () => {
   loading.value = false;
 };
 
-const showCopyHoursModal = () => {
-  // TODO: Implement copy hours modal
-  console.log('Copy hours for staff');
-};
+
 
 // Watch for prop changes (when editing)
 watch(() => props.staff, async (newStaff) => {

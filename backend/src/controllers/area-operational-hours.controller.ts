@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { AreaOperationalHoursRepository } from '../repositories/area-operational-hours.repository';
 import { AreaType, validateOperationalHours } from '../../shared/types/operational-hours';
+import { validateAreaType, parseId } from '../utils/validation.utils';
 
 export class AreaOperationalHoursController {
   private repo: AreaOperationalHoursRepository;
@@ -14,18 +15,18 @@ export class AreaOperationalHoursController {
     try {
       const { areaType, areaId } = req.params;
 
-      if (areaType !== 'department' && areaType !== 'service') {
+      if (!validateAreaType(areaType)) {
         res.status(400).json({ error: 'Invalid area type. Must be "department" or "service"' });
         return;
       }
 
-      const id = parseInt(areaId);
-      if (isNaN(id)) {
+      const id = parseId(areaId);
+      if (!id) {
         res.status(400).json({ error: 'Invalid area ID' });
         return;
       }
 
-      const hours = await this.repo.findByArea(areaType as AreaType, id);
+      const hours = await this.repo.findByArea(areaType, id);
       res.json({ operationalHours: hours });
     } catch (error) {
       console.error('Error fetching operational hours:', error);
@@ -56,7 +57,7 @@ export class AreaOperationalHoursController {
     try {
       const { areaType, areaId, dayOfWeek, startTime, endTime } = req.body;
 
-      if (areaType !== 'department' && areaType !== 'service') {
+      if (!validateAreaType(areaType)) {
         res.status(400).json({ error: 'Invalid area type. Must be "department" or "service"' });
         return;
       }
@@ -169,13 +170,13 @@ export class AreaOperationalHoursController {
       const { areaType, areaId } = req.params;
       const { hours } = req.body;
 
-      if (areaType !== 'department' && areaType !== 'service') {
+      if (!validateAreaType(areaType)) {
         res.status(400).json({ error: 'Invalid area type. Must be "department" or "service"' });
         return;
       }
 
-      const id = parseInt(areaId);
-      if (isNaN(id)) {
+      const id = parseId(areaId);
+      if (!id) {
         res.status(400).json({ error: 'Invalid area ID' });
         return;
       }
@@ -194,7 +195,7 @@ export class AreaOperationalHoursController {
         }
       }
 
-      const result = await this.repo.setOperationalHoursForArea(areaType as AreaType, id, hours);
+      const result = await this.repo.setOperationalHoursForArea(areaType, id, hours);
       res.json({ operationalHours: result });
     } catch (error: any) {
       console.error('Error setting operational hours:', error);
@@ -213,12 +214,12 @@ export class AreaOperationalHoursController {
     try {
       const { fromAreaType, fromAreaId, toAreaType, toAreaId } = req.body;
 
-      if (fromAreaType !== 'department' && fromAreaType !== 'service') {
+      if (!validateAreaType(fromAreaType)) {
         res.status(400).json({ error: 'Invalid source area type' });
         return;
       }
 
-      if (toAreaType !== 'department' && toAreaType !== 'service') {
+      if (!validateAreaType(toAreaType)) {
         res.status(400).json({ error: 'Invalid destination area type' });
         return;
       }
@@ -229,9 +230,9 @@ export class AreaOperationalHoursController {
       }
 
       const result = await this.repo.copyOperationalHours(
-        fromAreaType as AreaType,
+        fromAreaType,
         fromAreaId,
-        toAreaType as AreaType,
+        toAreaType,
         toAreaId
       );
 

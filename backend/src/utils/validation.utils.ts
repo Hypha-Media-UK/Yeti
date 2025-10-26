@@ -1,4 +1,5 @@
 import { isValidDate } from './date.utils';
+import { AreaType } from '../../shared/types/allocation';
 
 export function validateDateString(date: string): { valid: boolean; error?: string } {
   if (!date) {
@@ -37,11 +38,48 @@ export function validateShiftGroup(group: string | null): { valid: boolean; erro
   if (group === null) {
     return { valid: true };
   }
-  
+
   const validGroups = ['Day', 'Night'];
   if (!validGroups.includes(group)) {
     return { valid: false, error: `Invalid group. Must be one of: ${validGroups.join(', ')} or null` };
   }
   return { valid: true };
+}
+
+/**
+ * Validates that a string is a valid AreaType ('department' or 'service')
+ * @param areaType - The area type to validate
+ * @returns True if valid, false otherwise
+ */
+export function validateAreaType(areaType: string): areaType is AreaType {
+  return areaType === 'department' || areaType === 'service';
+}
+
+/**
+ * Validates that a value is a positive integer
+ * @param value - The value to validate
+ * @returns True if valid positive integer, false otherwise
+ */
+export function isPositiveInteger(value: any): boolean {
+  return Number.isInteger(value) && value > 0;
+}
+
+/**
+ * Validates that a string is not empty after trimming
+ * @param value - The string to validate
+ * @returns True if non-empty, false otherwise
+ */
+export function isNonEmptyString(value: any): boolean {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+/**
+ * Validates that an ID parameter is a valid positive integer
+ * @param id - The ID to validate (can be string or number)
+ * @returns The parsed ID if valid, null otherwise
+ */
+export function parseId(id: string | number): number | null {
+  const parsed = typeof id === 'string' ? parseInt(id, 10) : id;
+  return isPositiveInteger(parsed) ? parsed : null;
 }
 

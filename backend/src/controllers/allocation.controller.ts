@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { AllocationRepository } from '../repositories/allocation.repository';
-import type { AreaType } from '@shared/types/allocation';
+import type { AreaType } from '../../shared/types/allocation';
+import { validateAreaType, parseId } from '../utils/validation.utils';
 
 export class AllocationController {
   private allocationRepo: AllocationRepository;
@@ -12,9 +13,9 @@ export class AllocationController {
   // Get all allocations for a staff member
   getStaffAllocations = async (req: Request, res: Response): Promise<void> => {
     try {
-      const staffId = parseInt(req.params.staffId);
-      
-      if (isNaN(staffId)) {
+      const staffId = parseId(req.params.staffId);
+
+      if (!staffId) {
         res.status(400).json({ error: 'Invalid staff ID' });
         return;
       }
@@ -31,19 +32,19 @@ export class AllocationController {
   getAreaAllocations = async (req: Request, res: Response): Promise<void> => {
     try {
       const { areaType, areaId } = req.params;
-      const parsedAreaId = parseInt(areaId);
 
-      if (!['department', 'service'].includes(areaType)) {
+      if (!validateAreaType(areaType)) {
         res.status(400).json({ error: 'Invalid area type. Must be "department" or "service"' });
         return;
       }
 
-      if (isNaN(parsedAreaId)) {
+      const parsedAreaId = parseId(areaId);
+      if (!parsedAreaId) {
         res.status(400).json({ error: 'Invalid area ID' });
         return;
       }
 
-      const allocations = await this.allocationRepo.findByArea(areaType as AreaType, parsedAreaId);
+      const allocations = await this.allocationRepo.findByArea(areaType, parsedAreaId);
       res.json({ allocations });
     } catch (error) {
       console.error('Error fetching area allocations:', error);
@@ -61,7 +62,7 @@ export class AllocationController {
         return;
       }
 
-      if (!['department', 'service'].includes(areaType)) {
+      if (!validateAreaType(areaType)) {
         res.status(400).json({ error: 'Invalid area type. Must be "department" or "service"' });
         return;
       }
@@ -84,10 +85,10 @@ export class AllocationController {
   // Set all allocations for a staff member (replaces existing)
   setStaffAllocations = async (req: Request, res: Response): Promise<void> => {
     try {
-      const staffId = parseInt(req.params.staffId);
+      const staffId = parseId(req.params.staffId);
       const { allocations } = req.body;
 
-      if (isNaN(staffId)) {
+      if (!staffId) {
         res.status(400).json({ error: 'Invalid staff ID' });
         return;
       }
@@ -103,7 +104,7 @@ export class AllocationController {
           res.status(400).json({ error: 'Each allocation must have areaType and areaId' });
           return;
         }
-        if (!['department', 'service'].includes(alloc.areaType)) {
+        if (!validateAreaType(alloc.areaType)) {
           res.status(400).json({ error: 'Invalid area type. Must be "department" or "service"' });
           return;
         }
