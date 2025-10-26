@@ -357,13 +357,23 @@ const handleStaffSubmit = async (data: {
     // Update allocations
     await api.setStaffAllocations(staffId, data.allocations);
 
-    // Update contracted hours
+    // Update contracted hours - deduplicate first
     const hoursToSave = data.contractedHours.map(h => ({
       dayOfWeek: h.dayOfWeek,
       startTime: h.startTime,
       endTime: h.endTime,
     }));
-    await api.setContractedHoursForStaff(staffId, hoursToSave);
+
+    // Remove duplicates based on dayOfWeek, startTime, endTime
+    const uniqueHours = hoursToSave.filter((hour, index, self) =>
+      index === self.findIndex(h =>
+        h.dayOfWeek === hour.dayOfWeek &&
+        h.startTime === hour.startTime &&
+        h.endTime === hour.endTime
+      )
+    );
+
+    await api.setContractedHoursForStaff(staffId, uniqueHours);
 
     await loadStaff();
     closeStaffModal();
@@ -441,13 +451,23 @@ const handleUpdateDepartment = async (
     // Update department basic info
     await api.updateDepartment(id, { name, includeInMainRota });
 
-    // Update operational hours
+    // Update operational hours - deduplicate first
     const hoursToSave = operationalHours.map(h => ({
       dayOfWeek: h.dayOfWeek,
       startTime: h.startTime,
       endTime: h.endTime,
     }));
-    await api.setOperationalHoursForArea('department', id, hoursToSave);
+
+    // Remove duplicates based on dayOfWeek, startTime, endTime
+    const uniqueHours = hoursToSave.filter((hour, index, self) =>
+      index === self.findIndex(h =>
+        h.dayOfWeek === hour.dayOfWeek &&
+        h.startTime === hour.startTime &&
+        h.endTime === hour.endTime
+      )
+    );
+
+    await api.setOperationalHoursForArea('department', id, uniqueHours);
 
     await loadDepartments();
   } catch (error) {
@@ -499,13 +519,23 @@ const handleServiceSubmit = async (data: {
       serviceId = response.service.id;
     }
 
-    // Update operational hours
+    // Update operational hours - deduplicate first
     const hoursToSave = data.operationalHours.map(h => ({
       dayOfWeek: h.dayOfWeek,
       startTime: h.startTime,
       endTime: h.endTime,
     }));
-    await api.setOperationalHoursForArea('service', serviceId, hoursToSave);
+
+    // Remove duplicates based on dayOfWeek, startTime, endTime
+    const uniqueHours = hoursToSave.filter((hour, index, self) =>
+      index === self.findIndex(h =>
+        h.dayOfWeek === hour.dayOfWeek &&
+        h.startTime === hour.startTime &&
+        h.endTime === hour.endTime
+      )
+    );
+
+    await api.setOperationalHoursForArea('service', serviceId, uniqueHours);
 
     await loadServices();
     showServiceModal.value = false;
