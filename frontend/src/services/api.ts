@@ -341,5 +341,14 @@ export const api = {
       body: JSON.stringify({ fromStaffId, toStaffId }),
     });
   },
+
+  // Areas
+  async getMainRotaAreas(): Promise<{ areas: Array<{ id: number; name: string; type: 'department' | 'service'; buildingId?: number }> }> {
+    return fetchApi<{ areas: Array<{ id: number; name: string; type: 'department' | 'service'; buildingId?: number }> }>('/areas/main-rota');
+  },
+
+  async getMainRotaAreasForDay(dayOfWeek: number): Promise<{ areas: any[] }> {
+    return fetchApi<{ areas: any[] }>(`/areas/main-rota/day/${dayOfWeek}`);
+  },
 };
 
