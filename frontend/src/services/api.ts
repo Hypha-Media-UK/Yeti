@@ -347,8 +347,11 @@ export const api = {
     return fetchApi<{ areas: Array<{ id: number; name: string; type: 'department' | 'service'; buildingId?: number }> }>('/areas/main-rota');
   },
 
-  async getMainRotaAreasForDay(dayOfWeek: number): Promise<{ areas: any[] }> {
-    return fetchApi<{ areas: any[] }>(`/areas/main-rota/day/${dayOfWeek}`);
+  async getMainRotaAreasForDay(dayOfWeek: number, date?: string): Promise<{ areas: any[] }> {
+    const url = date
+      ? `/areas/main-rota/day/${dayOfWeek}?date=${date}`
+      : `/areas/main-rota/day/${dayOfWeek}`;
+    return fetchApi<{ areas: any[] }>(url);
   },
 };
 

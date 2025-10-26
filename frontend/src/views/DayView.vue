@@ -50,6 +50,16 @@
                       {{ formatTime(hours.startTime) }} - {{ formatTime(hours.endTime) }}
                     </span>
                   </div>
+                  <div v-if="area.staff && area.staff.length > 0" class="area-staff">
+                    <div
+                      v-for="staff in area.staff"
+                      :key="staff.id"
+                      class="staff-item"
+                    >
+                      {{ staff.firstName }} {{ staff.lastName }}
+                    </div>
+                  </div>
+                  <div v-else class="area-no-staff">No staff assigned</div>
                 </div>
               </div>
             </div>
@@ -73,6 +83,16 @@
                       {{ formatTime(hours.startTime) }} - {{ formatTime(hours.endTime) }}
                     </span>
                   </div>
+                  <div v-if="area.staff && area.staff.length > 0" class="area-staff">
+                    <div
+                      v-for="staff in area.staff"
+                      :key="staff.id"
+                      class="staff-item"
+                    >
+                      {{ staff.firstName }} {{ staff.lastName }}
+                    </div>
+                  </div>
+                  <div v-else class="area-no-staff">No staff assigned</div>
                 </div>
               </div>
             </div>
@@ -104,6 +124,16 @@
                       {{ formatTime(hours.startTime) }} - {{ formatTime(hours.endTime) }}
                     </span>
                   </div>
+                  <div v-if="area.staff && area.staff.length > 0" class="area-staff">
+                    <div
+                      v-for="staff in area.staff"
+                      :key="staff.id"
+                      class="staff-item"
+                    >
+                      {{ staff.firstName }} {{ staff.lastName }}
+                    </div>
+                  </div>
+                  <div v-else class="area-no-staff">No staff assigned</div>
                 </div>
               </div>
             </div>
@@ -127,6 +157,16 @@
                       {{ formatTime(hours.startTime) }} - {{ formatTime(hours.endTime) }}
                     </span>
                   </div>
+                  <div v-if="area.staff && area.staff.length > 0" class="area-staff">
+                    <div
+                      v-for="staff in area.staff"
+                      :key="staff.id"
+                      class="staff-item"
+                    >
+                      {{ staff.firstName }} {{ staff.lastName }}
+                    </div>
+                  </div>
+                  <div v-else class="area-no-staff">No staff assigned</div>
                 </div>
               </div>
             </div>
@@ -260,7 +300,7 @@ async function loadRota() {
 async function loadAreas() {
   try {
     const dayOfWeek = getDayOfWeek(selectedDate.value);
-    const response = await api.getMainRotaAreasForDay(dayOfWeek);
+    const response = await api.getMainRotaAreasForDay(dayOfWeek, selectedDate.value);
     areas.value = response.areas;
   } catch (err) {
     console.error('Error loading areas:', err);
@@ -395,6 +435,40 @@ onMounted(async () => {
   background-color: var(--color-surface);
   padding: 2px var(--spacing-1);
   border-radius: 4px;
+}
+
+.area-staff {
+  margin-top: var(--spacing-2);
+  padding-top: var(--spacing-2);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.staff-item {
+  font-size: var(--font-size-body-sm);
+  color: var(--color-text-primary);
+  padding: var(--spacing-1);
+  background-color: var(--color-surface);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.staff-item::before {
+  content: '👤';
+  margin-right: var(--spacing-1);
+  font-size: 14px;
+}
+
+.area-no-staff {
+  margin-top: var(--spacing-2);
+  padding-top: var(--spacing-2);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--font-size-body-sm);
+  color: var(--color-text-tertiary);
+  font-style: italic;
 }
 
 @media (min-width: 961px) {

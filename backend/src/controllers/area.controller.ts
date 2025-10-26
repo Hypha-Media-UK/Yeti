@@ -9,19 +9,21 @@ export class AreaController {
   }
 
   /**
-   * GET /api/areas/main-rota/day/:dayOfWeek
+   * GET /api/areas/main-rota/day/:dayOfWeek?date=YYYY-MM-DD
    * Get all areas that should appear on the main rota for a specific day
+   * Optional date parameter to include staff assignments for that date
    */
   getMainRotaAreasForDay = async (req: Request, res: Response): Promise<void> => {
     try {
       const dayOfWeek = parseInt(req.params.dayOfWeek);
+      const date = req.query.date as string | undefined;
 
       if (isNaN(dayOfWeek) || dayOfWeek < 1 || dayOfWeek > 7) {
         res.status(400).json({ error: 'Invalid day of week. Must be 1-7 (Monday-Sunday)' });
         return;
       }
 
-      const areas = await this.areaService.getAreasForDay(dayOfWeek);
+      const areas = await this.areaService.getAreasForDay(dayOfWeek, date);
       res.json({ areas });
     } catch (error) {
       console.error('Error fetching main rota areas for day:', error);
