@@ -132,8 +132,6 @@
             </div>
           </div>
         </div>
-
-        <ManualAssignmentForm :date="selectedDate" />
       </div>
     </div>
   </div>
@@ -149,7 +147,6 @@ import { useTimeZone } from '@/composables/useTimeZone';
 import { api } from '@/services/api';
 import DateSelector from '@/components/DateSelector.vue';
 import ShiftGroup from '@/components/ShiftGroup.vue';
-import ManualAssignmentForm from '@/components/ManualAssignmentForm.vue';
 
 const route = useRoute();
 const router = useRouter();
