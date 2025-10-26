@@ -83,21 +83,21 @@ function goToToday() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--spacing-md);
+  gap: var(--spacing-2);
   flex-wrap: wrap;
 }
 
 .date-controls {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
+  gap: var(--spacing-2);
 }
 
 .nav-btn {
   width: 2.5rem;
   height: 2.5rem;
   padding: 0;
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-section);
 }
 
 .date-display {
@@ -116,10 +116,10 @@ function goToToday() {
 }
 
 .date-text {
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: var(--spacing-1) var(--spacing-2);
   background-color: var(--color-surface);
-  border: 1px solid var(--color-outline);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-button);
   text-align: center;
   font-weight: var(--font-weight-medium);
   pointer-events: none;
@@ -129,7 +129,7 @@ function goToToday() {
   min-width: 100px;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 600px) {
   .date-selector {
     flex-direction: column;
     width: 100%;

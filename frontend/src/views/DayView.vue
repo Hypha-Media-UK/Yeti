@@ -107,25 +107,25 @@ onMounted(async () => {
 <style scoped>
 .day-view {
   min-height: 100vh;
-  padding: var(--spacing-lg) 0;
+  padding: var(--spacing-3) 0;
 }
 
 .page-header {
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: var(--spacing-4);
 }
 
 .page-title {
-  font-size: var(--font-size-3xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-on-surface);
+  font-size: var(--font-size-headline);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
 }
 
 .date-section {
-  margin-bottom: var(--spacing-xl);
-  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-4);
+  padding: var(--spacing-3);
   background-color: var(--color-surface);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-medium);
 }
 
 .loading-state,
@@ -134,39 +134,39 @@ onMounted(async () => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: var(--spacing-2xl);
-  gap: var(--spacing-md);
+  padding: var(--spacing-6);
+  gap: var(--spacing-2);
 }
 
 .rota-content {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xl);
+  gap: var(--spacing-4);
 }
 
 .shifts-grid {
   display: grid;
-  gap: var(--spacing-xl);
+  gap: var(--spacing-4);
   grid-template-columns: 1fr;
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 961px) {
   .shifts-grid {
     grid-template-columns: 1fr 1fr;
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 600px) {
   .day-view {
-    padding: var(--spacing-md) 0;
+    padding: var(--spacing-2) 0;
   }
 
   .page-title {
-    font-size: var(--font-size-2xl);
+    font-size: var(--font-size-section);
   }
 
   .date-section {
-    padding: var(--spacing-md);
+    padding: var(--spacing-2);
   }
 }
 </style>

@@ -47,18 +47,18 @@ const groupClass = computed(() => ({
 <style scoped>
 .shift-group {
   background-color: var(--color-surface);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-lg);
-  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-card);
+  padding: var(--spacing-3);
+  box-shadow: var(--shadow-medium);
 }
 
 .shift-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-lg);
-  padding-bottom: var(--spacing-md);
-  border-bottom: 2px solid var(--color-outline-variant);
+  margin-bottom: var(--spacing-3);
+  padding-bottom: var(--spacing-2);
+  border-bottom: 2px solid var(--color-border);
 }
 
 .group-day .shift-header {
@@ -70,28 +70,28 @@ const groupClass = computed(() => ({
 }
 
 .shift-title {
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-section);
   font-weight: var(--font-weight-semibold);
-  color: var(--color-on-surface);
+  color: var(--color-text-primary);
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
+  gap: var(--spacing-2);
 }
 
 .shift-time {
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-body);
   font-weight: var(--font-weight-normal);
-  color: var(--color-on-surface-variant);
-  font-family: 'Courier New', monospace;
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-mono);
 }
 
 .shift-count {
-  padding: var(--spacing-xs) var(--spacing-md);
-  background-color: var(--color-surface-variant);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
+  padding: var(--spacing-1) var(--spacing-2);
+  background-color: var(--color-bg);
+  border-radius: var(--radius-button);
+  font-size: var(--font-size-body-sm);
   font-weight: var(--font-weight-medium);
-  color: var(--color-on-surface-variant);
+  color: var(--color-text-secondary);
 }
 
 .group-day .shift-count {
@@ -106,27 +106,27 @@ const groupClass = computed(() => ({
 
 .shift-list {
   display: grid;
-  gap: var(--spacing-md);
+  gap: var(--spacing-2);
 }
 
 .empty-state {
-  padding: var(--spacing-xl);
+  padding: var(--spacing-4);
   text-align: center;
-  color: var(--color-on-surface-variant);
+  color: var(--color-text-secondary);
   font-style: italic;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 600px) {
   .shift-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: var(--spacing-sm);
+    gap: var(--spacing-1);
   }
 
   .shift-title {
     flex-direction: column;
     align-items: flex-start;
-    gap: var(--spacing-xs);
+    gap: var(--spacing-1);
   }
 }
 </style>

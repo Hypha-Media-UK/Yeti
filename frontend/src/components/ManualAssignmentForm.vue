@@ -124,23 +124,23 @@ function resetForm() {
 
 <style scoped>
 .assignment-form {
-  margin-top: var(--spacing-lg);
+  margin-top: var(--spacing-3);
 }
 
 .form-title {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-section);
   font-weight: var(--font-weight-semibold);
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-3);
 }
 
 .form-group {
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-2);
 }
 
 .form-actions {
   display: flex;
-  gap: var(--spacing-md);
-  margin-top: var(--spacing-lg);
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-3);
 }
 
 .form-actions button {
@@ -152,7 +152,7 @@ textarea.input {
   min-height: 60px;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 600px) {
   .form-actions {
     flex-direction: column;
   }
