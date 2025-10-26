@@ -6,6 +6,7 @@ export interface StaffRow extends RowDataPacket {
   last_name: string;
   status: 'Regular' | 'Relief' | 'Supervisor';
   group: 'Day' | 'Night' | null;
+  department_id: number | null;
   cycle_type: string | null;
   days_offset: number;
   is_active: boolean;

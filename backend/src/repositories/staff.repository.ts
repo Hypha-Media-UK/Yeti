@@ -10,6 +10,7 @@ export class StaffRepository {
       lastName: row.last_name,
       status: row.status,
       group: row.group,
+      departmentId: row.department_id,
       cycleType: row.cycle_type as any,
       daysOffset: row.days_offset,
       isActive: row.is_active,
