@@ -104,26 +104,47 @@ docker-compose exec backend npm test
 ```
 ✓ src/utils/__tests__/date.utils.test.ts (17)
 ✓ src/__tests__/integration/rota.api.test.ts (15)
-❯ src/services/__tests__/rota.service.test.ts (15)
+✓ src/services/__tests__/rota.service.test.ts (15)
   ✓ Regular Staff - 4-on-4-off Pattern (6)
-  ✓ Supervisor Pattern (3 passed, 2 failed)
+  ✓ Supervisor Pattern (5)
   ✓ Night Shift Overlap (1)
   ✓ Manual Assignments (2)
   ✓ Relief Staff (1)
 
-Test Files  1 failed | 2 passed (3)
-Tests       2 failed | 45 passed (47)
-Duration    2.57s
+Test Files  3 passed (3)
+Tests       47 passed (47)
+Duration    2.71s
 ```
 
 ### Success Metrics
 
-✅ **Path alias resolution working** - All `@shared/*` imports resolve correctly  
-✅ **45 of 47 tests passing** - 96% pass rate  
-✅ **Integration tests all passing** - All API endpoints verified  
-✅ **Date utils tests all passing** - All timezone/DST logic verified  
+✅ **Path alias resolution working** - All `@shared/*` imports resolve correctly
+✅ **47 of 47 tests passing** - 100% pass rate 🎉
+✅ **Integration tests all passing** - All API endpoints verified
+✅ **Date utils tests all passing** - All timezone/DST logic verified
+✅ **Supervisor scheduling tests passing** - Night shift overlap correctly validated
 
-❌ **2 business logic tests failing** - Supervisor night shift scheduling (unrelated to migration)
+## Test Fixes Applied
+
+After the initial migration, 2 tests were failing due to test logic issues (not framework issues):
+
+### Fix 1: Date Construction Inconsistency
+**Problem:** Test loop variables were inconsistent - some tests added `+1` to convert cycle position to calendar day, others didn't.
+
+**Solution:** Standardized all date construction:
+```javascript
+const dayNum = day + 1;
+const date = `2024-01-${dayNum < 10 ? '0' + dayNum : dayNum}`;
+```
+
+### Fix 2: Night Shift Overlap Not Accounted For
+**Problem:** Test expected cycle positions 12-15 to have zero night shifts, but position 12 (Jan 13) has a night shift overlap from position 11 (Jan 12).
+
+**Solution:** Updated test to correctly expect the night shift overlap:
+- Day 12 (Jan 13): Expects 1 night shift (overlap from previous night)
+- Days 13-15 (Jan 14-16): Expects 0 shifts (completely off)
+
+This correctly validates the application's night shift overlap logic (20:00-08:00 spans two calendar days).
 
 ## Benefits
 
@@ -150,26 +171,16 @@ The implementation remains clean and well-structured:
 
 **No overcomplications found** - The architecture follows standard patterns appropriate for the application size.
 
-## Known Issues
-
-### Failing Tests (Business Logic)
-
-Two supervisor scheduling tests are failing:
-
-1. **Night shift days 8-11** - Expected 1 night shift, got 0
-2. **Off days 12-15** - Expected 0 shifts, got 1 night shift
-
-**Status:** These are business logic issues in the supervisor scheduling algorithm, not testing framework issues.
-
-**Next steps:** Review supervisor cycle calculation in `RotaService.isStaffOnDuty()` method.
-
 ## Conclusion
 
-The migration to Vitest was successful and resolved all path alias issues. The testing framework is now:
-- Simpler to configure
-- Faster to execute
-- Consistent with frontend
-- More maintainable
+The migration from Jest to Vitest was **100% successful**:
 
-**Stage 1 is functionally complete** with automated tests running successfully.
+✅ All path alias issues resolved
+✅ Testing framework aligned with frontend
+✅ All 47 tests passing (100% pass rate)
+✅ Simpler configuration (14 lines vs 35 lines)
+✅ Faster test execution
+✅ Better Docker compatibility
+
+**Stage 1 is complete and stable** - tagged as `v1.0.0-stage1`.
 
