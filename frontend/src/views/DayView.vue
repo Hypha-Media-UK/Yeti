@@ -63,7 +63,9 @@
                 <div
                   v-for="staff in area.staff"
                   :key="staff.id"
-                  class="staff-item"
+                  class="staff-item clickable"
+                  @click="handleAreaStaffClick(staff)"
+                  title="Click to manage temporary assignments"
                 >
                   <span class="staff-name">{{ staff.firstName }} {{ staff.lastName }}</span>
                   <span class="staff-hours">{{ calculateTotalHours(staff.contractedHours) }}h</span>
@@ -100,7 +102,9 @@
                 <div
                   v-for="staff in area.staff"
                   :key="staff.id"
-                  class="staff-item"
+                  class="staff-item clickable"
+                  @click="handleAreaStaffClick(staff)"
+                  title="Click to manage temporary assignments"
                 >
                   <span class="staff-name">{{ staff.firstName }} {{ staff.lastName }}</span>
                   <span class="staff-hours">{{ calculateTotalHours(staff.contractedHours) }}h</span>
@@ -124,6 +128,18 @@
       :services="allServices"
       @submit="handleCreateTemporaryAssignment"
     />
+
+    <!-- Manage Assignments Modal -->
+    <ManageAssignmentsModal
+      v-model="showManageAssignmentsModal"
+      v-if="selectedStaffForManagement"
+      :key="`manage-${selectedStaffForManagement.id}`"
+      :staff-member="selectedStaffForManagement"
+      :current-date="selectedDate"
+      :departments="allDepartments"
+      :services="allServices"
+      @deleted="loadRota"
+    />
   </div>
 </template>
 
@@ -138,7 +154,9 @@ import { api } from '@/services/api';
 import DateSelector from '@/components/DateSelector.vue';
 import ShiftGroup from '@/components/ShiftGroup.vue';
 import TemporaryAssignmentModal from '@/components/TemporaryAssignmentModal.vue';
+import ManageAssignmentsModal from '@/components/ManageAssignmentsModal.vue';
 import type { ShiftAssignment } from '@shared/types/shift';
+import type { StaffMember } from '@shared/types/staff';
 import type { CreateTemporaryAssignmentDto } from '@shared/types/shift';
 
 const route = useRoute();
@@ -158,6 +176,10 @@ const nightShifts = computed(() => rotaStore.nightShifts);
 // Temporary assignment modal state
 const showTemporaryAssignmentModal = ref(false);
 const selectedStaffForAssignment = ref<ShiftAssignment | null>(null);
+
+// Manage assignments modal state
+const showManageAssignmentsModal = ref(false);
+const selectedStaffForManagement = ref<StaffMember | null>(null);
 
 // Categorize areas by area type (all areas, regardless of shift)
 const allDepartments = computed(() =>
@@ -247,6 +269,26 @@ async function loadAreas() {
 function handleStaffClick(assignment: ShiftAssignment) {
   selectedStaffForAssignment.value = assignment;
   showTemporaryAssignmentModal.value = true;
+}
+
+// Handle area staff click to open manage assignments modal
+function handleAreaStaffClick(staff: any) {
+  // Convert the area staff object to a StaffMember
+  const staffMember: StaffMember = {
+    id: staff.id,
+    firstName: staff.firstName,
+    lastName: staff.lastName,
+    status: staff.status,
+    shiftId: null,
+    cycleType: '4-on-4-off',
+    daysOffset: 0,
+    isActive: 1,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  selectedStaffForManagement.value = staffMember;
+  showManageAssignmentsModal.value = true;
 }
 
 // Handle temporary assignment creation
@@ -414,6 +456,17 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.staff-item.clickable {
+  cursor: pointer;
+  transition: var(--transition-base);
+}
+
+.staff-item.clickable:hover {
+  background-color: var(--color-background);
+  box-shadow: var(--shadow-low);
+  transform: translateY(-1px);
 }
 
 .staff-name {

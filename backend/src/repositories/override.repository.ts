@@ -97,6 +97,26 @@ export class OverrideRepository {
     return rows.map(row => this.mapRowToManualAssignment(row));
   }
 
+  /**
+   * Find temporary area assignments for a specific staff member
+   * Only returns assignments that have areaType and areaId set
+   */
+  async findTemporaryAssignmentsByStaff(staffId: number, date: string): Promise<ManualAssignment[]> {
+    const [rows] = await pool.query<ManualAssignmentRow[]>(
+      `SELECT * FROM manual_assignments
+       WHERE staff_id = ?
+       AND area_type IS NOT NULL
+       AND area_id IS NOT NULL
+       AND (
+         (assignment_date = ?) OR
+         (end_date IS NOT NULL AND assignment_date <= ? AND end_date >= ?)
+       )
+       ORDER BY assignment_date`,
+      [staffId, date, date, date]
+    );
+    return rows.map(row => this.mapRowToManualAssignment(row));
+  }
+
   async delete(id: number): Promise<boolean> {
     const [result] = await pool.query<InsertResult>(
       'DELETE FROM manual_assignments WHERE id = ?',

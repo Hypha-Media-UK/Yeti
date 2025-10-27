@@ -219,6 +219,40 @@ export class RotaController {
     }
   };
 
+  /**
+   * Get temporary area assignments for a specific staff member on a specific date
+   * GET /api/rota/assignments/temporary/:staffId?date=YYYY-MM-DD
+   */
+  getTemporaryAssignments = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const staffId = parseInt(req.params.staffId);
+      const date = req.query.date as string;
+
+      if (isNaN(staffId)) {
+        res.status(400).json({ error: 'Invalid staff ID' });
+        return;
+      }
+
+      if (!date) {
+        res.status(400).json({ error: 'Date is required' });
+        return;
+      }
+
+      const validation = validateDateString(date);
+      if (!validation.valid) {
+        res.status(400).json({ error: validation.error });
+        return;
+      }
+
+      const assignments = await this.overrideRepo.findTemporaryAssignmentsByStaff(staffId, date);
+
+      res.json({ assignments });
+    } catch (error) {
+      console.error('Error fetching temporary assignments:', error);
+      res.status(500).json({ error: 'Failed to fetch temporary assignments' });
+    }
+  };
+
   deleteAssignment = async (req: Request, res: Response): Promise<void> => {
     try {
       const id = parseInt(req.params.id);

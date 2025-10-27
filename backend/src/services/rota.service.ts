@@ -147,6 +147,16 @@ export class RotaService {
       const staff = allStaff.find(s => s.id === assignment.staffId);
       if (!staff) continue;
 
+      // CRITICAL: Skip temporary area assignments
+      // Temporary area assignments have areaType and areaId set
+      // They should ONLY appear in the specific area card, NOT in shift pools
+      if (assignment.areaType && assignment.areaId) {
+        // This is a temporary area assignment, not a shift pool assignment
+        // Mark as manually assigned so they don't get cycle-based shifts
+        manuallyAssignedStaffIds.add(staff.id);
+        continue;
+      }
+
       manuallyAssignedStaffIds.add(staff.id);
 
       const times = await this.getDefaultShiftTimes(assignment.shiftType);
@@ -170,6 +180,9 @@ export class RotaService {
     // Process manual night shift assignments from previous day that overlap into target date
     for (const assignment of previousDayAssignments) {
       if (assignment.shiftType !== 'night') continue;
+
+      // Skip temporary area assignments (same logic as above)
+      if (assignment.areaType && assignment.areaId) continue;
 
       const staff = allStaff.find(s => s.id === assignment.staffId);
       if (!staff) continue;
@@ -242,32 +255,6 @@ export class RotaService {
         if (dutyCheck.shiftType === 'day') {
           dayShifts.push(shiftAssignment);
         } else {
-          nightShifts.push(shiftAssignment);
-        }
-      }
-
-      // Check if staff had a night shift that started yesterday and overlaps today
-      // This should be checked regardless of today's shift status
-      const previousDutyCheck = this.isStaffOnDuty(staff, previousDate, appZeroDate);
-      if (previousDutyCheck.onDuty && previousDutyCheck.shiftType === 'night') {
-        // This night shift started yesterday and ends today at 08:00
-        const times = await this.getDefaultShiftTimes('night');
-
-        const shiftAssignment: ShiftAssignment = {
-          staff,
-          shiftType: 'night',
-          shiftStart: formatLocalTime(times.start),
-          shiftEnd: formatLocalTime(times.end),
-          isManualAssignment: false,
-          isFixedSchedule: false,
-          assignmentDate: previousDate,
-        };
-
-        // Only add if not already added (check by staff ID + assignment date)
-        const alreadyAdded = nightShifts.some(
-          s => s.staff.id === staff.id && s.assignmentDate === previousDate
-        );
-        if (!alreadyAdded) {
           nightShifts.push(shiftAssignment);
         }
       }

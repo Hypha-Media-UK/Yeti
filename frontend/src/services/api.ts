@@ -154,6 +154,10 @@ export const api = {
     });
   },
 
+  async getTemporaryAssignments(staffId: number, date: string): Promise<{ assignments: ManualAssignment[] }> {
+    return fetchApi<{ assignments: ManualAssignment[] }>(`/rota/assignments/temporary/${staffId}?date=${date}`);
+  },
+
   async deleteAssignment(id: number): Promise<{ success: boolean }> {
     return fetchApi<{ success: boolean }>(`/rota/assignments/${id}`, {
       method: 'DELETE',

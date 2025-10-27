@@ -12,6 +12,7 @@ router.get('/range', rotaController.getRotaForRange);
 router.get('/assignments', rotaController.getAssignments);
 router.post('/assignments', rotaController.createAssignment);
 router.post('/assignments/temporary', rotaController.createTemporaryAssignment);
+router.get('/assignments/temporary/:staffId', rotaController.getTemporaryAssignments);
 router.delete('/assignments/:id', rotaController.deleteAssignment);
 
 router.delete('/schedules/:id', staffController.deleteSchedule);
