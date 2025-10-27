@@ -1,5 +1,5 @@
 import { StaffMember, StaffMemberWithShift } from '../../shared/types/staff';
-import { ShiftAssignment, DayRota, ManualAssignment, ShiftType } from '../../shared/types/shift';
+import { ShiftAssignment, DayRota, ManualAssignment, ShiftType, ShiftStatus } from '../../shared/types/shift';
 import { StaffRepository } from '../repositories/staff.repository';
 import { ScheduleRepository } from '../repositories/schedule.repository';
 import { OverrideRepository } from '../repositories/override.repository';
@@ -110,10 +110,10 @@ export class RotaService {
   }
 
   /**
-   * Get shift times for a specific staff member
-   * Uses custom shift times if defined, otherwise falls back to default shift times
+   * Get shift times for a specific staff member on a specific date
+   * Priority: 1) Custom shift times, 2) Contracted hours for the day, 3) Default shift times
    */
-  private async getShiftTimesForStaff(staff: StaffMemberWithShift, shiftType: ShiftType): Promise<{ start: string; end: string }> {
+  private async getShiftTimesForStaff(staff: StaffMemberWithShift, shiftType: ShiftType, targetDate: string): Promise<{ start: string; end: string } | null> {
     // Check if staff has custom shift times
     if (staff.customShiftStart && staff.customShiftEnd) {
       return {
@@ -122,8 +122,63 @@ export class RotaService {
       };
     }
 
+    // Check if staff has contracted hours for this specific day
+    const contractedHours = await this.contractedHoursRepo.findByStaff(staff.id);
+    if (contractedHours.length > 0) {
+      const dateObj = parseLocalDate(targetDate);
+      const dayOfWeek = dateObj.getDay() === 0 ? 7 : dateObj.getDay();
+
+      const hoursForDay = contractedHours.find(ch => ch.dayOfWeek === dayOfWeek);
+      if (hoursForDay) {
+        // Staff has contracted hours for this day - use them
+        return {
+          start: hoursForDay.startTime,
+          end: hoursForDay.endTime
+        };
+      } else {
+        // Staff has contracted hours defined but NOT for this day - they don't work today
+        return null;
+      }
+    }
+
     // Fall back to default shift times
     return this.getDefaultShiftTimes(shiftType);
+  }
+
+  /**
+   * Calculate shift status based on current time and shift hours
+   * Returns 'active', 'pending', or 'expired'
+   */
+  private calculateShiftStatus(targetDate: string, shiftStart: string, shiftEnd: string): ShiftStatus {
+    const now = new Date();
+    const today = formatLocalDate(now);
+
+    // If the target date is not today, we can't determine real-time status
+    // Return 'active' as default for past/future dates
+    if (targetDate !== today) {
+      return 'active';
+    }
+
+    // Parse current time as minutes since midnight
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    // Parse shift times (format: "HH:MM" or "HH:MM:SS")
+    const parseTime = (timeStr: string): number => {
+      const parts = timeStr.split(':');
+      return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+    };
+
+    const startMinutes = parseTime(shiftStart);
+    const endMinutes = parseTime(shiftEnd);
+
+    // Determine status
+    if (currentMinutes < startMinutes) {
+      return 'pending'; // Shift hasn't started yet
+    } else if (currentMinutes >= endMinutes) {
+      return 'expired'; // Shift has ended
+    } else {
+      return 'active'; // Currently working
+    }
   }
 
   /**
@@ -179,15 +234,21 @@ export class RotaService {
 
       manuallyAssignedStaffIds.add(staff.id);
 
-      const times = await this.getShiftTimesForStaff(staff, assignment.shiftType);
+      const times = await this.getShiftTimesForStaff(staff, assignment.shiftType, targetDate);
+      if (!times) continue; // Staff doesn't work on this day based on contracted hours
+
+      const shiftStart = formatLocalTime(assignment.shiftStart || times.start);
+      const shiftEnd = formatLocalTime(assignment.shiftEnd || times.end);
+
       const shiftAssignment: ShiftAssignment = {
         staff,
         shiftType: assignment.shiftType,
-        shiftStart: formatLocalTime(assignment.shiftStart || times.start),
-        shiftEnd: formatLocalTime(assignment.shiftEnd || times.end),
+        shiftStart,
+        shiftEnd,
         isManualAssignment: true,
         isFixedSchedule: false,
         assignmentDate: targetDate,
+        status: this.calculateShiftStatus(targetDate, shiftStart, shiftEnd),
       };
 
       if (assignment.shiftType === 'day') {
@@ -211,14 +272,18 @@ export class RotaService {
       if (manuallyAssignedStaffIds.has(staff.id)) continue;
 
       const times = await this.getDefaultShiftTimes('night');
+      const shiftStart = formatLocalTime(assignment.shiftStart || times.start);
+      const shiftEnd = formatLocalTime(assignment.shiftEnd || times.end);
+
       const shiftAssignment: ShiftAssignment = {
         staff,
         shiftType: 'night',
-        shiftStart: formatLocalTime(assignment.shiftStart || times.start),
-        shiftEnd: formatLocalTime(assignment.shiftEnd || times.end),
+        shiftStart,
+        shiftEnd,
         isManualAssignment: true,
         isFixedSchedule: false,
         assignmentDate: previousDate,
+        status: this.calculateShiftStatus(targetDate, shiftStart, shiftEnd),
       };
 
       nightShifts.push(shiftAssignment);
@@ -238,15 +303,18 @@ export class RotaService {
       if (fixedSchedule) {
         // Determine shift type based on times (simplified - could be enhanced)
         const shiftType: ShiftType = fixedSchedule.shiftStart >= '12:00:00' ? 'night' : 'day';
+        const shiftStart = formatLocalTime(fixedSchedule.shiftStart);
+        const shiftEnd = formatLocalTime(fixedSchedule.shiftEnd);
 
         const shiftAssignment: ShiftAssignment = {
           staff,
           shiftType,
-          shiftStart: formatLocalTime(fixedSchedule.shiftStart),
-          shiftEnd: formatLocalTime(fixedSchedule.shiftEnd),
+          shiftStart,
+          shiftEnd,
           isManualAssignment: false,
           isFixedSchedule: true,
           assignmentDate: targetDate,
+          status: this.calculateShiftStatus(targetDate, shiftStart, shiftEnd),
         };
 
         if (shiftType === 'day') {
@@ -260,16 +328,23 @@ export class RotaService {
       // Calculate based on cycle
       const dutyCheck = this.isStaffOnDuty(staff, targetDate, appZeroDate);
       if (dutyCheck.onDuty && dutyCheck.shiftType) {
-        const times = await this.getShiftTimesForStaff(staff, dutyCheck.shiftType);
+        const times = await this.getShiftTimesForStaff(staff, dutyCheck.shiftType, targetDate);
+
+        // If times is null, staff has contracted hours but not for this day - skip them
+        if (!times) continue;
+
+        const shiftStart = formatLocalTime(times.start);
+        const shiftEnd = formatLocalTime(times.end);
 
         const shiftAssignment: ShiftAssignment = {
           staff,
           shiftType: dutyCheck.shiftType,
-          shiftStart: formatLocalTime(times.start),
-          shiftEnd: formatLocalTime(times.end),
+          shiftStart,
+          shiftEnd,
           isManualAssignment: false,
           isFixedSchedule: false,
           assignmentDate: targetDate,
+          status: this.calculateShiftStatus(targetDate, shiftStart, shiftEnd),
         };
 
         if (dutyCheck.shiftType === 'day') {
@@ -280,8 +355,19 @@ export class RotaService {
       }
     }
 
-    // Sort shifts by staff name for stable ordering
+    // Sort shifts by status (active, pending, expired) then by staff name
+    const statusOrder: Record<ShiftStatus, number> = {
+      'active': 1,
+      'pending': 2,
+      'expired': 3,
+    };
+
     const sortShifts = (a: ShiftAssignment, b: ShiftAssignment) => {
+      // First sort by status
+      const statusDiff = statusOrder[a.status] - statusOrder[b.status];
+      if (statusDiff !== 0) return statusDiff;
+
+      // Then sort by name within same status
       const nameA = `${a.staff.lastName} ${a.staff.firstName}`;
       const nameB = `${b.staff.lastName} ${b.staff.firstName}`;
       return nameA.localeCompare(nameB);

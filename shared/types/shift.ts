@@ -8,6 +8,14 @@ import { StaffMember } from './staff';
 export type ShiftType = 'day' | 'night';
 
 /**
+ * Shift status indicates the current state of a staff member's shift
+ * - 'active': Staff is currently working (current time is within their shift hours)
+ * - 'pending': Staff will work later today (current time is before their shift start)
+ * - 'expired': Staff has finished working today (current time is after their shift end)
+ */
+export type ShiftStatus = 'active' | 'pending' | 'expired';
+
+/**
  * Shift entity - represents a named group of staff
  * Replaces the old ENUM('Day', 'Night') group field with a more flexible system
  */
@@ -51,6 +59,7 @@ export interface ShiftAssignment {
   isManualAssignment: boolean;
   isFixedSchedule: boolean;
   assignmentDate: string;
+  status: ShiftStatus; // Current status: active, pending, or expired
 }
 
 export interface DayRota {

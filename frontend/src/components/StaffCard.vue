@@ -68,6 +68,9 @@ const cardClass = computed(() => ({
   'shift-day': props.assignment.shiftType === 'day',
   'shift-night': props.assignment.shiftType === 'night',
   'clickable': props.clickable,
+  'status-active': props.assignment.status === 'active',
+  'status-pending': props.assignment.status === 'pending',
+  'status-expired': props.assignment.status === 'expired',
 }));
 
 const handleClick = () => {
@@ -109,6 +112,21 @@ const handleClick = () => {
 
 .staff-card.shift-night {
   border-left-color: var(--color-night-shift);
+}
+
+/* Status-based styling */
+.staff-card.status-pending {
+  opacity: 0.7;
+  background-color: var(--color-surface-secondary, #f9fafb);
+}
+
+.staff-card.status-expired {
+  opacity: 0.4;
+  background-color: var(--color-surface-tertiary, #f3f4f6);
+}
+
+.staff-card.status-active {
+  /* Default styling - no changes needed */
 }
 
 .staff-info {
