@@ -99,14 +99,16 @@ const handleClick = () => {
 }
 
 /* Status-based styling */
-.staff-card.shift-day.status-active,
-.staff-card.shift-day.status-pending {
+.staff-card.shift-day.status-active {
   background-color: rgba(59, 130, 246, 0.08); /* Subtle blue for day shift */
 }
 
-.staff-card.shift-night.status-active,
-.staff-card.shift-night.status-pending {
+.staff-card.shift-night.status-active {
   background-color: rgba(99, 102, 241, 0.08); /* Subtle indigo for night shift */
+}
+
+.staff-card.status-pending {
+  background-color: rgba(251, 146, 60, 0.12); /* Subtle orange */
 }
 
 .staff-card.status-expired {
