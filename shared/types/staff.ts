@@ -1,5 +1,6 @@
 import type { Department } from './department';
 import type { Shift } from './shift';
+import type { Absence } from './absence';
 
 export type StaffStatus = 'Regular' | 'Relief' | 'Supervisor';
 export type CycleType = '4-on-4-off' | 'supervisor' | null;
@@ -21,6 +22,7 @@ export interface StaffMember {
 
 export interface StaffMemberWithShift extends StaffMember {
   shift: Shift | null;
+  currentAbsence?: Absence | null; // Active absence if staff is currently absent
 }
 
 export interface StaffMemberWithDepartment extends StaffMember {

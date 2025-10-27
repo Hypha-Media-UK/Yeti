@@ -5,6 +5,7 @@ import type { Building } from '@shared/types/building';
 import type { Department } from '@shared/types/department';
 import type { Service } from '@shared/types/service';
 import type { StaffAllocation, AllocationWithDetails, AreaType } from '@shared/types/allocation';
+import type { Absence, CreateAbsenceRequest, UpdateAbsenceRequest } from '@shared/types/absence';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -413,6 +414,42 @@ export const api = {
 
   async getShiftStaffCount(id: number): Promise<{ count: number }> {
     return fetchApi<{ count: number }>(`/shifts/${id}/staff-count`);
+  },
+
+  // Absences
+  async getAbsencesByStaffId(staffId: number): Promise<Absence[]> {
+    return fetchApi<Absence[]>(`/absences/staff/${staffId}`);
+  },
+
+  async getAbsencesByStaffIdAndDateRange(staffId: number, startDate: string, endDate: string): Promise<Absence[]> {
+    return fetchApi<Absence[]>(`/absences/staff/${staffId}/range?startDate=${startDate}&endDate=${endDate}`);
+  },
+
+  async getActiveAbsence(staffId: number, datetime?: string): Promise<Absence | null> {
+    const url = datetime
+      ? `/absences/staff/${staffId}/active?datetime=${datetime}`
+      : `/absences/staff/${staffId}/active`;
+    return fetchApi<Absence | null>(url);
+  },
+
+  async createAbsence(data: CreateAbsenceRequest): Promise<Absence> {
+    return fetchApi<Absence>('/absences', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateAbsence(id: number, data: UpdateAbsenceRequest): Promise<Absence> {
+    return fetchApi<Absence>(`/absences/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteAbsence(id: number): Promise<{ success: boolean }> {
+    return fetchApi<{ success: boolean }>(`/absences/${id}`, {
+      method: 'DELETE',
+    });
   },
 };
 

@@ -10,6 +10,7 @@ import areaRoutes from './area.routes';
 import areaOperationalHoursRoutes from './area-operational-hours.routes';
 import staffContractedHoursRoutes from './staff-contracted-hours.routes';
 import shiftRoutes from './shift.routes';
+import absenceRoutes from './absence.routes';
 
 const router = Router();
 
@@ -24,6 +25,7 @@ router.use('/areas', areaRoutes);
 router.use('/operational-hours', areaOperationalHoursRoutes);
 router.use('/contracted-hours', staffContractedHoursRoutes);
 router.use('/shifts', shiftRoutes);
+router.use('/absences', absenceRoutes);
 
 export default router;
 

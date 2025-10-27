@@ -6,6 +6,7 @@ import { OverrideRepository } from '../repositories/override.repository';
 import { ConfigRepository } from '../repositories/config.repository';
 import { AllocationRepository } from '../repositories/allocation.repository';
 import { StaffContractedHoursRepository } from '../repositories/staff-contracted-hours.repository';
+import { AbsenceRepository } from '../repositories/absence.repository';
 import { daysBetween, formatLocalDate, formatLocalTime, addDaysLocal, parseLocalDate } from '../utils/date.utils';
 import { SHIFT_TIMES, CYCLE_LENGTHS } from '../config/constants';
 
@@ -16,6 +17,7 @@ export class RotaService {
   private configRepo: ConfigRepository;
   private allocationRepo: AllocationRepository;
   private contractedHoursRepo: StaffContractedHoursRepository;
+  private absenceRepo: AbsenceRepository;
 
   constructor() {
     this.staffRepo = new StaffRepository();
@@ -24,6 +26,7 @@ export class RotaService {
     this.configRepo = new ConfigRepository();
     this.allocationRepo = new AllocationRepository();
     this.contractedHoursRepo = new StaffContractedHoursRepository();
+    this.absenceRepo = new AbsenceRepository();
   }
 
   /**
@@ -395,6 +398,34 @@ export class RotaService {
         } else {
           nightShifts.push(shiftAssignment);
         }
+      }
+    }
+
+    // Fetch absence information for all staff in the shifts
+    const allStaffIds = [
+      ...dayShifts.map(s => s.staff.id),
+      ...nightShifts.map(s => s.staff.id)
+    ];
+    const uniqueStaffIds = [...new Set(allStaffIds)];
+
+    // Get active absences for the target date (check at noon to cover most of the day)
+    const checkDatetime = `${targetDate}T12:00:00`;
+    const absencePromises = uniqueStaffIds.map(staffId =>
+      this.absenceRepo.findActiveAbsence(staffId, checkDatetime)
+    );
+    const absences = await Promise.all(absencePromises);
+    const absenceMap = new Map<number, typeof absences[0]>();
+    uniqueStaffIds.forEach((staffId, index) => {
+      if (absences[index]) {
+        absenceMap.set(staffId, absences[index]);
+      }
+    });
+
+    // Attach absence information to staff objects
+    for (const shift of [...dayShifts, ...nightShifts]) {
+      const absence = absenceMap.get(shift.staff.id);
+      if (absence) {
+        shift.staff.currentAbsence = absence;
       }
     }
 

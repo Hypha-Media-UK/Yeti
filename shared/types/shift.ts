@@ -1,4 +1,4 @@
-import { StaffMember } from './staff';
+import { StaffMember, StaffMemberWithShift } from './staff';
 
 /**
  * Shift type determines which shift column staff appear in on the rota
@@ -52,7 +52,7 @@ export interface UpdateShiftDto {
 }
 
 export interface ShiftAssignment {
-  staff: StaffMember;
+  staff: StaffMemberWithShift;
   shiftType: ShiftType; // Changed from ShiftGroup to ShiftType
   shiftStart: string;
   shiftEnd: string;

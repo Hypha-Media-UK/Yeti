@@ -5,12 +5,14 @@ import { AllocationRepository } from '../repositories/allocation.repository';
 import { StaffContractedHoursRepository } from '../repositories/staff-contracted-hours.repository';
 import { OverrideRepository } from '../repositories/override.repository';
 import { StaffRepository } from '../repositories/staff.repository';
+import { AbsenceRepository } from '../repositories/absence.repository';
 import { RotaService } from './rota.service';
 import type { Department } from '../../shared/types/department';
 import type { Service } from '../../shared/types/service';
 import type { AreaOperationalHours, StaffContractedHours } from '../../shared/types/operational-hours';
 import type { StaffMember } from '../../shared/types/staff';
 import type { ShiftType } from '../../shared/types/shift';
+import type { Absence } from '../../shared/types/absence';
 
 export interface StaffAssignmentForArea {
   id: number;
@@ -19,6 +21,7 @@ export interface StaffAssignmentForArea {
   status: string;
   shiftType: ShiftType;
   contractedHours: StaffContractedHours[];
+  currentAbsence?: Absence | null;
 }
 
 export interface AreaWithHours {
@@ -38,6 +41,7 @@ export class AreaService {
   private contractedHoursRepo: StaffContractedHoursRepository;
   private overrideRepo: OverrideRepository;
   private staffRepo: StaffRepository;
+  private absenceRepo: AbsenceRepository;
   private rotaService: RotaService;
 
   constructor() {
@@ -48,6 +52,7 @@ export class AreaService {
     this.contractedHoursRepo = new StaffContractedHoursRepository();
     this.overrideRepo = new OverrideRepository();
     this.staffRepo = new StaffRepository();
+    this.absenceRepo = new AbsenceRepository();
     this.rotaService = new RotaService();
   }
 
@@ -205,6 +210,21 @@ export class AreaService {
         contractedHours,
       });
     }
+
+    // Fetch absence information for all staff
+    const staffIds = staffAssignments.map(s => s.id);
+    const checkDatetime = `${date}T12:00:00`;
+    const absencePromises = staffIds.map(staffId =>
+      this.absenceRepo.findActiveAbsence(staffId, checkDatetime)
+    );
+    const absences = await Promise.all(absencePromises);
+
+    // Attach absence information to staff assignments
+    staffAssignments.forEach((staff, index) => {
+      if (absences[index]) {
+        staff.currentAbsence = absences[index];
+      }
+    });
 
     // Sort by shift type (day first, then night), then by name
     staffAssignments.sort((a, b) => {
