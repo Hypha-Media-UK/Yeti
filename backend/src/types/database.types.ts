@@ -38,8 +38,13 @@ export interface ManualAssignmentRow extends RowDataPacket {
   staff_id: number;
   assignment_date: Date;
   shift_type: 'Day' | 'Night';
+  area_type: 'department' | 'service' | null;
+  area_id: number | null;
   shift_start: string | null;
   shift_end: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  end_date: Date | null;
   notes: string | null;
   created_at: Date;
   updated_at: Date;

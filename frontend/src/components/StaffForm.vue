@@ -38,14 +38,16 @@
     </div>
 
     <div v-if="formData.status === 'Regular'" class="form-group">
-      <label for="shift" class="form-label">Shift *</label>
+      <label for="shift" class="form-label">Shift {{ hasAllocations ? '' : '*' }}</label>
       <select
         id="shift"
         v-model="formData.shiftId"
         class="form-input"
-        required
+        :required="!hasAllocations"
       >
-        <option :value="null" disabled>Select a shift</option>
+        <option :value="null" :disabled="!hasAllocations">
+          {{ hasAllocations ? 'No Shift (Permanently Assigned)' : 'Select a shift' }}
+        </option>
         <optgroup label="Day Shifts">
           <option
             v-for="shift in dayShifts"
@@ -65,7 +67,12 @@
           </option>
         </optgroup>
       </select>
-      <p class="form-hint">Assign staff to a shift group</p>
+      <p class="form-hint">
+        {{ hasAllocations
+          ? 'Staff with permanent area assignments should select "No Shift"'
+          : 'Pool staff must be assigned to a shift group'
+        }}
+      </p>
     </div>
 
     <div class="form-group">
@@ -205,6 +212,11 @@ const formData = reactive({
   contractedHours: [] as HoursEntry[],
 });
 
+// Check if staff has permanent area allocations
+const hasAllocations = computed(() => {
+  return formData.departmentId !== null || formData.serviceId !== null;
+});
+
 // Organize departments by building for grouped select
 const buildingsWithDepartments = computed(() => {
   return props.buildings
@@ -233,15 +245,40 @@ const handleStatusChange = () => {
   } else if (formData.status === 'Supervisor') {
     formData.shiftId = null;
   } else if (formData.status === 'Regular' && !formData.shiftId) {
-    // Auto-select first day shift if available
-    if (dayShifts.value.length > 0) {
-      formData.shiftId = dayShifts.value[0].id;
+    // If staff has allocations, set to null (No Shift)
+    if (hasAllocations.value) {
+      formData.shiftId = null;
+    } else {
+      // Auto-select first day shift if available for pool staff
+      if (dayShifts.value.length > 0) {
+        formData.shiftId = dayShifts.value[0].id;
+      }
     }
   }
 };
 
 const handleSubmit = () => {
   error.value = '';
+
+  // Build allocations array from selected department and service
+  const allocations: Array<{ areaType: 'department' | 'service'; areaId: number }> = [];
+
+  if (formData.departmentId) {
+    allocations.push({ areaType: 'department', areaId: formData.departmentId });
+  }
+
+  if (formData.serviceId) {
+    allocations.push({ areaType: 'service', areaId: formData.serviceId });
+  }
+
+  // Validation: Regular staff must have either a shift OR permanent allocations
+  if (formData.status === 'Regular') {
+    if (!formData.shiftId && allocations.length === 0) {
+      error.value = 'Regular staff must either be assigned to a shift (for pool staff) or have permanent area assignments.';
+      return;
+    }
+  }
+
   loading.value = true;
 
   const cycleType = formData.status === 'Supervisor' ? 'supervisor' :
@@ -256,17 +293,6 @@ const handleSubmit = () => {
     daysOffset: formData.daysOffset,
     isActive: true,
   };
-
-  // Build allocations array from selected department and service
-  const allocations: Array<{ areaType: 'department' | 'service'; areaId: number }> = [];
-
-  if (formData.departmentId) {
-    allocations.push({ areaType: 'department', areaId: formData.departmentId });
-  }
-
-  if (formData.serviceId) {
-    allocations.push({ areaType: 'service', areaId: formData.serviceId });
-  }
 
   emit('submit', { staff: staffData, allocations, contractedHours: formData.contractedHours });
   loading.value = false;

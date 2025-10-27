@@ -4,6 +4,7 @@ import { StaffRepository } from '../repositories/staff.repository';
 import { ScheduleRepository } from '../repositories/schedule.repository';
 import { OverrideRepository } from '../repositories/override.repository';
 import { ConfigRepository } from '../repositories/config.repository';
+import { AllocationRepository } from '../repositories/allocation.repository';
 import { daysBetween, formatLocalDate, formatLocalTime, addDaysLocal, parseLocalDate } from '../utils/date.utils';
 import { SHIFT_TIMES, CYCLE_LENGTHS } from '../config/constants';
 
@@ -12,12 +13,14 @@ export class RotaService {
   private scheduleRepo: ScheduleRepository;
   private overrideRepo: OverrideRepository;
   private configRepo: ConfigRepository;
+  private allocationRepo: AllocationRepository;
 
   constructor() {
     this.staffRepo = new StaffRepository();
     this.scheduleRepo = new ScheduleRepository();
     this.overrideRepo = new OverrideRepository();
     this.configRepo = new ConfigRepository();
+    this.allocationRepo = new AllocationRepository();
   }
 
   /**
@@ -68,6 +71,15 @@ export class RotaService {
     }
 
     return { onDuty: false, shiftType: null };
+  }
+
+  /**
+   * Check if a staff member has permanent area allocations
+   * Staff with permanent allocations should NOT appear in shift pools
+   */
+  private async hasPermanentAllocations(staffId: number): Promise<boolean> {
+    const allocations = await this.allocationRepo.findByStaffId(staffId);
+    return allocations.length > 0;
   }
 
   /**
@@ -183,6 +195,11 @@ export class RotaService {
     for (const staff of allStaff) {
       if (manuallyAssignedStaffIds.has(staff.id)) continue;
 
+      // CRITICAL: Skip staff with permanent area allocations
+      // They should ONLY appear in their assigned area cards, NOT in shift pools
+      const hasPermanentAssignment = await this.hasPermanentAllocations(staff.id);
+      if (hasPermanentAssignment) continue;
+
       // Check for fixed schedule
       const fixedSchedule = await this.scheduleRepo.findByStaffIdAndDate(staff.id, targetDate);
       if (fixedSchedule) {
@@ -287,6 +304,45 @@ export class RotaService {
     }
 
     return days;
+  }
+
+  /**
+   * Check if a staff member is working on a specific date based on their cycle
+   * This is used to determine if permanently allocated staff should appear in area cards
+   */
+  async isStaffWorkingOnDate(staff: StaffMemberWithShift, targetDate: string): Promise<boolean> {
+    // Check for manual assignments first
+    const manualAssignments = await this.overrideRepo.findByStaffAndDate(staff.id, targetDate);
+    if (manualAssignments.length > 0) {
+      const assignment = manualAssignments[0];
+      // If there's a manual assignment with shiftType, they're working
+      if (assignment.shiftType) {
+        return true;
+      }
+      // If shiftType is null, it's a day off override
+      return false;
+    }
+
+    // Check cycle-based schedule
+    const appZeroDate = await this.configRepo.getByKey('app_zero_date') || '2024-01-01';
+    const daysSinceZero = daysBetween(appZeroDate, targetDate);
+
+    if (staff.status === 'Relief') {
+      // Relief staff only work when manually assigned
+      return false;
+    }
+
+    const adjustedDays = daysSinceZero - (staff.daysOffset || 0);
+
+    if (staff.status === 'Supervisor') {
+      // 16-day cycle: 4 day / 4 off / 4 night / 4 off
+      const cyclePosition = adjustedDays % CYCLE_LENGTHS.SUPERVISOR;
+      return cyclePosition < 4 || (cyclePosition >= 8 && cyclePosition < 12);
+    } else {
+      // Regular staff: 4-on-4-off (8-day cycle)
+      const cyclePosition = adjustedDays % CYCLE_LENGTHS.REGULAR;
+      return cyclePosition < 4;
+    }
   }
 }
 

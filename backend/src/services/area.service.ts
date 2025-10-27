@@ -3,6 +3,8 @@ import { ServiceRepository } from '../repositories/service.repository';
 import { AreaOperationalHoursRepository } from '../repositories/area-operational-hours.repository';
 import { AllocationRepository } from '../repositories/allocation.repository';
 import { StaffContractedHoursRepository } from '../repositories/staff-contracted-hours.repository';
+import { OverrideRepository } from '../repositories/override.repository';
+import { StaffRepository } from '../repositories/staff.repository';
 import { RotaService } from './rota.service';
 import type { Department } from '../../shared/types/department';
 import type { Service } from '../../shared/types/service';
@@ -34,6 +36,8 @@ export class AreaService {
   private operationalHoursRepo: AreaOperationalHoursRepository;
   private allocationRepo: AllocationRepository;
   private contractedHoursRepo: StaffContractedHoursRepository;
+  private overrideRepo: OverrideRepository;
+  private staffRepo: StaffRepository;
   private rotaService: RotaService;
 
   constructor() {
@@ -42,6 +46,8 @@ export class AreaService {
     this.operationalHoursRepo = new AreaOperationalHoursRepository();
     this.allocationRepo = new AllocationRepository();
     this.contractedHoursRepo = new StaffContractedHoursRepository();
+    this.overrideRepo = new OverrideRepository();
+    this.staffRepo = new StaffRepository();
     this.rotaService = new RotaService();
   }
 
@@ -118,6 +124,7 @@ export class AreaService {
 
   /**
    * Get staff members assigned to a specific area who are working on the given date
+   * Includes both permanently allocated staff and temporarily assigned pool staff
    */
   private async getStaffForArea(
     areaType: 'department' | 'service',
@@ -126,30 +133,77 @@ export class AreaService {
   ): Promise<StaffAssignmentForArea[]> {
     if (!dayRota) return [];
 
-    // Get all staff allocated to this area
+    const date = dayRota.date;
+
+    // Get all staff permanently allocated to this area
     const allocations = await this.allocationRepo.findByArea(areaType, areaId);
     const allocatedStaffIds = new Set(allocations.map(a => a.staffId));
 
-    // Get all staff working on this date from the rota
-    const allShifts = [...dayRota.dayShifts, ...dayRota.nightShifts];
-
-    // Filter to only staff allocated to this area
     const staffAssignments: StaffAssignmentForArea[] = [];
 
-    for (const shift of allShifts) {
-      if (allocatedStaffIds.has(shift.staff.id)) {
+    // Add permanently allocated staff who are working today
+    // We need to check if they're working based on their cycle, not just if they're in shift pools
+    for (const allocation of allocations) {
+      // Get staff with shift information
+      const allStaffWithShifts = await this.staffRepo.findAllWithShifts();
+      const staff = allStaffWithShifts.find(s => s.id === allocation.staffId);
+
+      if (!staff || !staff.isActive) continue;
+
+      // Check if this staff member is working today using the rota service
+      const isWorking = await this.rotaService.isStaffWorkingOnDate(staff, date);
+
+      if (isWorking) {
         // Fetch contracted hours for this staff member
-        const contractedHours = await this.contractedHoursRepo.findByStaff(shift.staff.id);
+        const contractedHours = await this.contractedHoursRepo.findByStaff(staff.id);
+
+        // Determine shift type based on their shift assignment or default to 'day'
+        let shiftType: 'day' | 'night' = 'day';
+        if (staff.shift?.type) {
+          shiftType = staff.shift.type;
+        }
 
         staffAssignments.push({
-          id: shift.staff.id,
-          firstName: shift.staff.firstName,
-          lastName: shift.staff.lastName,
-          status: shift.staff.status,
-          shiftType: shift.shiftType,
+          id: staff.id,
+          firstName: staff.firstName,
+          lastName: staff.lastName,
+          status: staff.status,
+          shiftType,
           contractedHours,
         });
       }
+    }
+
+    // Get temporary assignments for this area on this date
+    const temporaryAssignments = await this.overrideRepo.findByAreaAndDateRange(
+      areaType,
+      areaId,
+      date,
+      date
+    );
+
+    // Add temporarily assigned pool staff
+    for (const assignment of temporaryAssignments) {
+      // Skip if already in the list (shouldn't happen, but safety check)
+      if (staffAssignments.some(s => s.id === assignment.staffId)) {
+        continue;
+      }
+
+      // Get the staff member details
+      const staff = await this.staffRepo.findById(assignment.staffId);
+      if (!staff) continue;
+
+      // Fetch contracted hours
+      const contractedHours = await this.contractedHoursRepo.findByStaff(assignment.staffId);
+
+      staffAssignments.push({
+        id: staff.id,
+        firstName: staff.firstName,
+        lastName: staff.lastName,
+        status: staff.status,
+        shiftType: assignment.shiftType,
+        contractedHours,
+      });
     }
 
     // Sort by shift type (day first, then night), then by name

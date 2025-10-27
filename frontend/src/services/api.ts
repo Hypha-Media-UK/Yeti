@@ -1,6 +1,6 @@
 import type { AppConfig } from '@shared/types/config';
 import type { StaffMember, FixedSchedule } from '@shared/types/staff';
-import type { DayRota, ManualAssignment, Shift } from '@shared/types/shift';
+import type { DayRota, ManualAssignment, Shift, CreateTemporaryAssignmentDto } from '@shared/types/shift';
 import type { Building } from '@shared/types/building';
 import type { Department } from '@shared/types/department';
 import type { Service } from '@shared/types/service';
@@ -140,6 +140,15 @@ export const api = {
     assignment: Omit<ManualAssignment, 'id' | 'createdAt' | 'updatedAt'>
   ): Promise<{ assignment: ManualAssignment }> {
     return fetchApi<{ assignment: ManualAssignment }>('/rota/assignments', {
+      method: 'POST',
+      body: JSON.stringify(assignment),
+    });
+  },
+
+  async createTemporaryAssignment(
+    assignment: CreateTemporaryAssignmentDto
+  ): Promise<{ assignment: ManualAssignment }> {
+    return fetchApi<{ assignment: ManualAssignment }>('/rota/assignments/temporary', {
       method: 'POST',
       body: JSON.stringify(assignment),
     });

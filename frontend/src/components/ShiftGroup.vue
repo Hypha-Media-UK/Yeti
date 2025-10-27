@@ -15,10 +15,12 @@
     </div>
     
     <div v-else class="shift-list">
-      <StaffCard 
-        v-for="assignment in assignments" 
+      <StaffCard
+        v-for="assignment in assignments"
         :key="`${assignment.staff.id}-${assignment.assignmentDate}`"
         :assignment="assignment"
+        :clickable="true"
+        @click="$emit('staffClick', assignment)"
       />
     </div>
   </section>
@@ -32,6 +34,10 @@ import StaffCard from './StaffCard.vue';
 const props = defineProps<{
   shiftType: 'Day' | 'Night';
   assignments: ShiftAssignment[];
+}>();
+
+const emit = defineEmits<{
+  staffClick: [assignment: ShiftAssignment];
 }>();
 
 const shiftTime = computed(() => {

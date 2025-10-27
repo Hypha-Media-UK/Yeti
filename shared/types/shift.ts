@@ -64,10 +64,30 @@ export interface ManualAssignment {
   staffId: number;
   assignmentDate: string;
   shiftType: ShiftType; // Changed from ShiftGroup to ShiftType
+  areaType: 'department' | 'service' | null; // For temporary area assignments
+  areaId: number | null; // For temporary area assignments
   shiftStart: string | null;
   shiftEnd: string | null;
+  startTime: string | null; // Start time for temporary assignment
+  endTime: string | null; // End time for temporary assignment
+  endDate: string | null; // End date for multi-day assignments
   notes: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * DTO for creating a temporary area assignment
+ */
+export interface CreateTemporaryAssignmentDto {
+  staffId: number;
+  areaType: 'department' | 'service';
+  areaId: number;
+  assignmentDate: string; // Start date (YYYY-MM-DD)
+  endDate?: string | null; // End date for multi-day assignments (YYYY-MM-DD)
+  shiftType: ShiftType; // day or night
+  startTime: string; // HH:MM format
+  endTime: string; // HH:MM format
+  notes?: string | null;
 }
 

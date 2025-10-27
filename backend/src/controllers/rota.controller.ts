@@ -84,7 +84,10 @@ export class RotaController {
 
   createAssignment = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { staffId, assignmentDate, shiftType, shiftStart, shiftEnd, notes } = req.body;
+      const {
+        staffId, assignmentDate, shiftType, shiftStart, shiftEnd,
+        areaType, areaId, startTime, endTime, endDate, notes
+      } = req.body;
 
       if (!staffId || !assignmentDate || !shiftType) {
         res.status(400).json({ error: 'Staff ID, assignment date, and shift type are required' });
@@ -103,26 +106,116 @@ export class RotaController {
         return;
       }
 
+      // Validate temporary assignment fields if provided
+      if (areaType || areaId) {
+        if (!areaType || !areaId || !startTime || !endTime) {
+          res.status(400).json({
+            error: 'For temporary area assignments, areaType, areaId, startTime, and endTime are required'
+          });
+          return;
+        }
+      }
+
       const assignment = await this.overrideRepo.create({
         staffId: parseInt(staffId),
         assignmentDate,
         shiftType,
+        areaType: areaType || null,
+        areaId: areaId ? parseInt(areaId) : null,
         shiftStart: shiftStart || null,
         shiftEnd: shiftEnd || null,
+        startTime: startTime || null,
+        endTime: endTime || null,
+        endDate: endDate || null,
         notes: notes || null,
       });
 
       res.status(201).json({ assignment });
     } catch (error: any) {
       console.error('Error creating assignment:', error);
-      
+
       // Handle duplicate key error
       if (error.code === 'ER_DUP_ENTRY') {
         res.status(409).json({ error: 'Assignment already exists for this staff member, date, and shift type' });
         return;
       }
-      
+
       res.status(500).json({ error: 'Failed to create assignment' });
+    }
+  };
+
+  /**
+   * Create a temporary area assignment for pool staff
+   * This allows pool staff to be temporarily assigned to specific areas with time ranges
+   */
+  createTemporaryAssignment = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const {
+        staffId, areaType, areaId, assignmentDate, endDate,
+        shiftType, startTime, endTime, notes
+      } = req.body;
+
+      // Validate required fields
+      if (!staffId || !areaType || !areaId || !assignmentDate || !shiftType || !startTime || !endTime) {
+        res.status(400).json({
+          error: 'staffId, areaType, areaId, assignmentDate, shiftType, startTime, and endTime are required'
+        });
+        return;
+      }
+
+      // Validate area type
+      if (areaType !== 'department' && areaType !== 'service') {
+        res.status(400).json({ error: 'areaType must be "department" or "service"' });
+        return;
+      }
+
+      // Validate dates
+      const dateValidation = validateDateString(assignmentDate);
+      if (!dateValidation.valid) {
+        res.status(400).json({ error: `Assignment date: ${dateValidation.error}` });
+        return;
+      }
+
+      if (endDate) {
+        const endDateValidation = validateDateString(endDate);
+        if (!endDateValidation.valid) {
+          res.status(400).json({ error: `End date: ${endDateValidation.error}` });
+          return;
+        }
+      }
+
+      // Validate shift type
+      const shiftValidation = validateShiftType(shiftType);
+      if (!shiftValidation.valid) {
+        res.status(400).json({ error: shiftValidation.error });
+        return;
+      }
+
+      // Create the temporary assignment
+      const assignment = await this.overrideRepo.create({
+        staffId: parseInt(staffId),
+        assignmentDate,
+        shiftType,
+        areaType,
+        areaId: parseInt(areaId),
+        shiftStart: null, // Use default shift times
+        shiftEnd: null,
+        startTime,
+        endTime,
+        endDate: endDate || null,
+        notes: notes || null,
+      });
+
+      res.status(201).json({ assignment });
+    } catch (error: any) {
+      console.error('Error creating temporary assignment:', error);
+
+      if (error.code === 'ER_DUP_ENTRY') {
+        res.status(409).json({ error: 'Assignment already exists for this staff member, date, and shift type' });
+        return;
+      }
+
+      res.status(500).json({ error: 'Failed to create temporary assignment' });
     }
   };
 

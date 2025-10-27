@@ -27,11 +27,13 @@
           <ShiftGroup
             shift-type="Day"
             :assignments="dayShifts"
+            @staff-click="handleStaffClick"
           />
 
           <ShiftGroup
             shift-type="Night"
             :assignments="nightShifts"
+            @staff-click="handleStaffClick"
           />
         </div>
 
@@ -110,6 +112,18 @@
         </div>
       </div>
     </div>
+
+    <!-- Temporary Assignment Modal -->
+    <TemporaryAssignmentModal
+      v-model="showTemporaryAssignmentModal"
+      v-if="selectedStaffForAssignment"
+      :staff-member="selectedStaffForAssignment.staff"
+      :shift-type="selectedStaffForAssignment.shiftType"
+      :current-date="selectedDate"
+      :departments="allDepartments"
+      :services="allServices"
+      @submit="handleCreateTemporaryAssignment"
+    />
   </div>
 </template>
 
@@ -123,6 +137,9 @@ import { useTimeZone } from '@/composables/useTimeZone';
 import { api } from '@/services/api';
 import DateSelector from '@/components/DateSelector.vue';
 import ShiftGroup from '@/components/ShiftGroup.vue';
+import TemporaryAssignmentModal from '@/components/TemporaryAssignmentModal.vue';
+import type { ShiftAssignment } from '@shared/types/shift';
+import type { CreateTemporaryAssignmentDto } from '@shared/types/shift';
 
 const route = useRoute();
 const router = useRouter();
@@ -137,6 +154,10 @@ const isLoading = computed(() => rotaStore.isLoading);
 const error = computed(() => rotaStore.error);
 const dayShifts = computed(() => rotaStore.dayShifts);
 const nightShifts = computed(() => rotaStore.nightShifts);
+
+// Temporary assignment modal state
+const showTemporaryAssignmentModal = ref(false);
+const selectedStaffForAssignment = ref<ShiftAssignment | null>(null);
 
 // Categorize areas by area type (all areas, regardless of shift)
 const allDepartments = computed(() =>
@@ -219,6 +240,27 @@ async function loadAreas() {
   } catch (err) {
     console.error('Error loading areas:', err);
     areas.value = [];
+  }
+}
+
+// Handle staff card click to open temporary assignment modal
+function handleStaffClick(assignment: ShiftAssignment) {
+  selectedStaffForAssignment.value = assignment;
+  showTemporaryAssignmentModal.value = true;
+}
+
+// Handle temporary assignment creation
+async function handleCreateTemporaryAssignment(data: CreateTemporaryAssignmentDto) {
+  try {
+    await api.createTemporaryAssignment(data);
+    showTemporaryAssignmentModal.value = false;
+    selectedStaffForAssignment.value = null;
+
+    // Reload rota and areas to show the new assignment
+    await Promise.all([loadRota(), loadAreas()]);
+  } catch (err: any) {
+    console.error('Error creating temporary assignment:', err);
+    alert(err.message || 'Failed to create temporary assignment');
   }
 }
 
