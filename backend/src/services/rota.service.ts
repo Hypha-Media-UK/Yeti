@@ -148,8 +148,9 @@ export class RotaService {
   /**
    * Calculate shift status based on current time and shift hours
    * Returns 'active', 'pending', or 'expired'
+   * Status only applies when we're within the shift's general operating window
    */
-  private calculateShiftStatus(targetDate: string, shiftStart: string, shiftEnd: string): ShiftStatus {
+  private calculateShiftStatus(targetDate: string, shiftStart: string, shiftEnd: string, shiftType: ShiftType): ShiftStatus {
     const now = new Date();
     const today = formatLocalDate(now);
 
@@ -168,6 +169,27 @@ export class RotaService {
       return parseInt(parts[0]) * 60 + parseInt(parts[1]);
     };
 
+    // Get default shift times to determine if we're in the shift's operating window
+    const defaultTimes = this.getDefaultShiftTimesSync(shiftType);
+    const shiftWindowStart = parseTime(defaultTimes.start);
+    const shiftWindowEnd = parseTime(defaultTimes.end);
+
+    // Check if we're currently within the shift's operating window
+    let inShiftWindow = false;
+    if (shiftWindowEnd < shiftWindowStart) {
+      // Night shift crosses midnight
+      inShiftWindow = currentMinutes >= shiftWindowStart || currentMinutes < shiftWindowEnd;
+    } else {
+      // Day shift
+      inShiftWindow = currentMinutes >= shiftWindowStart && currentMinutes < shiftWindowEnd;
+    }
+
+    // If we're not in the shift window, return 'active' (default shift color)
+    if (!inShiftWindow) {
+      return 'active';
+    }
+
+    // We're in the shift window, so apply status based on individual staff hours
     const startMinutes = parseTime(shiftStart);
     const endMinutes = parseTime(shiftEnd);
 
@@ -178,6 +200,17 @@ export class RotaService {
       return 'expired'; // Shift has ended
     } else {
       return 'active'; // Currently working
+    }
+  }
+
+  /**
+   * Synchronous version of getDefaultShiftTimes for use in calculateShiftStatus
+   */
+  private getDefaultShiftTimesSync(shiftType: ShiftType): { start: string; end: string } {
+    if (shiftType === 'day') {
+      return { start: '08:00', end: '20:00' };
+    } else {
+      return { start: '20:00', end: '08:00' };
     }
   }
 
@@ -248,7 +281,7 @@ export class RotaService {
         isManualAssignment: true,
         isFixedSchedule: false,
         assignmentDate: targetDate,
-        status: this.calculateShiftStatus(targetDate, shiftStart, shiftEnd),
+        status: this.calculateShiftStatus(targetDate, shiftStart, shiftEnd, assignment.shiftType),
       };
 
       if (assignment.shiftType === 'day') {
@@ -283,7 +316,7 @@ export class RotaService {
         isManualAssignment: true,
         isFixedSchedule: false,
         assignmentDate: previousDate,
-        status: this.calculateShiftStatus(targetDate, shiftStart, shiftEnd),
+        status: this.calculateShiftStatus(targetDate, shiftStart, shiftEnd, 'night'),
       };
 
       nightShifts.push(shiftAssignment);
@@ -314,7 +347,7 @@ export class RotaService {
           isManualAssignment: false,
           isFixedSchedule: true,
           assignmentDate: targetDate,
-          status: this.calculateShiftStatus(targetDate, shiftStart, shiftEnd),
+          status: this.calculateShiftStatus(targetDate, shiftStart, shiftEnd, shiftType),
         };
 
         if (shiftType === 'day') {
@@ -344,7 +377,7 @@ export class RotaService {
           isManualAssignment: false,
           isFixedSchedule: false,
           assignmentDate: targetDate,
-          status: this.calculateShiftStatus(targetDate, shiftStart, shiftEnd),
+          status: this.calculateShiftStatus(targetDate, shiftStart, shiftEnd, dutyCheck.shiftType),
         };
 
         if (dutyCheck.shiftType === 'day') {
