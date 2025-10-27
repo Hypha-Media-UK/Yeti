@@ -1,6 +1,6 @@
 import type { AppConfig } from '@shared/types/config';
 import type { StaffMember, FixedSchedule } from '@shared/types/staff';
-import type { DayRota, ManualAssignment } from '@shared/types/shift';
+import type { DayRota, ManualAssignment, Shift } from '@shared/types/shift';
 import type { Building } from '@shared/types/building';
 import type { Department } from '@shared/types/department';
 import type { Service } from '@shared/types/service';
@@ -54,11 +54,21 @@ export const api = {
     });
   },
 
+  async getShiftTimes(): Promise<{ dayShiftStart: string; dayShiftEnd: string; nightShiftStart: string; nightShiftEnd: string }> {
+    return fetchApi<{ dayShiftStart: string; dayShiftEnd: string; nightShiftStart: string; nightShiftEnd: string }>('/config/shift-times');
+  },
+
+  async updateShiftTimes(times: { dayShiftStart: string; dayShiftEnd: string; nightShiftStart: string; nightShiftEnd: string }): Promise<{ dayShiftStart: string; dayShiftEnd: string; nightShiftStart: string; nightShiftEnd: string }> {
+    return fetchApi<{ dayShiftStart: string; dayShiftEnd: string; nightShiftStart: string; nightShiftEnd: string }>('/config/shift-times', {
+      method: 'PUT',
+      body: JSON.stringify(times),
+    });
+  },
+
   // Staff
-  async getAllStaff(filters?: { status?: string; group?: string; includeInactive?: boolean }): Promise<{ staff: StaffMember[] }> {
+  async getAllStaff(filters?: { status?: string; includeInactive?: boolean }): Promise<{ staff: StaffMember[] }> {
     const params = new URLSearchParams();
     if (filters?.status) params.append('status', filters.status);
-    if (filters?.group) params.append('group', filters.group);
     if (filters?.includeInactive) params.append('includeInactive', 'true');
 
     const query = params.toString() ? `?${params.toString()}` : '';
@@ -352,6 +362,43 @@ export const api = {
       ? `/areas/main-rota/day/${dayOfWeek}?date=${date}`
       : `/areas/main-rota/day/${dayOfWeek}`;
     return fetchApi<{ areas: any[] }>(url);
+  },
+
+  // Shifts
+  async getShifts(): Promise<{ shifts: Shift[] }> {
+    return fetchApi<{ shifts: Shift[] }>('/shifts');
+  },
+
+  async getShiftById(id: number): Promise<{ shift: Shift }> {
+    return fetchApi<{ shift: Shift }>(`/shifts/${id}`);
+  },
+
+  async getShiftsByType(type: 'day' | 'night'): Promise<{ shifts: Shift[] }> {
+    return fetchApi<{ shifts: Shift[] }>(`/shifts/type/${type}`);
+  },
+
+  async createShift(data: { name: string; type: 'day' | 'night'; color?: string; description?: string | null }): Promise<{ shift: Shift }> {
+    return fetchApi<{ shift: Shift }>('/shifts', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateShift(id: number, updates: { name?: string; type?: 'day' | 'night'; color?: string; description?: string | null; isActive?: boolean }): Promise<{ shift: Shift }> {
+    return fetchApi<{ shift: Shift }>(`/shifts/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+  },
+
+  async deleteShift(id: number): Promise<{ message: string }> {
+    return fetchApi<{ message: string }>(`/shifts/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async getShiftStaffCount(id: number): Promise<{ count: number }> {
+    return fetchApi<{ count: number }>(`/shifts/${id}/staff-count`);
   },
 };
 

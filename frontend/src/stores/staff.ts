@@ -14,11 +14,7 @@ export const useStaffStore = defineStore('staff', () => {
     return activeStaff.value.filter(s => s.status === status);
   }
 
-  function staffByGroup(group: string) {
-    return activeStaff.value.filter(s => s.group === group);
-  }
-
-  async function fetchAllStaff(filters?: { status?: string; group?: string }) {
+  async function fetchAllStaff(filters?: { status?: string }) {
     isLoading.value = true;
     error.value = null;
 
@@ -111,7 +107,6 @@ export const useStaffStore = defineStore('staff', () => {
     error,
     activeStaff,
     staffByStatus,
-    staffByGroup,
     fetchAllStaff,
     fetchStaffById,
     createStaff,

@@ -7,15 +7,15 @@ import { RotaService } from './rota.service';
 import type { Department } from '../../shared/types/department';
 import type { Service } from '../../shared/types/service';
 import type { AreaOperationalHours, StaffContractedHours } from '../../shared/types/operational-hours';
-import type { StaffMember, ShiftGroup } from '../../shared/types/staff';
+import type { StaffMember } from '../../shared/types/staff';
+import type { ShiftType } from '../../shared/types/shift';
 
 export interface StaffAssignmentForArea {
   id: number;
   firstName: string;
   lastName: string;
   status: string;
-  group: ShiftGroup | null;
-  shiftType: ShiftGroup;
+  shiftType: ShiftType;
   contractedHours: StaffContractedHours[];
 }
 
@@ -146,17 +146,16 @@ export class AreaService {
           firstName: shift.staff.firstName,
           lastName: shift.staff.lastName,
           status: shift.staff.status,
-          group: shift.staff.group,
           shiftType: shift.shiftType,
           contractedHours,
         });
       }
     }
 
-    // Sort by shift type (Day first, then Night), then by name
+    // Sort by shift type (day first, then night), then by name
     staffAssignments.sort((a, b) => {
       if (a.shiftType !== b.shiftType) {
-        return a.shiftType === 'Day' ? -1 : 1;
+        return a.shiftType === 'day' ? -1 : 1;
       }
       return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
     });

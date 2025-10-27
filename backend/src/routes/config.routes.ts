@@ -7,5 +7,8 @@ const configController = new ConfigController();
 router.get('/zero-date', configController.getZeroDate);
 router.put('/zero-date', configController.updateZeroDate);
 
+router.get('/shift-times', configController.getShiftTimes);
+router.put('/shift-times', configController.updateShiftTimes);
+
 export default router;
 

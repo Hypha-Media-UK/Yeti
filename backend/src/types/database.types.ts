@@ -5,7 +5,7 @@ export interface StaffRow extends RowDataPacket {
   first_name: string;
   last_name: string;
   status: 'Regular' | 'Relief' | 'Supervisor';
-  group: 'Day' | 'Night' | null;
+  shift_id: number | null;
   cycle_type: string | null;
   days_offset: number;
   is_active: boolean;
@@ -94,6 +94,17 @@ export interface StaffContractedHoursRow extends RowDataPacket {
   day_of_week: number;
   start_time: string;
   end_time: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface ShiftRow extends RowDataPacket {
+  id: number;
+  name: string;
+  type: 'day' | 'night';
+  color: string;
+  description: string | null;
+  is_active: boolean;
   created_at: Date;
   updated_at: Date;
 }

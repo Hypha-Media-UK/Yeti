@@ -124,6 +124,32 @@
           </div>
           <p v-else class="empty-state">No services</p>
         </div>
+
+        <!-- Shifts Tab -->
+        <div v-if="activeTab === 'shifts'" class="tab-content">
+          <div class="section-header">
+            <h2 class="section-title">Shifts</h2>
+            <button class="btn btn-primary" @click="openAddShiftModal">
+              + Add Shift
+            </button>
+          </div>
+          <div v-if="shifts.length > 0" class="shifts-grid">
+            <ShiftCard
+              v-for="shift in shifts"
+              :key="shift.id"
+              :shift="shift"
+              :staff-count="shiftStaffCounts.get(shift.id)"
+              @edit="openEditShiftModal"
+              @delete="confirmDeleteShift"
+            />
+          </div>
+          <p v-else class="empty-state">No shifts</p>
+        </div>
+
+        <!-- Settings Tab -->
+        <div v-if="activeTab === 'settings'" class="tab-content">
+          <ShiftTimesSettings />
+        </div>
       </BaseTabs>
     </div>
 
@@ -183,6 +209,13 @@
       @submit="handleServiceSubmit"
     />
 
+    <!-- Shift Modal -->
+    <ShiftModal
+      v-model="showShiftModal"
+      :shift="editingShift"
+      @submit="handleShiftSubmit"
+    />
+
     <!-- Confirm Delete Dialog -->
     <ConfirmDialog
       v-model="showDeleteConfirm"
@@ -209,10 +242,14 @@ import BuildingCard from '@/components/BuildingCard.vue';
 import BuildingModal from '@/components/BuildingModal.vue';
 import ServiceCard from '@/components/ServiceCard.vue';
 import ServiceModal from '@/components/ServiceModal.vue';
+import ShiftCard from '@/components/ShiftCard.vue';
+import ShiftModal from '@/components/ShiftModal.vue';
+import ShiftTimesSettings from '@/components/ShiftTimesSettings.vue';
 import type { StaffMember, StaffStatus } from '@shared/types/staff';
 import type { Building } from '@shared/types/building';
 import type { Department } from '@shared/types/department';
 import type { Service } from '@shared/types/service';
+import type { Shift } from '@shared/types/shift';
 import type { AllocationWithDetails } from '@shared/types/allocation';
 import { deduplicateHours } from '@/utils/hours';
 
@@ -223,6 +260,8 @@ const allStaff = ref<StaffMember[]>([]);
 const buildings = ref<Building[]>([]);
 const departments = ref<Department[]>([]);
 const services = ref<Service[]>([]);
+const shifts = ref<Shift[]>([]);
+const shiftStaffCounts = ref<Map<number, number>>(new Map());
 
 const showStaffModal = ref(false);
 const editingStaff = ref<StaffMember | null>(null);
@@ -238,17 +277,22 @@ const newBuildingName = ref('');
 const showServiceModal = ref(false);
 const editingService = ref<Service | null>(null);
 
+const showShiftModal = ref(false);
+const editingShift = ref<Shift | null>(null);
+
 const showDeleteConfirm = ref(false);
 const deleteConfirmTitle = ref('');
 const deleteConfirmMessage = ref('');
 const deleteTarget = ref<any>(null);
-const deleteType = ref<'staff' | 'building' | 'department' | 'service'>('staff');
+const deleteType = ref<'staff' | 'building' | 'department' | 'service' | 'shift'>('staff');
 
 // Computed
 const tabs = computed<Tab[]>(() => [
   { label: 'Staff', value: 'staff' },
   { label: 'Locations', value: 'locations' },
   { label: 'Services', value: 'services' },
+  { label: 'Shifts', value: 'shifts' },
+  { label: 'Settings', value: 'settings' },
 ]);
 
 const regularStaff = computed(() => allStaff.value.filter(s => s.status === 'Regular' && s.isActive));
@@ -305,6 +349,26 @@ const loadServices = async () => {
     services.value = response.services;
   } catch (error) {
     console.error('Failed to load services:', error);
+  }
+};
+
+const loadShifts = async () => {
+  try {
+    const response = await api.getShifts();
+    shifts.value = response.shifts;
+
+    // Load staff counts for each shift
+    for (const shift of shifts.value) {
+      try {
+        const countResponse = await api.getShiftStaffCount(shift.id);
+        shiftStaffCounts.value.set(shift.id, countResponse.count);
+      } catch (error) {
+        console.error(`Failed to load staff count for shift ${shift.id}:`, error);
+        shiftStaffCounts.value.set(shift.id, 0);
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load shifts:', error);
   }
 };
 
@@ -544,6 +608,53 @@ const confirmDeleteService = (service: Service) => {
   showDeleteConfirm.value = true;
 };
 
+// Shift handlers
+const openAddShiftModal = () => {
+  editingShift.value = null;
+  showShiftModal.value = true;
+};
+
+const openEditShiftModal = (shift: Shift) => {
+  editingShift.value = shift;
+  showShiftModal.value = true;
+};
+
+const handleShiftSubmit = async (data: {
+  name: string;
+  type: 'day' | 'night';
+  color: string;
+  description: string | null;
+  isActive?: boolean;
+}) => {
+  try {
+    if (editingShift.value) {
+      await api.updateShift(editingShift.value.id, data);
+    } else {
+      await api.createShift(data);
+    }
+
+    await loadShifts();
+    showShiftModal.value = false;
+  } catch (error) {
+    console.error('Failed to save shift:', error);
+  }
+};
+
+const confirmDeleteShift = (shift: Shift) => {
+  const staffCount = shiftStaffCounts.value.get(shift.id) || 0;
+
+  if (staffCount > 0) {
+    alert(`Cannot delete shift "${shift.name}" because it has ${staffCount} staff member${staffCount === 1 ? '' : 's'} assigned to it.`);
+    return;
+  }
+
+  deleteTarget.value = shift;
+  deleteType.value = 'shift';
+  deleteConfirmTitle.value = 'Delete Shift';
+  deleteConfirmMessage.value = `Are you sure you want to delete ${shift.name}?`;
+  showDeleteConfirm.value = true;
+};
+
 // Delete confirmation
 const handleDeleteConfirm = async () => {
   try {
@@ -560,6 +671,9 @@ const handleDeleteConfirm = async () => {
     } else if (deleteType.value === 'service') {
       await api.deleteService(deleteTarget.value.id);
       await loadServices();
+    } else if (deleteType.value === 'shift') {
+      await api.deleteShift(deleteTarget.value.id);
+      await loadShifts();
     }
   } catch (error) {
     console.error('Failed to delete:', error);
@@ -575,6 +689,7 @@ onMounted(() => {
   loadBuildings();
   loadDepartments();
   loadServices();
+  loadShifts();
 });
 </script>
 
@@ -629,6 +744,12 @@ onMounted(() => {
 }
 
 .services-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--spacing-3);
+}
+
+.shifts-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: var(--spacing-3);

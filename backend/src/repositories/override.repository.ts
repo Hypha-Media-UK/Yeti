@@ -4,11 +4,14 @@ import { ManualAssignment } from '../../shared/types/shift';
 
 export class OverrideRepository {
   private mapRowToManualAssignment(row: ManualAssignmentRow): ManualAssignment {
+    // Convert old ShiftGroup values ('Day', 'Night') to new ShiftType values ('day', 'night')
+    const shiftType = row.shift_type === 'Day' ? 'day' : row.shift_type === 'Night' ? 'night' : row.shift_type as any;
+
     return {
       id: row.id,
       staffId: row.staff_id,
       assignmentDate: row.assignment_date.toISOString().split('T')[0],
-      shiftType: row.shift_type,
+      shiftType,
       shiftStart: row.shift_start,
       shiftEnd: row.shift_end,
       notes: row.notes,

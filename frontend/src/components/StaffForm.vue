@@ -38,16 +38,34 @@
     </div>
 
     <div v-if="formData.status === 'Regular'" class="form-group">
-      <label for="group" class="form-label">Group *</label>
+      <label for="shift" class="form-label">Shift *</label>
       <select
-        id="group"
-        v-model="formData.group"
+        id="shift"
+        v-model="formData.shiftId"
         class="form-input"
         required
       >
-        <option value="Day">Day</option>
-        <option value="Night">Night</option>
+        <option :value="null" disabled>Select a shift</option>
+        <optgroup label="Day Shifts">
+          <option
+            v-for="shift in dayShifts"
+            :key="shift.id"
+            :value="shift.id"
+          >
+            {{ shift.name }}
+          </option>
+        </optgroup>
+        <optgroup label="Night Shifts">
+          <option
+            v-for="shift in nightShifts"
+            :key="shift.id"
+            :value="shift.id"
+          >
+            {{ shift.name }}
+          </option>
+        </optgroup>
       </select>
+      <p class="form-hint">Assign staff to a shift group</p>
     </div>
 
     <div class="form-group">
@@ -129,13 +147,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch, computed } from 'vue';
+import { ref, reactive, watch, computed, onMounted } from 'vue';
 import OperationalHoursEditor from './OperationalHoursEditor.vue';
 import { api } from '../services/api';
-import type { StaffMember, StaffStatus, ShiftGroup } from '@shared/types/staff';
+import type { StaffMember, StaffStatus } from '@shared/types/staff';
 import type { Building } from '@shared/types/building';
 import type { Department } from '@shared/types/department';
 import type { Service } from '@shared/types/service';
+import type { Shift } from '@shared/types/shift';
 import type { AllocationWithDetails } from '@shared/types/allocation';
 
 interface HoursEntry {
@@ -173,12 +192,13 @@ const emit = defineEmits<{
 
 const loading = ref(false);
 const error = ref('');
+const shifts = ref<Shift[]>([]);
 
 const formData = reactive({
   firstName: props.staff?.firstName || '',
   lastName: props.staff?.lastName || '',
   status: (props.staff?.status || 'Regular') as StaffStatus,
-  group: (props.staff?.group || 'Day') as ShiftGroup | null,
+  shiftId: props.staff?.shiftId || null as number | null,
   departmentId: null as number | null,
   serviceId: null as number | null,
   daysOffset: props.staff?.daysOffset || 0,
@@ -196,15 +216,27 @@ const buildingsWithDepartments = computed(() => {
     .sort((a, b) => a.name.localeCompare(b.name));
 });
 
-// Auto-set cycle type and group based on status
+// Organize shifts by type
+const dayShifts = computed(() => {
+  return shifts.value.filter(s => s.type === 'day' && s.isActive);
+});
+
+const nightShifts = computed(() => {
+  return shifts.value.filter(s => s.type === 'night' && s.isActive);
+});
+
+// Auto-set cycle type and shift based on status
 const handleStatusChange = () => {
   if (formData.status === 'Relief') {
-    formData.group = null;
+    formData.shiftId = null;
     formData.daysOffset = 0;
   } else if (formData.status === 'Supervisor') {
-    formData.group = null;
-  } else if (formData.status === 'Regular' && !formData.group) {
-    formData.group = 'Day';
+    formData.shiftId = null;
+  } else if (formData.status === 'Regular' && !formData.shiftId) {
+    // Auto-select first day shift if available
+    if (dayShifts.value.length > 0) {
+      formData.shiftId = dayShifts.value[0].id;
+    }
   }
 };
 
@@ -219,7 +251,7 @@ const handleSubmit = () => {
     firstName: formData.firstName.trim(),
     lastName: formData.lastName.trim(),
     status: formData.status,
-    group: formData.status === 'Regular' ? formData.group : null,
+    shiftId: formData.status === 'Regular' ? formData.shiftId : null,
     cycleType,
     daysOffset: formData.daysOffset,
     isActive: true,
@@ -242,13 +274,28 @@ const handleSubmit = () => {
 
 
 
+// Load shifts on mount
+const loadShifts = async () => {
+  try {
+    const response = await api.getShifts();
+    shifts.value = response.shifts;
+  } catch (err) {
+    console.error('Failed to load shifts:', err);
+    error.value = 'Failed to load shifts. Please refresh the page.';
+  }
+};
+
+onMounted(() => {
+  loadShifts();
+});
+
 // Watch for prop changes (when editing)
 watch(() => props.staff, async (newStaff) => {
   if (newStaff) {
     formData.firstName = newStaff.firstName;
     formData.lastName = newStaff.lastName;
     formData.status = newStaff.status;
-    formData.group = newStaff.group;
+    formData.shiftId = newStaff.shiftId;
     formData.daysOffset = newStaff.daysOffset;
 
     // Load contracted hours

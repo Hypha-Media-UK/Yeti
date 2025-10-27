@@ -1,7 +1,7 @@
 import type { Department } from './department';
+import type { Shift } from './shift';
 
 export type StaffStatus = 'Regular' | 'Relief' | 'Supervisor';
-export type ShiftGroup = 'Day' | 'Night';
 export type CycleType = '4-on-4-off' | 'supervisor' | null;
 
 export interface StaffMember {
@@ -9,12 +9,16 @@ export interface StaffMember {
   firstName: string;
   lastName: string;
   status: StaffStatus;
-  group: ShiftGroup | null;
+  shiftId: number | null;
   cycleType: CycleType;
   daysOffset: number;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface StaffMemberWithShift extends StaffMember {
+  shift: Shift | null;
 }
 
 export interface StaffMemberWithDepartment extends StaffMember {

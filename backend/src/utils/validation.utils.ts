@@ -34,14 +34,10 @@ export function validateStaffStatus(status: string): { valid: boolean; error?: s
   return { valid: true };
 }
 
-export function validateShiftGroup(group: string | null): { valid: boolean; error?: string } {
-  if (group === null) {
-    return { valid: true };
-  }
-
-  const validGroups = ['Day', 'Night'];
-  if (!validGroups.includes(group)) {
-    return { valid: false, error: `Invalid group. Must be one of: ${validGroups.join(', ')} or null` };
+export function validateShiftType(shiftType: string): { valid: boolean; error?: string } {
+  const validTypes = ['day', 'night'];
+  if (!validTypes.includes(shiftType)) {
+    return { valid: false, error: `Invalid shift type. Must be one of: ${validTypes.join(', ')}` };
   }
   return { valid: true };
 }

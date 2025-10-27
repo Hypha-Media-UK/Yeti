@@ -9,6 +9,7 @@ import allocationRoutes from './allocation.routes';
 import areaRoutes from './area.routes';
 import areaOperationalHoursRoutes from './area-operational-hours.routes';
 import staffContractedHoursRoutes from './staff-contracted-hours.routes';
+import shiftRoutes from './shift.routes';
 
 const router = Router();
 
@@ -22,6 +23,7 @@ router.use('/allocations', allocationRoutes);
 router.use('/areas', areaRoutes);
 router.use('/operational-hours', areaOperationalHoursRoutes);
 router.use('/contracted-hours', staffContractedHoursRoutes);
+router.use('/shifts', shiftRoutes);
 
 export default router;
 

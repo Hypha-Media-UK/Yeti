@@ -1,6 +1,7 @@
 import { pool } from '../config/database';
-import { StaffRow, InsertResult } from '../types/database.types';
-import { StaffMember } from '../../shared/types/staff';
+import { StaffRow, InsertResult, ShiftRow } from '../types/database.types';
+import { StaffMember, StaffMemberWithShift } from '../../shared/types/staff';
+import { Shift } from '../../shared/types/shift';
 
 export class StaffRepository {
   private mapRowToStaffMember(row: StaffRow): StaffMember {
@@ -9,7 +10,7 @@ export class StaffRepository {
       firstName: row.first_name,
       lastName: row.last_name,
       status: row.status,
-      group: row.group,
+      shiftId: row.shift_id,
       cycleType: row.cycle_type as any,
       daysOffset: row.days_offset,
       isActive: row.is_active,
@@ -18,7 +19,7 @@ export class StaffRepository {
     };
   }
 
-  async findAll(filters?: { status?: string; group?: string; includeInactive?: boolean }): Promise<StaffMember[]> {
+  async findAll(filters?: { status?: string; includeInactive?: boolean }): Promise<StaffMember[]> {
     let query = 'SELECT * FROM staff';
     const params: any[] = [];
     const conditions: string[] = [];
@@ -31,11 +32,6 @@ export class StaffRepository {
     if (filters?.status) {
       conditions.push('status = ?');
       params.push(filters.status);
-    }
-
-    if (filters?.group) {
-      conditions.push('`group` = ?');
-      params.push(filters.group);
     }
 
     if (conditions.length > 0) {
@@ -58,13 +54,13 @@ export class StaffRepository {
 
   async create(staff: Omit<StaffMember, 'id' | 'createdAt' | 'updatedAt'>): Promise<StaffMember> {
     const [result] = await pool.query<InsertResult>(
-      `INSERT INTO staff (first_name, last_name, status, \`group\`, cycle_type, days_offset, is_active)
+      `INSERT INTO staff (first_name, last_name, status, shift_id, cycle_type, days_offset, is_active)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         staff.firstName,
         staff.lastName,
         staff.status,
-        staff.group,
+        staff.shiftId,
         staff.cycleType,
         staff.daysOffset,
         staff.isActive,
@@ -94,9 +90,9 @@ export class StaffRepository {
       fields.push('status = ?');
       values.push(updates.status);
     }
-    if (updates.group !== undefined) {
-      fields.push('`group` = ?');
-      values.push(updates.group);
+    if (updates.shiftId !== undefined) {
+      fields.push('shift_id = ?');
+      values.push(updates.shiftId);
     }
     if (updates.cycleType !== undefined) {
       fields.push('cycle_type = ?');
@@ -130,6 +126,65 @@ export class StaffRepository {
       [id]
     );
     return result.affectedRows > 0;
+  }
+
+  /**
+   * Find all staff with their shift information
+   */
+  async findAllWithShifts(filters?: { status?: string; includeInactive?: boolean }): Promise<StaffMemberWithShift[]> {
+    let query = `
+      SELECT
+        s.*,
+        sh.id as shift_id,
+        sh.name as shift_name,
+        sh.type as shift_type,
+        sh.color as shift_color,
+        sh.description as shift_description,
+        sh.is_active as shift_is_active,
+        sh.created_at as shift_created_at,
+        sh.updated_at as shift_updated_at
+      FROM staff s
+      LEFT JOIN shifts sh ON s.shift_id = sh.id
+    `;
+
+    const params: any[] = [];
+    const conditions: string[] = [];
+
+    if (!filters?.includeInactive) {
+      conditions.push('s.is_active = TRUE');
+    }
+
+    if (filters?.status) {
+      conditions.push('s.status = ?');
+      params.push(filters.status);
+    }
+
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    query += ' ORDER BY s.last_name, s.first_name';
+
+    const [rows] = await pool.query<any[]>(query, params);
+
+    return rows.map(row => {
+      const staff = this.mapRowToStaffMember(row as StaffRow);
+      const shift: Shift | null = row.shift_id ? {
+        id: row.shift_id,
+        name: row.shift_name,
+        type: row.shift_type,
+        color: row.shift_color,
+        description: row.shift_description,
+        isActive: row.shift_is_active,
+        createdAt: row.shift_created_at?.toISOString() || '',
+        updatedAt: row.shift_updated_at?.toISOString() || '',
+      } : null;
+
+      return {
+        ...staff,
+        shift,
+      };
+    });
   }
 }
 

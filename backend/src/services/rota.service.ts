@@ -1,5 +1,5 @@
-import { StaffMember, ShiftGroup } from '../../shared/types/staff';
-import { ShiftAssignment, DayRota, ManualAssignment } from '../../shared/types/shift';
+import { StaffMember, StaffMemberWithShift } from '../../shared/types/staff';
+import { ShiftAssignment, DayRota, ManualAssignment, ShiftType } from '../../shared/types/shift';
 import { StaffRepository } from '../repositories/staff.repository';
 import { ScheduleRepository } from '../repositories/schedule.repository';
 import { OverrideRepository } from '../repositories/override.repository';
@@ -22,12 +22,13 @@ export class RotaService {
 
   /**
    * Calculate if a staff member is on duty for a given date based on their cycle
+   * Now uses shift.type instead of staff.group
    */
   private isStaffOnDuty(
-    staff: StaffMember,
+    staff: StaffMemberWithShift,
     targetDate: string,
     appZeroDate: string
-  ): { onDuty: boolean; shiftType: ShiftGroup | null } {
+  ): { onDuty: boolean; shiftType: ShiftType | null } {
     // Relief staff are only on duty via manual assignments
     if (staff.status === 'Relief') {
       return { onDuty: false, shiftType: null };
@@ -39,13 +40,13 @@ export class RotaService {
     if (staff.status === 'Supervisor') {
       // Supervisor pattern: 4 days / 4 off / 4 nights / 4 off (16-day cycle)
       const cyclePosition = ((adjustedDays % CYCLE_LENGTHS.SUPERVISOR) + CYCLE_LENGTHS.SUPERVISOR) % CYCLE_LENGTHS.SUPERVISOR;
-      
+
       if (cyclePosition < 4) {
         // Days 0-3: Day shift
-        return { onDuty: true, shiftType: 'Day' };
+        return { onDuty: true, shiftType: 'day' };
       } else if (cyclePosition >= 8 && cyclePosition < 12) {
         // Days 8-11: Night shift
-        return { onDuty: true, shiftType: 'Night' };
+        return { onDuty: true, shiftType: 'night' };
       } else {
         // Days 4-7 and 12-15: Off
         return { onDuty: false, shiftType: null };
@@ -55,10 +56,11 @@ export class RotaService {
     if (staff.status === 'Regular' && staff.cycleType === '4-on-4-off') {
       // Regular pattern: 4 on / 4 off (8-day cycle)
       const cyclePosition = ((adjustedDays % CYCLE_LENGTHS.REGULAR) + CYCLE_LENGTHS.REGULAR) % CYCLE_LENGTHS.REGULAR;
-      
+
       if (cyclePosition < 4) {
         // Days 0-3: On duty
-        return { onDuty: true, shiftType: staff.group };
+        const shiftType = staff.shift?.type || null;
+        return { onDuty: true, shiftType };
       } else {
         // Days 4-7: Off
         return { onDuty: false, shiftType: null };
@@ -70,12 +72,25 @@ export class RotaService {
 
   /**
    * Get the default shift times for a shift type
+   * TODO: Make this configurable via config table
    */
-  private getDefaultShiftTimes(shiftType: ShiftGroup): { start: string; end: string } {
-    if (shiftType === 'Day') {
-      return { start: SHIFT_TIMES.DAY.START, end: SHIFT_TIMES.DAY.END };
+  private async getDefaultShiftTimes(shiftType: ShiftType): Promise<{ start: string; end: string }> {
+    // Try to get from config first
+    const dayStart = await this.configRepo.getByKey('day_shift_start');
+    const dayEnd = await this.configRepo.getByKey('day_shift_end');
+    const nightStart = await this.configRepo.getByKey('night_shift_start');
+    const nightEnd = await this.configRepo.getByKey('night_shift_end');
+
+    if (shiftType === 'day') {
+      return {
+        start: dayStart || SHIFT_TIMES.DAY.START,
+        end: dayEnd || SHIFT_TIMES.DAY.END
+      };
     } else {
-      return { start: SHIFT_TIMES.NIGHT.START, end: SHIFT_TIMES.NIGHT.END };
+      return {
+        start: nightStart || SHIFT_TIMES.NIGHT.START,
+        end: nightEnd || SHIFT_TIMES.NIGHT.END
+      };
     }
   }
 
@@ -102,9 +117,9 @@ export class RotaService {
       throw new Error('App zero date not configured');
     }
 
-    const allStaff = await this.staffRepo.findAll();
+    const allStaff = await this.staffRepo.findAllWithShifts();
     const manualAssignments = await this.overrideRepo.findByDate(targetDate);
-    
+
     // Also get manual assignments for the previous day (for night shifts that started yesterday)
     const previousDate = formatLocalDate(addDaysLocal(targetDate, -1));
     const previousDayAssignments = await this.overrideRepo.findByDate(previousDate);
@@ -122,7 +137,7 @@ export class RotaService {
 
       manuallyAssignedStaffIds.add(staff.id);
 
-      const times = this.getDefaultShiftTimes(assignment.shiftType);
+      const times = await this.getDefaultShiftTimes(assignment.shiftType);
       const shiftAssignment: ShiftAssignment = {
         staff,
         shiftType: assignment.shiftType,
@@ -133,7 +148,7 @@ export class RotaService {
         assignmentDate: targetDate,
       };
 
-      if (assignment.shiftType === 'Day') {
+      if (assignment.shiftType === 'day') {
         dayShifts.push(shiftAssignment);
       } else {
         nightShifts.push(shiftAssignment);
@@ -142,18 +157,18 @@ export class RotaService {
 
     // Process manual night shift assignments from previous day that overlap into target date
     for (const assignment of previousDayAssignments) {
-      if (assignment.shiftType !== 'Night') continue;
-      
+      if (assignment.shiftType !== 'night') continue;
+
       const staff = allStaff.find(s => s.id === assignment.staffId);
       if (!staff) continue;
 
       // Check if this staff member already has an assignment for the target date
       if (manuallyAssignedStaffIds.has(staff.id)) continue;
 
-      const times = this.getDefaultShiftTimes('Night');
+      const times = await this.getDefaultShiftTimes('night');
       const shiftAssignment: ShiftAssignment = {
         staff,
-        shiftType: 'Night',
+        shiftType: 'night',
         shiftStart: formatLocalTime(assignment.shiftStart || times.start),
         shiftEnd: formatLocalTime(assignment.shiftEnd || times.end),
         isManualAssignment: true,
@@ -172,8 +187,8 @@ export class RotaService {
       const fixedSchedule = await this.scheduleRepo.findByStaffIdAndDate(staff.id, targetDate);
       if (fixedSchedule) {
         // Determine shift type based on times (simplified - could be enhanced)
-        const shiftType: ShiftGroup = fixedSchedule.shiftStart >= '12:00:00' ? 'Night' : 'Day';
-        
+        const shiftType: ShiftType = fixedSchedule.shiftStart >= '12:00:00' ? 'night' : 'day';
+
         const shiftAssignment: ShiftAssignment = {
           staff,
           shiftType,
@@ -184,7 +199,7 @@ export class RotaService {
           assignmentDate: targetDate,
         };
 
-        if (shiftType === 'Day') {
+        if (shiftType === 'day') {
           dayShifts.push(shiftAssignment);
         } else {
           nightShifts.push(shiftAssignment);
@@ -195,8 +210,8 @@ export class RotaService {
       // Calculate based on cycle
       const dutyCheck = this.isStaffOnDuty(staff, targetDate, appZeroDate);
       if (dutyCheck.onDuty && dutyCheck.shiftType) {
-        const times = this.getDefaultShiftTimes(dutyCheck.shiftType);
-        
+        const times = await this.getDefaultShiftTimes(dutyCheck.shiftType);
+
         const shiftAssignment: ShiftAssignment = {
           staff,
           shiftType: dutyCheck.shiftType,
@@ -207,7 +222,7 @@ export class RotaService {
           assignmentDate: targetDate,
         };
 
-        if (dutyCheck.shiftType === 'Day') {
+        if (dutyCheck.shiftType === 'day') {
           dayShifts.push(shiftAssignment);
         } else {
           nightShifts.push(shiftAssignment);
@@ -217,13 +232,13 @@ export class RotaService {
       // Check if staff had a night shift that started yesterday and overlaps today
       // This should be checked regardless of today's shift status
       const previousDutyCheck = this.isStaffOnDuty(staff, previousDate, appZeroDate);
-      if (previousDutyCheck.onDuty && previousDutyCheck.shiftType === 'Night') {
+      if (previousDutyCheck.onDuty && previousDutyCheck.shiftType === 'night') {
         // This night shift started yesterday and ends today at 08:00
-        const times = this.getDefaultShiftTimes('Night');
+        const times = await this.getDefaultShiftTimes('night');
 
         const shiftAssignment: ShiftAssignment = {
           staff,
-          shiftType: 'Night',
+          shiftType: 'night',
           shiftStart: formatLocalTime(times.start),
           shiftEnd: formatLocalTime(times.end),
           isManualAssignment: false,

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { RotaService } from '../services/rota.service';
 import { OverrideRepository } from '../repositories/override.repository';
-import { validateDateString, validateShiftGroup } from '../utils/validation.utils';
+import { validateDateString, validateShiftType } from '../utils/validation.utils';
 
 export class RotaController {
   private rotaService: RotaService;
@@ -97,7 +97,7 @@ export class RotaController {
         return;
       }
 
-      const shiftValidation = validateShiftGroup(shiftType);
+      const shiftValidation = validateShiftType(shiftType);
       if (!shiftValidation.valid) {
         res.status(400).json({ error: shiftValidation.error });
         return;

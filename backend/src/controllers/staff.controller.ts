@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { StaffRepository } from '../repositories/staff.repository';
 import { ScheduleRepository } from '../repositories/schedule.repository';
-import { validateStaffStatus, validateShiftGroup } from '../utils/validation.utils';
+import { validateStaffStatus } from '../utils/validation.utils';
 
 export class StaffController {
   private staffRepo: StaffRepository;
@@ -14,11 +14,10 @@ export class StaffController {
 
   getAllStaff = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { status, group, includeInactive } = req.query;
+      const { status, includeInactive } = req.query;
 
       const filters: any = {};
       if (status) filters.status = status as string;
-      if (group) filters.group = group as string;
       if (includeInactive === 'true') filters.includeInactive = true;
 
       const staff = await this.staffRepo.findAll(filters);
@@ -55,7 +54,7 @@ export class StaffController {
 
   createStaff = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { firstName, lastName, status, group, cycleType, daysOffset } = req.body;
+      const { firstName, lastName, status, shiftId, cycleType, daysOffset } = req.body;
 
       if (!firstName || !lastName || !status) {
         res.status(400).json({ error: 'First name, last name, and status are required' });
@@ -68,17 +67,11 @@ export class StaffController {
         return;
       }
 
-      const groupValidation = validateShiftGroup(group);
-      if (!groupValidation.valid) {
-        res.status(400).json({ error: groupValidation.error });
-        return;
-      }
-
       const staff = await this.staffRepo.create({
         firstName,
         lastName,
         status,
-        group: group || null,
+        shiftId: shiftId || null,
         cycleType: cycleType || null,
         daysOffset: daysOffset || 0,
         isActive: true,
@@ -104,14 +97,6 @@ export class StaffController {
 
       if (updates.status) {
         const validation = validateStaffStatus(updates.status);
-        if (!validation.valid) {
-          res.status(400).json({ error: validation.error });
-          return;
-        }
-      }
-
-      if (updates.group !== undefined) {
-        const validation = validateShiftGroup(updates.group);
         if (!validation.valid) {
           res.status(400).json({ error: validation.error });
           return;

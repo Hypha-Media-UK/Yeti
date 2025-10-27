@@ -3,9 +3,7 @@
     <div class="staff-info">
       <h3 class="staff-name">{{ staff.firstName }} {{ staff.lastName }}</h3>
       <div class="staff-details">
-        <span v-if="staff.group" :class="['badge', `badge-${staff.group.toLowerCase()}`]">
-          {{ staff.group }}
-        </span>
+        <span class="badge badge-status">{{ staff.status }}</span>
       </div>
     </div>
     <div class="staff-actions">
@@ -82,14 +80,9 @@ defineEmits<{
   font-weight: var(--font-weight-medium);
 }
 
-.badge-day {
+.badge-status {
   background-color: var(--color-badge-regular);
   color: var(--color-text-primary);
-}
-
-.badge-night {
-  background-color: var(--color-badge-supervisor);
-  color: white;
 }
 
 .staff-actions {
