@@ -555,6 +555,11 @@ onMounted(async () => {
 .staff-item.status-expired {
   background-color: rgba(156, 163, 175, 0.15); /* Grey */
   opacity: 0.6;
+  color: var(--color-text-secondary);
+}
+
+.staff-item.status-expired .staff-hours {
+  color: var(--color-text-tertiary, #9ca3af);
 }
 
 .staff-name {
