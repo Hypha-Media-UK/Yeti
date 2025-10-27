@@ -6,11 +6,7 @@
   >
     <div class="staff-info">
       <div class="staff-name">
-        {{ staff.firstName }} {{ staff.lastName }}
-      </div>
-      <div class="staff-meta">
-        <span class="staff-status">{{ staff.status }}</span>
-        <span class="staff-time">{{ formattedTime }}</span>
+        {{ staff.firstName }} {{ staff.lastName }} <span class="staff-time">{{ formattedTime }}</span>
       </div>
     </div>
 
@@ -23,9 +19,6 @@
       </span>
       <span v-if="isOvernight" class="badge badge-overnight" title="Shift started previous day">
         Overnight
-      </span>
-      <span v-if="clickable" class="badge badge-clickable" title="Click to create temporary assignment">
-        +
       </span>
     </div>
   </div>
@@ -87,7 +80,6 @@ const handleClick = () => {
   align-items: center;
   padding: var(--spacing-2);
   background-color: var(--color-surface);
-  border-left: 4px solid var(--color-border);
   border-radius: var(--radius-button);
   transition: all var(--transition-enter);
 }
@@ -106,27 +98,22 @@ const handleClick = () => {
   transform: translateY(-2px);
 }
 
-.staff-card.shift-day {
-  border-left-color: var(--color-day-shift);
-}
-
-.staff-card.shift-night {
-  border-left-color: var(--color-night-shift);
-}
-
 /* Status-based styling */
+.staff-card.shift-day.status-active {
+  background-color: rgba(59, 130, 246, 0.08); /* Subtle blue for day shift */
+}
+
+.staff-card.shift-night.status-active {
+  background-color: rgba(99, 102, 241, 0.08); /* Subtle indigo for night shift */
+}
+
 .staff-card.status-pending {
-  opacity: 0.7;
-  background-color: var(--color-surface-secondary, #f9fafb);
+  background-color: rgba(251, 146, 60, 0.12); /* Subtle orange */
 }
 
 .staff-card.status-expired {
-  opacity: 0.4;
-  background-color: var(--color-surface-tertiary, #f3f4f6);
-}
-
-.staff-card.status-active {
-  /* Default styling - no changes needed */
+  background-color: rgba(156, 163, 175, 0.15); /* Grey */
+  opacity: 0.6;
 }
 
 .staff-info {
@@ -137,22 +124,16 @@ const handleClick = () => {
   font-weight: var(--font-weight-semibold);
   font-size: var(--font-size-body);
   color: var(--color-text-primary);
-  margin-bottom: var(--spacing-1);
-}
-
-.staff-meta {
   display: flex;
+  align-items: center;
   gap: var(--spacing-2);
-  font-size: var(--font-size-body-sm);
-  color: var(--color-text-secondary);
-}
-
-.staff-status {
-  font-weight: var(--font-weight-medium);
 }
 
 .staff-time {
   font-family: var(--font-family-mono);
+  font-size: var(--font-size-body-sm);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-normal);
 }
 
 .staff-badges {

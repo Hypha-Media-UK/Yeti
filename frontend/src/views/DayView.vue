@@ -46,18 +46,20 @@
               :key="`dept-${area.id}`"
               class="area-card"
             >
-              <div class="area-name">{{ area.name }}</div>
-              <div class="area-hours">
-                <span v-if="area.operationalHours.length === 0" class="hours-24-7">
-                  24/7/365
-                </span>
-                <span
-                  v-for="(hours, idx) in area.operationalHours"
-                  :key="idx"
-                  class="hours-time"
-                >
-                  {{ formatTime(hours.startTime) }} - {{ formatTime(hours.endTime) }}
-                </span>
+              <div class="area-header">
+                <div class="area-name">{{ area.name }}</div>
+                <div class="area-hours">
+                  <span v-if="area.operationalHours.length === 0" class="hours-24-7">
+                    24/7/365
+                  </span>
+                  <span
+                    v-for="(hours, idx) in area.operationalHours"
+                    :key="idx"
+                    class="hours-time"
+                  >
+                    {{ formatTime(hours.startTime) }} - {{ formatTime(hours.endTime) }}
+                  </span>
+                </div>
               </div>
               <div v-if="area.staff && area.staff.length > 0" class="area-staff">
                 <div
@@ -68,7 +70,7 @@
                   title="Click to manage temporary assignments"
                 >
                   <span class="staff-name">{{ staff.firstName }} {{ staff.lastName }}</span>
-                  <span class="staff-hours">{{ calculateTotalHours(staff.contractedHours) }}h</span>
+                  <span class="staff-hours">{{ getContractedHoursForToday(staff.contractedHours) }}</span>
                 </div>
               </div>
               <div v-else class="area-no-staff">No staff assigned</div>
@@ -85,18 +87,20 @@
               :key="`svc-${area.id}`"
               class="area-card"
             >
-              <div class="area-name">{{ area.name }}</div>
-              <div class="area-hours">
-                <span v-if="area.operationalHours.length === 0" class="hours-24-7">
-                  24/7/365
-                </span>
-                <span
-                  v-for="(hours, idx) in area.operationalHours"
-                  :key="idx"
-                  class="hours-time"
-                >
-                  {{ formatTime(hours.startTime) }} - {{ formatTime(hours.endTime) }}
-                </span>
+              <div class="area-header">
+                <div class="area-name">{{ area.name }}</div>
+                <div class="area-hours">
+                  <span v-if="area.operationalHours.length === 0" class="hours-24-7">
+                    24/7/365
+                  </span>
+                  <span
+                    v-for="(hours, idx) in area.operationalHours"
+                    :key="idx"
+                    class="hours-time"
+                  >
+                    {{ formatTime(hours.startTime) }} - {{ formatTime(hours.endTime) }}
+                  </span>
+                </div>
               </div>
               <div v-if="area.staff && area.staff.length > 0" class="area-staff">
                 <div
@@ -107,7 +111,7 @@
                   title="Click to manage temporary assignments"
                 >
                   <span class="staff-name">{{ staff.firstName }} {{ staff.lastName }}</span>
-                  <span class="staff-hours">{{ calculateTotalHours(staff.contractedHours) }}h</span>
+                  <span class="staff-hours">{{ getContractedHoursForToday(staff.contractedHours) }}</span>
                 </div>
               </div>
               <div v-else class="area-no-staff">No staff assigned</div>
@@ -230,6 +234,23 @@ function parseTimeToMinutes(timeStr: string): number {
   const hours = parseInt(parts[0], 10);
   const minutes = parseInt(parts[1], 10);
   return hours * 60 + minutes;
+}
+
+// Get contracted hours for today (returns formatted time range or empty string)
+function getContractedHoursForToday(contractedHours: any[]): string {
+  if (!contractedHours || contractedHours.length === 0) return '';
+
+  // Get day of week for selected date (1=Monday, 7=Sunday)
+  const date = new Date(selectedDate.value);
+  const jsDay = date.getDay();
+  const dayOfWeek = jsDay === 0 ? 7 : jsDay;
+
+  // Find contracted hours for this day
+  const hoursForDay = contractedHours.find((h: any) => h.dayOfWeek === dayOfWeek);
+
+  if (!hoursForDay) return '';
+
+  return `${formatTime(hoursForDay.startTime)} - ${formatTime(hoursForDay.endTime)}`;
 }
 
 // Watch for date changes and update URL
@@ -407,11 +428,17 @@ onMounted(async () => {
   box-shadow: var(--shadow-small);
 }
 
+.area-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-2);
+}
+
 .area-name {
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-medium);
   color: var(--color-text-primary);
-  margin-bottom: var(--spacing-1);
 }
 
 .area-hours {
