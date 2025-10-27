@@ -2,9 +2,6 @@
   <div class="staff-management-card">
     <div class="staff-info">
       <h3 class="staff-name">{{ staff.firstName }} {{ staff.lastName }}</h3>
-      <div class="staff-details">
-        <span class="badge badge-status">{{ staff.status }}</span>
-      </div>
     </div>
     <div class="staff-actions">
       <button class="btn-icon" @click="$emit('edit', staff)" title="Edit">
@@ -64,25 +61,7 @@ defineEmits<{
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
-  margin: 0 0 var(--spacing-1) 0;
-}
-
-.staff-details {
-  display: flex;
-  gap: var(--spacing-1);
-  align-items: center;
-}
-
-.badge {
-  font-size: var(--font-size-secondary);
-  padding: 4px 8px;
-  border-radius: var(--radius-badge);
-  font-weight: var(--font-weight-medium);
-}
-
-.badge-status {
-  background-color: var(--color-badge-regular);
-  color: var(--color-text-primary);
+  margin: 0;
 }
 
 .staff-actions {
