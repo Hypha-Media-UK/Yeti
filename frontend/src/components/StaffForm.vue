@@ -1,134 +1,84 @@
 <template>
   <form @submit.prevent="handleSubmit" class="staff-form">
-    <div class="form-group">
-      <label for="firstName" class="form-label">First Name *</label>
-      <input
-        id="firstName"
-        v-model="formData.firstName"
-        type="text"
-        class="form-input"
-        required
-      />
+    <!-- First Name & Last Name (side by side) -->
+    <div class="form-row">
+      <div class="form-group">
+        <label for="firstName" class="form-label">First Name *</label>
+        <input
+          id="firstName"
+          v-model="formData.firstName"
+          type="text"
+          class="form-input"
+          required
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="lastName" class="form-label">Last Name *</label>
+        <input
+          id="lastName"
+          v-model="formData.lastName"
+          type="text"
+          class="form-input"
+          required
+        />
+      </div>
     </div>
 
-    <div class="form-group">
-      <label for="lastName" class="form-label">Last Name *</label>
-      <input
-        id="lastName"
-        v-model="formData.lastName"
-        type="text"
-        class="form-input"
-        required
-      />
-    </div>
-
-    <div class="form-group">
-      <label for="status" class="form-label">Status *</label>
-      <select
-        id="status"
-        v-model="formData.status"
-        class="form-input"
-        required
-        @change="handleStatusChange"
-      >
-        <option value="Regular">Regular</option>
-        <option value="Relief">Relief</option>
-        <option value="Supervisor">Supervisor</option>
-      </select>
-    </div>
-
-    <div v-if="formData.status === 'Regular'" class="form-group">
-      <label for="shift" class="form-label">Shift {{ hasAllocations ? '' : '*' }}</label>
-      <select
-        id="shift"
-        v-model="formData.shiftId"
-        class="form-input"
-        :required="!hasAllocations"
-      >
-        <option :value="null" :disabled="!hasAllocations">
-          {{ hasAllocations ? 'No Shift (Permanently Assigned)' : 'Select a shift' }}
-        </option>
-        <optgroup label="Day Shifts">
-          <option
-            v-for="shift in dayShifts"
-            :key="shift.id"
-            :value="shift.id"
-          >
-            {{ shift.name }}
-          </option>
-        </optgroup>
-        <optgroup label="Night Shifts">
-          <option
-            v-for="shift in nightShifts"
-            :key="shift.id"
-            :value="shift.id"
-          >
-            {{ shift.name }}
-          </option>
-        </optgroup>
-      </select>
-      <p class="form-hint">
-        {{ hasAllocations
-          ? 'Staff with permanent area assignments should select "No Shift"'
-          : 'Pool staff must be assigned to a shift group'
-        }}
-      </p>
-    </div>
-
-    <div class="form-group">
-      <label for="department" class="form-label">Department</label>
-      <select
-        id="department"
-        v-model="formData.departmentId"
-        class="form-input"
-      >
-        <option :value="null">No Department</option>
-        <optgroup v-for="building in buildingsWithDepartments" :key="building.id" :label="building.name">
-          <option
-            v-for="dept in building.departments"
-            :key="dept.id"
-            :value="dept.id"
-          >
-            {{ dept.name }}
-          </option>
-        </optgroup>
-      </select>
-      <p class="form-hint">Optional: Assign staff to a specific department</p>
-    </div>
-
-    <div class="form-group">
-      <label for="service" class="form-label">Service</label>
-      <select
-        id="service"
-        v-model="formData.serviceId"
-        class="form-input"
-      >
-        <option :value="null">No Service</option>
-        <option
-          v-for="service in services"
-          :key="service.id"
-          :value="service.id"
+    <!-- Status & Shift (side by side) -->
+    <div class="form-row">
+      <div class="form-group">
+        <label for="status" class="form-label">Status *</label>
+        <select
+          id="status"
+          v-model="formData.status"
+          class="form-input"
+          required
+          @change="handleStatusChange"
         >
-          {{ service.name }}
-        </option>
-      </select>
-      <p class="form-hint">Optional: Assign staff to a specific service</p>
-    </div>
+          <option value="Regular">Regular</option>
+          <option value="Relief">Relief</option>
+          <option value="Supervisor">Supervisor</option>
+        </select>
+      </div>
 
-    <!-- Only show Days Offset if staff has a shift (not 'No Shift') -->
-    <div v-if="formData.shiftId !== null" class="form-group">
-      <label for="daysOffset" class="form-label">Days Offset</label>
-      <input
-        id="daysOffset"
-        v-model.number="formData.daysOffset"
-        type="number"
-        class="form-input"
-        min="0"
-        :max="formData.status === 'Supervisor' ? 15 : 7"
-      />
-      <p class="form-hint">
-        {{ formData.status === 'Supervisor' ? '0-15 for supervisors (16-day cycle)' : '0-7 for regular staff (8-day cycle)' }}
-      </p>
+      <div v-if="formData.status === 'Regular'" class="form-group">
+        <label for="shift" class="form-label">Shift {{ hasAllocations ? '' : '*' }}</label>
+        <select
+          id="shift"
+          v-model="formData.shiftId"
+          class="form-input"
+          :required="!hasAllocations"
+        >
+          <option :value="null" :disabled="!hasAllocations">
+            {{ hasAllocations ? 'No Shift (Permanently Assigned)' : 'Select a shift' }}
+          </option>
+          <optgroup label="Day Shifts">
+            <option
+              v-for="shift in dayShifts"
+              :key="shift.id"
+              :value="shift.id"
+            >
+              {{ shift.name }}
+            </option>
+          </optgroup>
+          <optgroup label="Night Shifts">
+            <option
+              v-for="shift in nightShifts"
+              :key="shift.id"
+              :value="shift.id"
+            >
+              {{ shift.name }}
+            </option>
+          </optgroup>
+        </select>
+        <p class="form-hint">
+          {{ hasAllocations
+            ? 'Staff with permanent area assignments should select "No Shift"'
+            : 'Pool staff must be assigned to a shift group'
+          }}
+        </p>
+      </div>
     </div>
 
     <!-- Custom Shift Times (only show if staff has a shift) -->
@@ -161,6 +111,66 @@
       </p>
     </div>
 
+    <!-- Days Offset (only show if staff has a shift) -->
+    <div v-if="formData.shiftId !== null" class="form-group">
+      <label for="daysOffset" class="form-label">Days Offset</label>
+      <input
+        id="daysOffset"
+        v-model.number="formData.daysOffset"
+        type="number"
+        class="form-input"
+        min="0"
+        :max="formData.status === 'Supervisor' ? 15 : 7"
+      />
+      <p class="form-hint">
+        {{ formData.status === 'Supervisor' ? '0-15 for supervisors (16-day cycle)' : '0-7 for regular staff (8-day cycle)' }}
+      </p>
+    </div>
+
+    <!-- Department & Service (side by side) -->
+    <div class="form-row">
+      <div class="form-group">
+        <label for="department" class="form-label">Department</label>
+        <select
+          id="department"
+          v-model="formData.departmentId"
+          class="form-input"
+        >
+          <option :value="null">No Department</option>
+          <optgroup v-for="building in buildingsWithDepartments" :key="building.id" :label="building.name">
+            <option
+              v-for="dept in building.departments"
+              :key="dept.id"
+              :value="dept.id"
+            >
+              {{ dept.name }}
+            </option>
+          </optgroup>
+        </select>
+        <p class="form-hint">Optional: Assign staff to a specific department</p>
+      </div>
+
+      <div class="form-group">
+        <label for="service" class="form-label">Service</label>
+        <select
+          id="service"
+          v-model="formData.serviceId"
+          class="form-input"
+        >
+          <option :value="null">No Service</option>
+          <option
+            v-for="service in services"
+            :key="service.id"
+            :value="service.id"
+          >
+            {{ service.name }}
+          </option>
+        </select>
+        <p class="form-hint">Optional: Assign staff to a specific service</p>
+      </div>
+    </div>
+
+    <!-- Contracted Hours -->
     <div class="form-group">
       <OperationalHoursEditor
         v-model="formData.contractedHours"
@@ -413,6 +423,12 @@ watch(() => formData.shiftId, (newShiftId) => {
 .staff-form {
   display: flex;
   flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: var(--spacing-3);
 }
 
