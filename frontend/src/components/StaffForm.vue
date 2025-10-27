@@ -115,7 +115,8 @@
       <p class="form-hint">Optional: Assign staff to a specific service</p>
     </div>
 
-    <div class="form-group">
+    <!-- Only show Days Offset if staff has a shift (not 'No Shift') -->
+    <div v-if="formData.shiftId !== null" class="form-group">
       <label for="daysOffset" class="form-label">Days Offset</label>
       <input
         id="daysOffset"
@@ -127,6 +128,36 @@
       />
       <p class="form-hint">
         {{ formData.status === 'Supervisor' ? '0-15 for supervisors (16-day cycle)' : '0-7 for regular staff (8-day cycle)' }}
+      </p>
+    </div>
+
+    <!-- Custom Shift Times (only show if staff has a shift) -->
+    <div v-if="formData.shiftId !== null" class="form-group">
+      <label class="form-label">Custom Shift Times (Optional)</label>
+      <div class="time-range-group">
+        <div class="time-input-wrapper">
+          <label for="customShiftStart" class="time-label">Start Time</label>
+          <input
+            id="customShiftStart"
+            v-model="formData.customShiftStart"
+            type="time"
+            class="form-input"
+            placeholder="HH:mm"
+          />
+        </div>
+        <div class="time-input-wrapper">
+          <label for="customShiftEnd" class="time-label">End Time</label>
+          <input
+            id="customShiftEnd"
+            v-model="formData.customShiftEnd"
+            type="time"
+            class="form-input"
+            placeholder="HH:mm"
+          />
+        </div>
+      </div>
+      <p class="form-hint">
+        Leave blank to use default shift times. Set custom times for staff with non-standard hours (e.g., 10:00-22:00).
       </p>
     </div>
 
@@ -209,6 +240,8 @@ const formData = reactive({
   departmentId: null as number | null,
   serviceId: null as number | null,
   daysOffset: props.staff?.daysOffset || 0,
+  customShiftStart: props.staff?.customShiftStart?.substring(0, 5) || '',  // Convert "HH:mm:ss" to "HH:mm"
+  customShiftEnd: props.staff?.customShiftEnd?.substring(0, 5) || '',      // Convert "HH:mm:ss" to "HH:mm"
   contractedHours: [] as HoursEntry[],
 });
 
@@ -284,6 +317,10 @@ const handleSubmit = () => {
   const cycleType = formData.status === 'Supervisor' ? 'supervisor' :
                     formData.status === 'Regular' ? '4-on-4-off' : null;
 
+  // Convert custom shift times to HH:mm:ss format or null
+  const customShiftStart = formData.customShiftStart ? `${formData.customShiftStart}:00` : null;
+  const customShiftEnd = formData.customShiftEnd ? `${formData.customShiftEnd}:00` : null;
+
   const staffData: Partial<StaffMember> = {
     firstName: formData.firstName.trim(),
     lastName: formData.lastName.trim(),
@@ -291,6 +328,8 @@ const handleSubmit = () => {
     shiftId: formData.status === 'Regular' ? formData.shiftId : null,
     cycleType,
     daysOffset: formData.daysOffset,
+    customShiftStart,
+    customShiftEnd,
     isActive: true,
   };
 
@@ -323,6 +362,8 @@ watch(() => props.staff, async (newStaff) => {
     formData.status = newStaff.status;
     formData.shiftId = newStaff.shiftId;
     formData.daysOffset = newStaff.daysOffset;
+    formData.customShiftStart = newStaff.customShiftStart?.substring(0, 5) || '';
+    formData.customShiftEnd = newStaff.customShiftEnd?.substring(0, 5) || '';
 
     // Load contracted hours
     try {
@@ -357,6 +398,15 @@ watch(() => props.staffAllocations, (allocations) => {
     formData.serviceId = null;
   }
 }, { immediate: true });
+
+// Reset daysOffset and custom times when 'No Shift' is selected
+watch(() => formData.shiftId, (newShiftId) => {
+  if (newShiftId === null) {
+    formData.daysOffset = 0;
+    formData.customShiftStart = '';
+    formData.customShiftEnd = '';
+  }
+});
 </script>
 
 <style scoped>
@@ -465,6 +515,24 @@ watch(() => props.staffAllocations, (allocations) => {
 .staff-form .btn-secondary:hover:not(:disabled) {
   background-color: var(--color-bg);
   border-color: var(--color-text-secondary);
+}
+
+.time-range-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-2);
+}
+
+.time-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.time-label {
+  font-size: var(--font-size-body-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
 }
 </style>
 

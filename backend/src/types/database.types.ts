@@ -8,6 +8,8 @@ export interface StaffRow extends RowDataPacket {
   shift_id: number | null;
   cycle_type: string | null;
   days_offset: number;
+  custom_shift_start: string | null;
+  custom_shift_end: string | null;
   is_active: boolean;
   created_at: Date;
   updated_at: Date;

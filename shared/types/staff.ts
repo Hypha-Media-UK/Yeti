@@ -12,6 +12,8 @@ export interface StaffMember {
   shiftId: number | null;
   cycleType: CycleType;
   daysOffset: number;
+  customShiftStart: string | null;  // Custom shift start time (e.g., "10:00:00")
+  customShiftEnd: string | null;    // Custom shift end time (e.g., "22:00:00")
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

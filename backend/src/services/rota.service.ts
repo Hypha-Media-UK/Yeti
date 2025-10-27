@@ -5,6 +5,7 @@ import { ScheduleRepository } from '../repositories/schedule.repository';
 import { OverrideRepository } from '../repositories/override.repository';
 import { ConfigRepository } from '../repositories/config.repository';
 import { AllocationRepository } from '../repositories/allocation.repository';
+import { StaffContractedHoursRepository } from '../repositories/staff-contracted-hours.repository';
 import { daysBetween, formatLocalDate, formatLocalTime, addDaysLocal, parseLocalDate } from '../utils/date.utils';
 import { SHIFT_TIMES, CYCLE_LENGTHS } from '../config/constants';
 
@@ -14,6 +15,7 @@ export class RotaService {
   private overrideRepo: OverrideRepository;
   private configRepo: ConfigRepository;
   private allocationRepo: AllocationRepository;
+  private contractedHoursRepo: StaffContractedHoursRepository;
 
   constructor() {
     this.staffRepo = new StaffRepository();
@@ -21,6 +23,7 @@ export class RotaService {
     this.overrideRepo = new OverrideRepository();
     this.configRepo = new ConfigRepository();
     this.allocationRepo = new AllocationRepository();
+    this.contractedHoursRepo = new StaffContractedHoursRepository();
   }
 
   /**
@@ -107,6 +110,23 @@ export class RotaService {
   }
 
   /**
+   * Get shift times for a specific staff member
+   * Uses custom shift times if defined, otherwise falls back to default shift times
+   */
+  private async getShiftTimesForStaff(staff: StaffMemberWithShift, shiftType: ShiftType): Promise<{ start: string; end: string }> {
+    // Check if staff has custom shift times
+    if (staff.customShiftStart && staff.customShiftEnd) {
+      return {
+        start: staff.customShiftStart,
+        end: staff.customShiftEnd
+      };
+    }
+
+    // Fall back to default shift times
+    return this.getDefaultShiftTimes(shiftType);
+  }
+
+  /**
    * Check if a night shift overlaps with a given date
    * Night shifts run 20:00 to 08:00, so they span two calendar days
    */
@@ -159,7 +179,7 @@ export class RotaService {
 
       manuallyAssignedStaffIds.add(staff.id);
 
-      const times = await this.getDefaultShiftTimes(assignment.shiftType);
+      const times = await this.getShiftTimesForStaff(staff, assignment.shiftType);
       const shiftAssignment: ShiftAssignment = {
         staff,
         shiftType: assignment.shiftType,
@@ -240,7 +260,7 @@ export class RotaService {
       // Calculate based on cycle
       const dutyCheck = this.isStaffOnDuty(staff, targetDate, appZeroDate);
       if (dutyCheck.onDuty && dutyCheck.shiftType) {
-        const times = await this.getDefaultShiftTimes(dutyCheck.shiftType);
+        const times = await this.getShiftTimesForStaff(staff, dutyCheck.shiftType);
 
         const shiftAssignment: ShiftAssignment = {
           staff,
@@ -294,7 +314,7 @@ export class RotaService {
   }
 
   /**
-   * Check if a staff member is working on a specific date based on their cycle
+   * Check if a staff member is working on a specific date based on their cycle or contracted hours
    * This is used to determine if permanently allocated staff should appear in area cards
    */
   async isStaffWorkingOnDate(staff: StaffMemberWithShift, targetDate: string): Promise<boolean> {
@@ -310,7 +330,23 @@ export class RotaService {
       return false;
     }
 
-    // Check cycle-based schedule
+    // If staff has 'No Shift' (shift_id is NULL), check contracted hours
+    if (!staff.shiftId) {
+      const contractedHours = await this.contractedHoursRepo.findByStaff(staff.id);
+      if (contractedHours.length === 0) {
+        // No contracted hours defined, so they're not working
+        return false;
+      }
+
+      // Get day of week for target date (1 = Monday, 7 = Sunday)
+      const dateObj = parseLocalDate(targetDate);
+      const dayOfWeek = dateObj.getDay() === 0 ? 7 : dateObj.getDay();
+
+      // Check if they have contracted hours for this day
+      return contractedHours.some(ch => ch.dayOfWeek === dayOfWeek);
+    }
+
+    // Check cycle-based schedule for staff with shifts
     const appZeroDate = await this.configRepo.getByKey('app_zero_date') || '2024-01-01';
     const daysSinceZero = daysBetween(appZeroDate, targetDate);
 

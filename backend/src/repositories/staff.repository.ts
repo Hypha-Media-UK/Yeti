@@ -13,6 +13,8 @@ export class StaffRepository {
       shiftId: row.shift_id,
       cycleType: row.cycle_type as any,
       daysOffset: row.days_offset,
+      customShiftStart: row.custom_shift_start || null,
+      customShiftEnd: row.custom_shift_end || null,
       isActive: row.is_active,
       createdAt: row.created_at.toISOString(),
       updatedAt: row.updated_at.toISOString(),
@@ -54,8 +56,8 @@ export class StaffRepository {
 
   async create(staff: Omit<StaffMember, 'id' | 'createdAt' | 'updatedAt'>): Promise<StaffMember> {
     const [result] = await pool.query<InsertResult>(
-      `INSERT INTO staff (first_name, last_name, status, shift_id, cycle_type, days_offset, is_active)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO staff (first_name, last_name, status, shift_id, cycle_type, days_offset, custom_shift_start, custom_shift_end, is_active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         staff.firstName,
         staff.lastName,
@@ -63,6 +65,8 @@ export class StaffRepository {
         staff.shiftId,
         staff.cycleType,
         staff.daysOffset,
+        staff.customShiftStart,
+        staff.customShiftEnd,
         staff.isActive,
       ]
     );
@@ -101,6 +105,14 @@ export class StaffRepository {
     if (updates.daysOffset !== undefined) {
       fields.push('days_offset = ?');
       values.push(updates.daysOffset);
+    }
+    if (updates.customShiftStart !== undefined) {
+      fields.push('custom_shift_start = ?');
+      values.push(updates.customShiftStart);
+    }
+    if (updates.customShiftEnd !== undefined) {
+      fields.push('custom_shift_end = ?');
+      values.push(updates.customShiftEnd);
     }
     if (updates.isActive !== undefined) {
       fields.push('is_active = ?');
