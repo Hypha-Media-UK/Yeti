@@ -122,13 +122,16 @@ export class StaffController {
   deleteStaff = async (req: Request, res: Response): Promise<void> => {
     try {
       const id = parseInt(req.params.id);
+      const hardDelete = req.query.hard === 'true';
 
       if (isNaN(id)) {
         res.status(400).json({ error: 'Invalid staff ID' });
         return;
       }
 
-      const success = await this.staffRepo.delete(id);
+      const success = hardDelete
+        ? await this.staffRepo.hardDelete(id)
+        : await this.staffRepo.delete(id);
 
       if (!success) {
         res.status(404).json({ error: 'Staff member not found' });

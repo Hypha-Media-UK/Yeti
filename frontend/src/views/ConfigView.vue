@@ -76,7 +76,7 @@
                   :key="staff.id"
                   :staff="staff"
                   @edit="openEditStaffModal"
-                  @delete="confirmDeleteStaff"
+                  @delete="confirmHardDeleteStaff"
                 />
               </div>
               <p v-else class="empty-state">No inactive staff</p>
@@ -285,6 +285,7 @@ const deleteConfirmTitle = ref('');
 const deleteConfirmMessage = ref('');
 const deleteTarget = ref<any>(null);
 const deleteType = ref<'staff' | 'building' | 'department' | 'service' | 'shift'>('staff');
+const isHardDelete = ref(false);
 
 // Computed
 const tabs = computed<Tab[]>(() => [
@@ -442,8 +443,18 @@ const handleStaffSubmit = async (data: {
 const confirmDeleteStaff = (staff: StaffMember) => {
   deleteTarget.value = staff;
   deleteType.value = 'staff';
+  isHardDelete.value = false;
   deleteConfirmTitle.value = 'Delete Staff Member';
   deleteConfirmMessage.value = `Are you sure you want to delete ${staff.firstName} ${staff.lastName}? This will soft-delete the staff member.`;
+  showDeleteConfirm.value = true;
+};
+
+const confirmHardDeleteStaff = (staff: StaffMember) => {
+  deleteTarget.value = staff;
+  deleteType.value = 'staff';
+  isHardDelete.value = true;
+  deleteConfirmTitle.value = 'Permanently Delete Staff Member';
+  deleteConfirmMessage.value = `Are you sure you want to permanently delete ${staff.firstName} ${staff.lastName}? This action cannot be undone and will remove all associated data including contracted hours, schedules, and assignments.`;
   showDeleteConfirm.value = true;
 };
 
@@ -659,7 +670,7 @@ const confirmDeleteShift = (shift: Shift) => {
 const handleDeleteConfirm = async () => {
   try {
     if (deleteType.value === 'staff') {
-      await api.deleteStaff(deleteTarget.value.id);
+      await api.deleteStaff(deleteTarget.value.id, isHardDelete.value);
       await loadStaff();
     } else if (deleteType.value === 'building') {
       await api.deleteBuilding(deleteTarget.value.id);

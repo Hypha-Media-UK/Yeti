@@ -140,6 +140,14 @@ export class StaffRepository {
     return result.affectedRows > 0;
   }
 
+  async hardDelete(id: number): Promise<boolean> {
+    const [result] = await pool.query<InsertResult>(
+      'DELETE FROM staff WHERE id = ?',
+      [id]
+    );
+    return result.affectedRows > 0;
+  }
+
   /**
    * Find all staff with their shift information
    */

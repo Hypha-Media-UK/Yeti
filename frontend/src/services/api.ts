@@ -93,8 +93,9 @@ export const api = {
     });
   },
 
-  async deleteStaff(id: number): Promise<{ success: boolean }> {
-    return fetchApi<{ success: boolean }>(`/staff/${id}`, {
+  async deleteStaff(id: number, hardDelete = false): Promise<{ success: boolean }> {
+    const url = hardDelete ? `/staff/${id}?hard=true` : `/staff/${id}`;
+    return fetchApi<{ success: boolean }>(url, {
       method: 'DELETE',
     });
   },
