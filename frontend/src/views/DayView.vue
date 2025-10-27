@@ -66,6 +66,7 @@
                   v-for="staff in area.staff"
                   :key="staff.id"
                   class="staff-item clickable"
+                  :class="getStaffStatusClass(staff.contractedHours)"
                   @click="handleAreaStaffClick(staff)"
                   title="Click to manage temporary assignments"
                 >
@@ -107,6 +108,7 @@
                   v-for="staff in area.staff"
                   :key="staff.id"
                   class="staff-item clickable"
+                  :class="getStaffStatusClass(staff.contractedHours)"
                   @click="handleAreaStaffClick(staff)"
                   title="Click to manage temporary assignments"
                 >
@@ -251,6 +253,51 @@ function getContractedHoursForToday(contractedHours: any[]): string {
   if (!hoursForDay) return '';
 
   return `${formatTime(hoursForDay.startTime)} - ${formatTime(hoursForDay.endTime)}`;
+}
+
+// Get status class for area staff based on their contracted hours
+function getStaffStatusClass(contractedHours: any[]): string {
+  if (!contractedHours || contractedHours.length === 0) return '';
+
+  // Get day of week for selected date (1=Monday, 7=Sunday)
+  const date = new Date(selectedDate.value);
+  const jsDay = date.getDay();
+  const dayOfWeek = jsDay === 0 ? 7 : jsDay;
+
+  // Find contracted hours for this day
+  const hoursForDay = contractedHours.find((h: any) => h.dayOfWeek === dayOfWeek);
+
+  if (!hoursForDay) return '';
+
+  // Only apply status if we're viewing today
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const viewDate = new Date(selectedDate.value);
+
+  if (viewDate.getTime() !== today.getTime()) {
+    return 'status-active'; // Default for past/future dates
+  }
+
+  // Parse current time as minutes since midnight
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  // Parse shift times
+  const parseTime = (timeStr: string): number => {
+    const parts = timeStr.split(':');
+    return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+  };
+
+  const startMinutes = parseTime(hoursForDay.startTime);
+  const endMinutes = parseTime(hoursForDay.endTime);
+
+  // Determine status
+  if (currentMinutes < startMinutes) {
+    return 'status-pending'; // Shift hasn't started yet
+  } else if (currentMinutes >= endMinutes) {
+    return 'status-expired'; // Shift has ended
+  } else {
+    return 'status-active'; // Currently working
+  }
 }
 
 // Watch for date changes and update URL
@@ -494,6 +541,20 @@ onMounted(async () => {
   background-color: var(--color-background);
   box-shadow: var(--shadow-low);
   transform: translateY(-1px);
+}
+
+/* Status-based styling for area staff */
+.staff-item.status-active {
+  background-color: var(--color-surface);
+}
+
+.staff-item.status-pending {
+  background-color: rgba(251, 146, 60, 0.12); /* Pale orange */
+}
+
+.staff-item.status-expired {
+  background-color: rgba(156, 163, 175, 0.15); /* Grey */
+  opacity: 0.6;
 }
 
 .staff-name {
