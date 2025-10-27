@@ -20,6 +20,7 @@
                   v-for="staff in regularStaff"
                   :key="staff.id"
                   :staff="staff"
+                  @manage-absences="openManageAbsencesModal"
                   @edit="openEditStaffModal"
                   @delete="confirmDeleteStaff"
                 />
@@ -40,6 +41,7 @@
                   v-for="staff in reliefStaff"
                   :key="staff.id"
                   :staff="staff"
+                  @manage-absences="openManageAbsencesModal"
                   @edit="openEditStaffModal"
                   @delete="confirmDeleteStaff"
                 />
@@ -60,6 +62,7 @@
                   v-for="staff in supervisorStaff"
                   :key="staff.id"
                   :staff="staff"
+                  @manage-absences="openManageAbsencesModal"
                   @edit="openEditStaffModal"
                   @delete="confirmDeleteStaff"
                 />
@@ -75,6 +78,7 @@
                   v-for="staff in inactiveStaff"
                   :key="staff.id"
                   :staff="staff"
+                  @manage-absences="openManageAbsencesModal"
                   @edit="openEditStaffModal"
                   @delete="confirmHardDeleteStaff"
                 />
@@ -216,6 +220,13 @@
       @submit="handleShiftSubmit"
     />
 
+    <!-- Manage Absences Modal -->
+    <ManageAbsencesModal
+      v-if="selectedStaffForAbsences"
+      v-model="showManageAbsencesModal"
+      :staff-member="selectedStaffForAbsences"
+    />
+
     <!-- Confirm Delete Dialog -->
     <ConfirmDialog
       v-model="showDeleteConfirm"
@@ -238,6 +249,7 @@ import BaseModal from '@/components/BaseModal.vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import StaffForm from '@/components/StaffForm.vue';
 import StaffManagementCard from '@/components/StaffManagementCard.vue';
+import ManageAbsencesModal from '@/components/ManageAbsencesModal.vue';
 import BuildingCard from '@/components/BuildingCard.vue';
 import BuildingModal from '@/components/BuildingModal.vue';
 import ServiceCard from '@/components/ServiceCard.vue';
@@ -266,6 +278,9 @@ const shiftStaffCounts = ref<Map<number, number>>(new Map());
 const showStaffModal = ref(false);
 const editingStaff = ref<StaffMember | null>(null);
 const editingStaffAllocations = ref<AllocationWithDetails[]>([]);
+
+const showManageAbsencesModal = ref(false);
+const selectedStaffForAbsences = ref<StaffMember | null>(null);
 const defaultStaffStatus = ref<StaffStatus>('Regular');
 
 const showBuildingModal = ref(false);
@@ -379,6 +394,11 @@ const openAddStaffModal = (status: StaffStatus) => {
   editingStaffAllocations.value = [];
   defaultStaffStatus.value = status;
   showStaffModal.value = true;
+};
+
+const openManageAbsencesModal = (staff: StaffMember) => {
+  selectedStaffForAbsences.value = staff;
+  showManageAbsencesModal.value = true;
 };
 
 const openEditStaffModal = async (staff: StaffMember) => {

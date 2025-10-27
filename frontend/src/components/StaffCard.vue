@@ -11,6 +11,9 @@
     </div>
 
     <div class="staff-badges">
+      <span v-if="isAbsent" class="badge badge-absent" :title="`${formatAbsenceType(staff.currentAbsence!.absenceType)}`">
+        {{ formatAbsenceType(staff.currentAbsence!.absenceType) }}
+      </span>
       <span v-if="isManualAssignment" class="badge badge-manual" title="Manual assignment">
         Manual
       </span>
@@ -45,6 +48,7 @@ const emit = defineEmits<{
 const { formatTime } = useTimeZone();
 
 const staff = computed(() => props.assignment.staff);
+const isAbsent = computed(() => !!staff.value.currentAbsence);
 const isManualAssignment = computed(() => props.assignment.isManualAssignment);
 const isFixedSchedule = computed(() => props.assignment.isFixedSchedule);
 const isOvernight = computed(() => {
@@ -53,6 +57,16 @@ const isOvernight = computed(() => {
          props.assignment.assignmentDate !== new Date().toISOString().split('T')[0];
 });
 
+const formatAbsenceType = (type: string): string => {
+  const types: Record<string, string> = {
+    'sickness': 'Sick',
+    'annual_leave': 'Leave',
+    'training': 'Training',
+    'absence': 'Absent',
+  };
+  return types[type] || type;
+};
+
 const formattedTime = computed(() => {
   return `${formatTime(props.assignment.shiftStart)} - ${formatTime(props.assignment.shiftEnd)}`;
 });
@@ -60,14 +74,16 @@ const formattedTime = computed(() => {
 const cardClass = computed(() => ({
   'shift-day': props.assignment.shiftType === 'day',
   'shift-night': props.assignment.shiftType === 'night',
-  'clickable': props.clickable,
+  'clickable': props.clickable && !isAbsent.value,
   'status-active': props.assignment.status === 'active',
   'status-pending': props.assignment.status === 'pending',
   'status-expired': props.assignment.status === 'expired',
+  'staff-absent': isAbsent.value,
 }));
 
 const handleClick = () => {
-  if (props.clickable) {
+  // Don't allow clicks on absent staff
+  if (props.clickable && !isAbsent.value) {
     emit('click', props.assignment);
   }
 };
@@ -114,6 +130,18 @@ const handleClick = () => {
 .staff-card.status-expired {
   background-color: rgba(156, 163, 175, 0.15); /* Grey */
   opacity: 0.6;
+}
+
+/* Absent staff styling - overrides status colors */
+.staff-card.staff-absent {
+  background-color: rgba(239, 68, 68, 0.15) !important; /* Red background */
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  cursor: not-allowed !important;
+}
+
+.staff-card.staff-absent:hover {
+  box-shadow: none !important;
+  transform: none !important;
 }
 
 .staff-info {
@@ -164,6 +192,12 @@ const handleClick = () => {
 .badge-overnight {
   background-color: var(--color-day-shift-light);
   color: var(--color-primary);
+}
+
+.badge-absent {
+  background-color: rgba(239, 68, 68, 0.9);
+  color: white;
+  font-weight: var(--font-weight-bold);
 }
 
 .badge-clickable {

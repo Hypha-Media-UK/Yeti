@@ -65,12 +65,17 @@
                 <div
                   v-for="staff in area.staff"
                   :key="staff.id"
-                  class="staff-item clickable"
-                  :class="getStaffStatusClass(staff.contractedHours)"
+                  class="staff-item"
+                  :class="getStaffItemClass(staff)"
                   @click="handleAreaStaffClick(staff)"
-                  title="Click to manage temporary assignments"
+                  :title="getStaffItemTitle(staff)"
                 >
-                  <span class="staff-name">{{ staff.firstName }} {{ staff.lastName }}</span>
+                  <span class="staff-name">
+                    {{ staff.firstName }} {{ staff.lastName }}
+                    <span v-if="staff.currentAbsence" class="absence-badge">
+                      {{ formatAbsenceType(staff.currentAbsence.absenceType) }}
+                    </span>
+                  </span>
                   <span class="staff-hours">{{ getContractedHoursForToday(staff.contractedHours) }}</span>
                 </div>
               </div>
@@ -107,12 +112,17 @@
                 <div
                   v-for="staff in area.staff"
                   :key="staff.id"
-                  class="staff-item clickable"
-                  :class="getStaffStatusClass(staff.contractedHours)"
+                  class="staff-item"
+                  :class="getStaffItemClass(staff)"
                   @click="handleAreaStaffClick(staff)"
-                  title="Click to manage temporary assignments"
+                  :title="getStaffItemTitle(staff)"
                 >
-                  <span class="staff-name">{{ staff.firstName }} {{ staff.lastName }}</span>
+                  <span class="staff-name">
+                    {{ staff.firstName }} {{ staff.lastName }}
+                    <span v-if="staff.currentAbsence" class="absence-badge">
+                      {{ formatAbsenceType(staff.currentAbsence.absenceType) }}
+                    </span>
+                  </span>
                   <span class="staff-hours">{{ getContractedHoursForToday(staff.contractedHours) }}</span>
                 </div>
               </div>
@@ -255,6 +265,45 @@ function getContractedHoursForToday(contractedHours: any[]): string {
   return `${formatTime(hoursForDay.startTime)} - ${formatTime(hoursForDay.endTime)}`;
 }
 
+// Format absence type for display
+function formatAbsenceType(type: string): string {
+  const types: Record<string, string> = {
+    'sickness': 'Sick',
+    'annual_leave': 'Leave',
+    'training': 'Training',
+    'absence': 'Absent',
+  };
+  return types[type] || type;
+}
+
+// Get combined class for staff item (status + absence)
+function getStaffItemClass(staff: any): string {
+  const classes: string[] = [];
+
+  // Check if staff is absent
+  if (staff.currentAbsence) {
+    classes.push('staff-absent');
+  } else {
+    // Only add clickable if not absent
+    classes.push('clickable');
+    // Add status class
+    const statusClass = getStaffStatusClass(staff.contractedHours);
+    if (statusClass) {
+      classes.push(statusClass);
+    }
+  }
+
+  return classes.join(' ');
+}
+
+// Get title for staff item
+function getStaffItemTitle(staff: any): string {
+  if (staff.currentAbsence) {
+    return `${formatAbsenceType(staff.currentAbsence.absenceType)} - Cannot assign`;
+  }
+  return 'Click to manage temporary assignments';
+}
+
 // Get status class for area staff based on their contracted hours
 function getStaffStatusClass(contractedHours: any[]): string {
   if (!contractedHours || contractedHours.length === 0) return '';
@@ -351,6 +400,11 @@ function handleStaffClick(assignment: ShiftAssignment) {
 
 // Handle area staff click to open manage assignments modal
 function handleAreaStaffClick(staff: any) {
+  // Don't allow clicks on absent staff
+  if (staff.currentAbsence) {
+    return;
+  }
+
   // Convert the area staff object to a StaffMember
   const staffMember: StaffMember = {
     id: staff.id,
@@ -572,8 +626,24 @@ onMounted(async () => {
   color: var(--color-text-tertiary, #9ca3af);
 }
 
+/* Absent staff styling - overrides status colors */
+.staff-item.staff-absent {
+  background-color: rgba(239, 68, 68, 0.15) !important; /* Red background */
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  cursor: not-allowed !important;
+  opacity: 1 !important;
+}
+
+.staff-item.staff-absent:hover {
+  box-shadow: none !important;
+  transform: none !important;
+}
+
 .staff-name {
   flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
 }
 
 .staff-hours {
@@ -585,6 +655,17 @@ onMounted(async () => {
   padding: 2px var(--spacing-1);
   border-radius: 4px;
   margin-left: var(--spacing-2);
+}
+
+.absence-badge {
+  background-color: rgba(239, 68, 68, 0.9);
+  color: white;
+  padding: 0.125rem 0.375rem;
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-bold);
+  border-radius: var(--radius-badge);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .area-no-staff {
