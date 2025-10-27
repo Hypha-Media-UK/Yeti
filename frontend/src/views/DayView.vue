@@ -290,13 +290,23 @@ function getStaffStatusClass(contractedHours: any[]): string {
   const startMinutes = parseTime(hoursForDay.startTime);
   const endMinutes = parseTime(hoursForDay.endTime);
 
-  // Determine status
-  if (currentMinutes < startMinutes) {
-    return 'status-pending'; // Shift hasn't started yet
-  } else if (currentMinutes >= endMinutes) {
-    return 'status-expired'; // Shift has ended
+  // Check if contracted hours cross midnight
+  if (endMinutes < startMinutes) {
+    // Overnight shift (e.g., 13:00 - 01:00)
+    if (currentMinutes >= startMinutes || currentMinutes < endMinutes) {
+      return 'status-active'; // Currently working
+    } else {
+      return 'status-pending'; // Between end and start
+    }
   } else {
-    return 'status-active'; // Currently working
+    // Normal shift within same day
+    if (currentMinutes < startMinutes) {
+      return 'status-pending'; // Shift hasn't started yet
+    } else if (currentMinutes >= endMinutes) {
+      return 'status-expired'; // Shift has ended
+    } else {
+      return 'status-active'; // Currently working
+    }
   }
 }
 

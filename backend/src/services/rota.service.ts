@@ -193,13 +193,23 @@ export class RotaService {
     const startMinutes = parseTime(shiftStart);
     const endMinutes = parseTime(shiftEnd);
 
-    // Determine status
-    if (currentMinutes < startMinutes) {
-      return 'pending'; // Shift hasn't started yet
-    } else if (currentMinutes >= endMinutes) {
-      return 'expired'; // Shift has ended
+    // Check if individual staff hours cross midnight
+    if (endMinutes < startMinutes) {
+      // Overnight shift (e.g., 13:00 - 01:00)
+      if (currentMinutes >= startMinutes || currentMinutes < endMinutes) {
+        return 'active'; // Currently working
+      } else {
+        return 'pending'; // Between end and start (e.g., 02:00-12:59 for 13:00-01:00 shift)
+      }
     } else {
-      return 'active'; // Currently working
+      // Normal shift within same day
+      if (currentMinutes < startMinutes) {
+        return 'pending'; // Shift hasn't started yet
+      } else if (currentMinutes >= endMinutes) {
+        return 'expired'; // Shift has ended
+      } else {
+        return 'active'; // Currently working
+      }
     }
   }
 
