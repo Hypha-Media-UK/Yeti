@@ -86,16 +86,19 @@ export class AreaService {
     let allContractedHoursMap: Map<number, StaffContractedHours[]> | null = null;
     let manualAssignmentsMap: Map<number, ManualAssignment[]> | null = null;
     let temporaryAssignmentsByArea: Map<string, ManualAssignment[]> | null = null;
+    let allocationsByArea: Map<string, StaffAllocation[]> | null = null;
+    let allAbsencesMap: Map<number, Absence | null> | null = null;
     let appZeroDate: string | null = null;
 
     if (date) {
       const fetchStart = Date.now();
 
       // Fetch all data in parallel
-      const [allStaff, allContractedHours, manualAssignments, zeroDate] = await Promise.all([
+      const [allStaff, allContractedHours, manualAssignments, allAllocations, zeroDate] = await Promise.all([
         this.staffRepo.findAllWithShifts(),
         this.contractedHoursRepo.findAll(),
         this.rotaService.getManualAssignmentsForDate(date),
+        this.allocationRepo.findAll(),
         this.rotaService.getAppZeroDate()
       ]);
 
@@ -132,9 +135,23 @@ export class AreaService {
         }
       }
 
+      // Build allocations map (by area for area staff lists)
+      allocationsByArea = new Map();
+      for (const allocation of allAllocations) {
+        const key = `${allocation.areaType}:${allocation.areaId}`;
+        if (!allocationsByArea.has(key)) {
+          allocationsByArea.set(key, []);
+        }
+        allocationsByArea.get(key)!.push(allocation);
+      }
+
+      // Pre-fetch absences for all staff on this date
+      const allStaffIds = Array.from(allStaffMap.keys());
+      allAbsencesMap = await this.absenceRepo.findAbsencesForDate(allStaffIds, date);
+
       appZeroDate = zeroDate;
 
-      console.log(`[PERF] Fetched all data in ${Date.now() - fetchStart}ms: ${allStaff.length} staff, ${allContractedHours.length} contracted hours, ${manualAssignments.length} manual assignments`);
+      console.log(`[PERF] Fetched all data in ${Date.now() - fetchStart}ms: ${allStaff.length} staff, ${allContractedHours.length} contracted hours, ${manualAssignments.length} manual assignments, ${allAllocations.length} allocations, ${allAbsencesMap.size} absences checked`);
     }
 
     // Process departments
@@ -153,6 +170,8 @@ export class AreaService {
           allContractedHoursMap!,
           manualAssignmentsMap!,
           temporaryAssignmentsByArea!,
+          allocationsByArea!,
+          allAbsencesMap!,
           appZeroDate!
         ) : [];
 
@@ -183,6 +202,8 @@ export class AreaService {
           allContractedHoursMap!,
           manualAssignmentsMap!,
           temporaryAssignmentsByArea!,
+          allocationsByArea!,
+          allAbsencesMap!,
           appZeroDate!
         ) : [];
 
@@ -218,14 +239,17 @@ export class AreaService {
     allContractedHoursMap: Map<number, StaffContractedHours[]>,
     manualAssignmentsMap: Map<number, ManualAssignment[]>,
     temporaryAssignmentsByArea: Map<string, ManualAssignment[]>,
+    allocationsByArea: Map<string, StaffAllocation[]>,
+    allAbsencesMap: Map<number, Absence | null>,
     appZeroDate: string
   ): Promise<StaffAssignmentForArea[]> {
     if (!dayRota) return [];
 
     const date = dayRota.date;
 
-    // Get all staff permanently allocated to this area
-    const allocations = await this.allocationRepo.findByArea(areaType, areaId);
+    // OPTIMIZED: Get allocations from pre-fetched map
+    const areaKey = `${areaType}:${areaId}`;
+    const allocations = allocationsByArea.get(areaKey) || [];
     const allocatedStaffIds = new Set(allocations.map(a => a.staffId));
 
     const staffAssignments: StaffAssignmentForArea[] = [];
@@ -271,8 +295,7 @@ export class AreaService {
     }
     console.log(`[PERF] Checked ${workingChecks} staff working status in ${Date.now() - checkWorkingStart}ms for area ${areaType}:${areaId}`);
 
-    // OPTIMIZED: Get temporary assignments from pre-fetched map
-    const areaKey = `${areaType}:${areaId}`;
+    // OPTIMIZED: Get temporary assignments from pre-fetched map (reuse areaKey from above)
     const temporaryAssignments = temporaryAssignmentsByArea.get(areaKey) || [];
 
     // Add temporarily assigned pool staff
@@ -299,13 +322,9 @@ export class AreaService {
       });
     }
 
-    // Fetch absence information for all staff (any absence that overlaps with this date)
-    const staffIds = staffAssignments.map(s => s.id);
-    const absenceMap = await this.absenceRepo.findAbsencesForDate(staffIds, date);
-
-    // Attach absence information to staff assignments
+    // OPTIMIZED: Attach absence information from pre-fetched map
     staffAssignments.forEach((staff) => {
-      const absence = absenceMap.get(staff.id);
+      const absence = allAbsencesMap.get(staff.id);
       if (absence) {
         staff.currentAbsence = absence;
       }

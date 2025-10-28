@@ -91,6 +91,20 @@ export class AllocationRepository {
     return (data || []).map(row => this.mapRowToAllocation(row));
   }
 
+  async findAll(): Promise<StaffAllocation[]> {
+    const { data, error } = await supabase
+      .from('staff_allocations')
+      .select('*')
+      .order('area_type')
+      .order('area_id');
+
+    if (error) {
+      throw new Error(`Failed to find all allocations: ${error.message}`);
+    }
+
+    return (data || []).map(row => this.mapRowToAllocation(row));
+  }
+
   async create(staffId: number, areaType: AreaType, areaId: number): Promise<StaffAllocation> {
     const { data, error } = await supabase
       .from('staff_allocations')
