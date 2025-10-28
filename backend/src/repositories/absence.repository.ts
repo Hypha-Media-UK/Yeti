@@ -15,6 +15,14 @@ interface AbsenceRow extends RowDataPacket {
 
 export class AbsenceRepository {
   /**
+   * Convert ISO datetime string to MySQL datetime format
+   */
+  private toMySQLDatetime(isoString: string): string {
+    const date = new Date(isoString);
+    return date.toISOString().slice(0, 19).replace('T', ' ');
+  }
+
+  /**
    * Convert database row to Absence object
    */
   private rowToAbsence(row: AbsenceRow): Absence {
@@ -52,14 +60,20 @@ export class AbsenceRepository {
     endDate: string
   ): Promise<Absence[]> {
     const [rows] = await pool.query<AbsenceRow[]>(
-      `SELECT * FROM staff_absences 
-       WHERE staff_id = ? 
+      `SELECT * FROM staff_absences
+       WHERE staff_id = ?
        AND (
          (start_datetime <= ? AND end_datetime >= ?) OR
          (start_datetime >= ? AND start_datetime <= ?)
        )
        ORDER BY start_datetime ASC`,
-      [staffId, endDate, startDate, startDate, endDate]
+      [
+        staffId,
+        this.toMySQLDatetime(endDate),
+        this.toMySQLDatetime(startDate),
+        this.toMySQLDatetime(startDate),
+        this.toMySQLDatetime(endDate)
+      ]
     );
     return rows.map(row => this.rowToAbsence(row));
   }
@@ -68,14 +82,15 @@ export class AbsenceRepository {
    * Find active absence for a staff member at a specific datetime
    */
   async findActiveAbsence(staffId: number, datetime: string): Promise<Absence | null> {
+    const mysqlDatetime = this.toMySQLDatetime(datetime);
     const [rows] = await pool.query<AbsenceRow[]>(
-      `SELECT * FROM staff_absences 
-       WHERE staff_id = ? 
-       AND start_datetime <= ? 
+      `SELECT * FROM staff_absences
+       WHERE staff_id = ?
+       AND start_datetime <= ?
        AND end_datetime >= ?
        ORDER BY start_datetime DESC
        LIMIT 1`,
-      [staffId, datetime, datetime]
+      [staffId, mysqlDatetime, mysqlDatetime]
     );
     return rows.length > 0 ? this.rowToAbsence(rows[0]) : null;
   }
@@ -98,7 +113,13 @@ export class AbsenceRepository {
     const [result] = await pool.query<ResultSetHeader>(
       `INSERT INTO staff_absences (staff_id, absence_type, start_datetime, end_datetime, notes)
        VALUES (?, ?, ?, ?, ?)`,
-      [data.staffId, data.absenceType, data.startDatetime, data.endDatetime, data.notes || null]
+      [
+        data.staffId,
+        data.absenceType,
+        this.toMySQLDatetime(data.startDatetime),
+        this.toMySQLDatetime(data.endDatetime),
+        data.notes || null
+      ]
     );
 
     const absence = await this.findById(result.insertId);
@@ -121,11 +142,11 @@ export class AbsenceRepository {
     }
     if (data.startDatetime !== undefined) {
       updates.push('start_datetime = ?');
-      values.push(data.startDatetime);
+      values.push(this.toMySQLDatetime(data.startDatetime));
     }
     if (data.endDatetime !== undefined) {
       updates.push('end_datetime = ?');
-      values.push(data.endDatetime);
+      values.push(this.toMySQLDatetime(data.endDatetime));
     }
     if (data.notes !== undefined) {
       updates.push('notes = ?');
