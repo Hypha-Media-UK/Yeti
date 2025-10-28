@@ -213,6 +213,11 @@ const error = computed(() => rotaStore.error);
 const dayShifts = computed(() => rotaStore.dayShifts);
 const nightShifts = computed(() => rotaStore.nightShifts);
 
+// Prefetch cache for adjacent days
+const rotaCache = new Map<string, { dayShifts: any[], nightShifts: any[] }>();
+const areasCache = new Map<string, any[]>();
+const prefetchInProgress = new Set<string>();
+
 // Temporary assignment modal state
 const showTemporaryAssignmentModal = ref(false);
 const selectedStaffForAssignment = ref<ShiftAssignment | null>(null);
@@ -384,8 +389,8 @@ function getStaffStatusClass(contractedHours: any[]): string {
 // Watch for date changes and update URL
 watch(selectedDate, (newDate) => {
   router.push({ name: 'day', params: { date: newDate } });
-  loadRota();
-  loadAreas();
+  loadRotaWithCache();
+  loadAreasWithCache();
 });
 
 // Watch for route changes
@@ -398,6 +403,114 @@ watch(
   },
   { immediate: true }
 );
+
+// Add/subtract days from a date string
+function addDays(dateStr: string, days: number): string {
+  const date = new Date(dateStr + 'T00:00:00');
+  date.setDate(date.getDate() + days);
+  return date.toISOString().split('T')[0];
+}
+
+// Prefetch adjacent days in the background
+async function prefetchAdjacentDays(currentDate: string) {
+  const previousDate = addDays(currentDate, -1);
+  const nextDate = addDays(currentDate, 1);
+
+  // Prefetch previous day
+  if (!rotaCache.has(previousDate) && !prefetchInProgress.has(previousDate)) {
+    prefetchInProgress.add(previousDate);
+    console.log(`[PREFETCH] Loading previous day: ${previousDate}`);
+    try {
+      await rotaStore.fetchRotaForDate(previousDate);
+      rotaCache.set(previousDate, {
+        dayShifts: [...rotaStore.dayShifts],
+        nightShifts: [...rotaStore.nightShifts]
+      });
+      console.log(`[PREFETCH] Cached rota for ${previousDate}`);
+    } catch (err) {
+      console.error(`[PREFETCH] Failed to load ${previousDate}:`, err);
+    } finally {
+      prefetchInProgress.delete(previousDate);
+    }
+  }
+
+  // Prefetch next day
+  if (!rotaCache.has(nextDate) && !prefetchInProgress.has(nextDate)) {
+    prefetchInProgress.add(nextDate);
+    console.log(`[PREFETCH] Loading next day: ${nextDate}`);
+    try {
+      await rotaStore.fetchRotaForDate(nextDate);
+      rotaCache.set(nextDate, {
+        dayShifts: [...rotaStore.dayShifts],
+        nightShifts: [...rotaStore.nightShifts]
+      });
+      console.log(`[PREFETCH] Cached rota for ${nextDate}`);
+    } catch (err) {
+      console.error(`[PREFETCH] Failed to load ${nextDate}:`, err);
+    } finally {
+      prefetchInProgress.delete(nextDate);
+    }
+  }
+}
+
+// Load rota with cache support
+async function loadRotaWithCache() {
+  const dateKey = selectedDate.value;
+
+  // Check cache first
+  if (rotaCache.has(dateKey)) {
+    console.log(`[CACHE HIT] Using cached rota for ${dateKey} - instant load!`);
+    const cached = rotaCache.get(dateKey)!;
+
+    // Manually set the store's internal state to avoid loading indicator
+    rotaStore.$patch({
+      currentDayRota: {
+        date: dateKey,
+        dayShifts: cached.dayShifts,
+        nightShifts: cached.nightShifts
+      },
+      selectedDate: dateKey,
+      isLoading: false,
+      error: null
+    });
+
+    // Prefetch adjacent days in background
+    prefetchAdjacentDays(dateKey);
+    return;
+  }
+
+  // Cache miss - load from API
+  console.log(`[CACHE MISS] Loading rota for ${dateKey}`);
+  await rotaStore.fetchRotaForDate(dateKey);
+
+  // Cache the result
+  rotaCache.set(dateKey, {
+    dayShifts: [...rotaStore.dayShifts],
+    nightShifts: [...rotaStore.nightShifts]
+  });
+
+  // Prefetch adjacent days in background
+  prefetchAdjacentDays(dateKey);
+}
+
+// Load areas with cache support
+async function loadAreasWithCache() {
+  const dateKey = selectedDate.value;
+
+  // Check cache first
+  if (areasCache.has(dateKey)) {
+    console.log(`[CACHE HIT] Using cached areas for ${dateKey}`);
+    areas.value = areasCache.get(dateKey)!;
+    return;
+  }
+
+  // Cache miss - load from API
+  console.log(`[CACHE MISS] Loading areas for ${dateKey}`);
+  await loadAreas();
+
+  // Cache the result
+  areasCache.set(dateKey, areas.value);
+}
 
 async function loadRota() {
   await rotaStore.fetchRotaForDate(selectedDate.value);
@@ -478,8 +591,10 @@ async function handleCreateTemporaryAssignment(data: CreateTemporaryAssignmentDt
     showTemporaryAssignmentModal.value = false;
     selectedStaffForAssignment.value = null;
 
-    // Reload rota and areas to show the new assignment
-    await Promise.all([loadRota(), loadAreas()]);
+    // Clear cache for affected date and reload
+    rotaCache.delete(selectedDate.value);
+    areasCache.delete(selectedDate.value);
+    await Promise.all([loadRotaWithCache(), loadAreasWithCache()]);
   } catch (err: any) {
     console.error('Error creating temporary assignment:', err);
     alert(err.message || 'Failed to create temporary assignment');
@@ -493,8 +608,10 @@ async function handleCreateQuickAbsence(data: CreateAbsenceRequest) {
     showQuickAbsenceModal.value = false;
     selectedStaffForAbsence.value = null;
 
-    // Reload rota and areas to show the absence
-    await Promise.all([loadRota(), loadAreas()]);
+    // Clear cache for affected date and reload
+    rotaCache.delete(selectedDate.value);
+    areasCache.delete(selectedDate.value);
+    await Promise.all([loadRotaWithCache(), loadAreasWithCache()]);
   } catch (err: any) {
     console.error('Error creating absence:', err);
     alert(err.message || 'Failed to create absence');
@@ -515,8 +632,8 @@ onMounted(async () => {
   await Promise.all([
     configStore.fetchConfig(),
     staffStore.fetchAllStaff(),
-    loadRota(),
-    loadAreas(),
+    loadRotaWithCache(),
+    loadAreasWithCache(),
   ]);
 });
 </script>
