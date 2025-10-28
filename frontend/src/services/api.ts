@@ -7,7 +7,10 @@ import type { Service } from '@shared/types/service';
 import type { StaffAllocation, AllocationWithDetails, AreaType } from '@shared/types/allocation';
 import type { Absence, CreateAbsenceRequest, UpdateAbsenceRequest } from '@shared/types/absence';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+// Use empty string for production (same domain), localhost for development
+const API_BASE_URL = import.meta.env.VITE_API_URL !== undefined
+  ? import.meta.env.VITE_API_URL
+  : 'http://localhost:3000';
 
 class ApiError extends Error {
   constructor(public status: number, message: string) {
