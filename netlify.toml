@@ -1,5 +1,9 @@
 # Netlify Configuration
 
+# Plugin to install function dependencies
+[[plugins]]
+  package = "@netlify/plugin-functions-install-core"
+
 [build]
   # Build command for the frontend
   command = "cd frontend && npm install && npm run build"
