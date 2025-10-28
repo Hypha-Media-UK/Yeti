@@ -1,20 +1,11 @@
 <template>
-  <BaseModal 
-    :model-value="modelValue" 
-    @update:model-value="$emit('update:modelValue', $event)" 
-    title="Temporary Area Assignment" 
+  <BaseModal
+    :model-value="modelValue"
+    @update:model-value="$emit('update:modelValue', $event)"
+    title="Temporary Area Assignment"
     modal-class="temporary-assignment-form"
   >
     <form @submit.prevent="handleSubmit">
-      <div class="staff-info-section">
-        <div class="staff-name">{{ staffMember.firstName }} {{ staffMember.lastName }}</div>
-        <div class="staff-meta">
-          <span class="badge badge-status">{{ staffMember.status }}</span>
-          <span class="badge badge-shift" :class="`badge-${shiftType}`">
-            {{ shiftType === 'day' ? 'Day' : 'Night' }} Shift
-          </span>
-        </div>
-      </div>
 
       <div class="form-group">
         <label for="area" class="form-label">Area *</label>
@@ -287,53 +278,6 @@ watch(() => props.modelValue, (isOpen) => {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-3);
-}
-
-.staff-info-section {
-  padding: var(--spacing-2);
-  background-color: var(--color-background);
-  border-radius: var(--radius-button);
-  border-left: 4px solid var(--color-primary);
-}
-
-.staff-name {
-  font-size: var(--font-size-body);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  margin-bottom: var(--spacing-1);
-}
-
-.staff-meta {
-  display: flex;
-  gap: var(--spacing-2);
-}
-
-.badge {
-  padding: 0.25rem 0.5rem;
-  font-size: var(--font-size-secondary);
-  font-weight: var(--font-weight-medium);
-  border-radius: var(--radius-badge);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.badge-status {
-  background-color: #E0E7FF;
-  color: var(--color-primary);
-}
-
-.badge-shift {
-  font-weight: var(--font-weight-medium);
-}
-
-.badge-day {
-  background-color: var(--color-day-shift-light);
-  color: var(--color-day-shift);
-}
-
-.badge-night {
-  background-color: var(--color-night-shift-light);
-  color: var(--color-night-shift);
 }
 
 .form-group {
