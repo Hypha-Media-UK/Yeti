@@ -211,18 +211,15 @@ export class AreaService {
       });
     }
 
-    // Fetch absence information for all staff
+    // Fetch absence information for all staff (any absence that overlaps with this date)
     const staffIds = staffAssignments.map(s => s.id);
-    const checkDatetime = `${date}T12:00:00`;
-    const absencePromises = staffIds.map(staffId =>
-      this.absenceRepo.findActiveAbsence(staffId, checkDatetime)
-    );
-    const absences = await Promise.all(absencePromises);
+    const absenceMap = await this.absenceRepo.findAbsencesForDate(staffIds, date);
 
     // Attach absence information to staff assignments
-    staffAssignments.forEach((staff, index) => {
-      if (absences[index]) {
-        staff.currentAbsence = absences[index];
+    staffAssignments.forEach((staff) => {
+      const absence = absenceMap.get(staff.id);
+      if (absence) {
+        staff.currentAbsence = absence;
       }
     });
 

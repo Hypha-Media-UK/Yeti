@@ -408,18 +408,8 @@ export class RotaService {
     ];
     const uniqueStaffIds = [...new Set(allStaffIds)];
 
-    // Get active absences for the target date (check at noon to cover most of the day)
-    const checkDatetime = `${targetDate}T12:00:00`;
-    const absencePromises = uniqueStaffIds.map(staffId =>
-      this.absenceRepo.findActiveAbsence(staffId, checkDatetime)
-    );
-    const absences = await Promise.all(absencePromises);
-    const absenceMap = new Map<number, typeof absences[0]>();
-    uniqueStaffIds.forEach((staffId, index) => {
-      if (absences[index]) {
-        absenceMap.set(staffId, absences[index]);
-      }
-    });
+    // Get absences for the target date (any absence that overlaps with this date)
+    const absenceMap = await this.absenceRepo.findAbsencesForDate(uniqueStaffIds, targetDate);
 
     // Attach absence information to staff objects
     for (const shift of [...dayShifts, ...nightShifts]) {

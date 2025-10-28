@@ -96,6 +96,82 @@ export class AbsenceRepository {
   }
 
   /**
+   * Find any absence for a staff member on a specific date (regardless of time)
+   * Returns the first absence that overlaps with the given date
+   */
+  async findAbsenceForDate(staffId: number, date: string): Promise<Absence | null> {
+    // Check for any absence that overlaps with this date (00:00:00 to 23:59:59)
+    const startOfDay = `${date}T00:00:00`;
+    const endOfDay = `${date}T23:59:59`;
+
+    const [rows] = await pool.query<AbsenceRow[]>(
+      `SELECT * FROM staff_absences
+       WHERE staff_id = ?
+       AND (
+         (start_datetime <= ? AND end_datetime >= ?) OR
+         (start_datetime >= ? AND start_datetime <= ?)
+       )
+       ORDER BY start_datetime ASC
+       LIMIT 1`,
+      [
+        staffId,
+        this.toMySQLDatetime(endOfDay),
+        this.toMySQLDatetime(startOfDay),
+        this.toMySQLDatetime(startOfDay),
+        this.toMySQLDatetime(endOfDay)
+      ]
+    );
+    return rows.length > 0 ? this.rowToAbsence(rows[0]) : null;
+  }
+
+  /**
+   * Find absences for multiple staff members on a specific date (batch operation)
+   * Returns a map of staffId -> Absence (or null if no absence)
+   */
+  async findAbsencesForDate(staffIds: number[], date: string): Promise<Map<number, Absence | null>> {
+    if (staffIds.length === 0) {
+      return new Map();
+    }
+
+    const startOfDay = `${date}T00:00:00`;
+    const endOfDay = `${date}T23:59:59`;
+
+    // Use a subquery to get only the first absence per staff member
+    const [rows] = await pool.query<AbsenceRow[]>(
+      `SELECT sa1.* FROM staff_absences sa1
+       INNER JOIN (
+         SELECT staff_id, MIN(start_datetime) as min_start
+         FROM staff_absences
+         WHERE staff_id IN (?)
+         AND (
+           (start_datetime <= ? AND end_datetime >= ?) OR
+           (start_datetime >= ? AND start_datetime <= ?)
+         )
+         GROUP BY staff_id
+       ) sa2 ON sa1.staff_id = sa2.staff_id AND sa1.start_datetime = sa2.min_start`,
+      [
+        staffIds,
+        this.toMySQLDatetime(endOfDay),
+        this.toMySQLDatetime(startOfDay),
+        this.toMySQLDatetime(startOfDay),
+        this.toMySQLDatetime(endOfDay)
+      ]
+    );
+
+    const absenceMap = new Map<number, Absence | null>();
+
+    // Initialize all staff IDs with null
+    staffIds.forEach(id => absenceMap.set(id, null));
+
+    // Set absences for staff that have them
+    rows.forEach(row => {
+      absenceMap.set(row.staff_id, this.rowToAbsence(row));
+    });
+
+    return absenceMap;
+  }
+
+  /**
    * Find absence by ID
    */
   async findById(id: number): Promise<Absence | null> {
