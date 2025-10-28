@@ -63,7 +63,11 @@
                   </span>
                 </div>
               </div>
-              <div v-if="area.staff && area.staff.length > 0" class="area-staff">
+              <div v-if="area.staff === undefined" class="area-loading">
+                <div class="loading-spinner"></div>
+                <span>Loading staff...</span>
+              </div>
+              <div v-else-if="area.staff && area.staff.length > 0" class="area-staff">
                 <div
                   v-for="staff in area.staff"
                   :key="staff.id"
@@ -110,7 +114,11 @@
                   </span>
                 </div>
               </div>
-              <div v-if="area.staff && area.staff.length > 0" class="area-staff">
+              <div v-if="area.staff === undefined" class="area-loading">
+                <div class="loading-spinner"></div>
+                <span>Loading staff...</span>
+              </div>
+              <div v-else-if="area.staff && area.staff.length > 0" class="area-staff">
                 <div
                   v-for="staff in area.staff"
                   :key="staff.id"
@@ -398,11 +406,31 @@ async function loadRota() {
 async function loadAreas() {
   try {
     const dayOfWeek = getDayOfWeek(selectedDate.value);
-    const response = await api.getMainRotaAreasForDay(dayOfWeek, selectedDate.value);
+
+    // Phase 1: Load area structure without staff (fast)
+    console.log('[PERF] Loading area structure...');
+    const response = await api.getMainRotaAreasForDay(dayOfWeek, selectedDate.value, false);
     areas.value = response.areas;
+    console.log(`[PERF] Loaded ${areas.value.length} areas`);
+
+    // Phase 2: Load staff for each area progressively
+    console.log('[PERF] Loading staff for each area...');
+    const staffLoadPromises = areas.value.map(area => loadAreaStaff(area));
+    await Promise.all(staffLoadPromises);
+    console.log('[PERF] All area staff loaded');
   } catch (err) {
     console.error('Error loading areas:', err);
     areas.value = [];
+  }
+}
+
+async function loadAreaStaff(area: any) {
+  try {
+    const response = await api.getAreaStaff(area.type, area.id, selectedDate.value);
+    area.staff = response.staff;
+  } catch (err) {
+    console.error(`Error loading staff for ${area.name}:`, err);
+    area.staff = [];
   }
 }
 
@@ -710,6 +738,33 @@ onMounted(async () => {
   font-size: var(--font-size-body-sm);
   color: var(--color-text-tertiary);
   font-style: italic;
+}
+
+.area-loading {
+  margin-top: var(--spacing-2);
+  padding: var(--spacing-3) var(--spacing-2);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-body-sm);
+  color: var(--color-text-secondary);
+}
+
+.loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (min-width: 961px) {

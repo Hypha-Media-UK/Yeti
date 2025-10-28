@@ -375,11 +375,26 @@ export const api = {
     return fetchApi<{ areas: Array<{ id: number; name: string; type: 'department' | 'service'; buildingId?: number }> }>('/areas/main-rota');
   },
 
-  async getMainRotaAreasForDay(dayOfWeek: number, date?: string): Promise<{ areas: any[] }> {
-    const url = date
-      ? `/areas/main-rota/day/${dayOfWeek}?date=${date}`
-      : `/areas/main-rota/day/${dayOfWeek}`;
+  async getMainRotaAreasForDay(dayOfWeek: number, date?: string, includeStaff?: boolean): Promise<{ areas: any[] }> {
+    let url = `/areas/main-rota/day/${dayOfWeek}`;
+    const params = new URLSearchParams();
+
+    if (date) {
+      params.append('date', date);
+    }
+    if (includeStaff !== undefined) {
+      params.append('includeStaff', includeStaff.toString());
+    }
+
+    if (params.toString()) {
+      url += `?${params.toString()}`;
+    }
+
     return fetchApi<{ areas: any[] }>(url);
+  },
+
+  async getAreaStaff(areaType: 'department' | 'service', areaId: number, date: string): Promise<{ staff: any[] }> {
+    return fetchApi<{ staff: any[] }>(`/areas/${areaType}/${areaId}/staff?date=${date}`);
   },
 
   // Shifts

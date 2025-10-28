@@ -58,9 +58,12 @@ export class AreaService {
 
   /**
    * Get all areas (departments and services) that should be displayed on the main rota
-   * for a specific day of the week, including staff assignments for that date
+   * for a specific day of the week, optionally including staff assignments for that date
+   * @param dayOfWeek - Day of week (1-7, Monday-Sunday)
+   * @param date - Optional date string (YYYY-MM-DD)
+   * @param includeStaff - Whether to include staff assignments (default: true if date is provided)
    */
-  async getAreasForDay(dayOfWeek: number, date?: string): Promise<AreaWithHours[]> {
+  async getAreasForDay(dayOfWeek: number, date?: string, includeStaff?: boolean): Promise<AreaWithHours[]> {
     const startTime = Date.now();
     const areas: AreaWithHours[] = [];
 
@@ -75,9 +78,12 @@ export class AreaService {
     // Get operational hours for the specific day
     const dayOperationalHours = await this.operationalHoursRepo.findByDay(dayOfWeek);
 
+    // Determine if we should include staff (default to true if date is provided, unless explicitly set to false)
+    const shouldIncludeStaff = includeStaff !== undefined ? includeStaff : !!date;
+
     // Get rota for the date if provided (to get staff assignments)
     let dayRota = null;
-    if (date) {
+    if (date && shouldIncludeStaff) {
       dayRota = await this.rotaService.getRotaForDate(date);
     }
 
@@ -90,7 +96,7 @@ export class AreaService {
     let allAbsencesMap: Map<number, Absence | null> | null = null;
     let appZeroDate: string | null = null;
 
-    if (date) {
+    if (date && shouldIncludeStaff) {
       const fetchStart = Date.now();
 
       // Fetch all data in parallel
@@ -162,7 +168,7 @@ export class AreaService {
 
       // Include if department has operational hours for this day OR is 24/7
       if (deptHours.length > 0 || dept.is24_7) {
-        const staff = date ? await this.getStaffForArea(
+        const staff = (date && shouldIncludeStaff) ? await this.getStaffForArea(
           'department',
           dept.id,
           dayRota,
@@ -181,7 +187,7 @@ export class AreaService {
           type: 'department',
           buildingId: dept.buildingId ?? undefined,
           operationalHours: dept.is24_7 ? [] : deptHours, // Empty hours for 24/7 areas
-          staff,
+          staff: shouldIncludeStaff ? staff : undefined,
         });
       }
     }
@@ -194,7 +200,7 @@ export class AreaService {
 
       // Include if service has operational hours for this day OR is 24/7
       if (serviceHours.length > 0 || service.is24_7) {
-        const staff = date ? await this.getStaffForArea(
+        const staff = (date && shouldIncludeStaff) ? await this.getStaffForArea(
           'service',
           service.id,
           dayRota,
@@ -212,7 +218,7 @@ export class AreaService {
           name: service.name,
           type: 'service',
           operationalHours: service.is24_7 ? [] : serviceHours, // Empty hours for 24/7 areas
-          staff,
+          staff: shouldIncludeStaff ? staff : undefined,
         });
       }
     }
@@ -379,6 +385,94 @@ export class AreaService {
     areas.sort((a, b) => a.name.localeCompare(b.name));
 
     return areas;
+  }
+
+  /**
+   * Get staff members assigned to a specific area who are working on the given date
+   * This is a standalone method for loading staff for a single area (used by the progressive loading endpoint)
+   */
+  async getStaffForSingleArea(
+    areaType: 'department' | 'service',
+    areaId: number,
+    date: string
+  ): Promise<StaffAssignmentForArea[]> {
+    const startTime = Date.now();
+    console.log(`[PERF] getStaffForSingleArea started for ${areaType}:${areaId} on ${date}`);
+
+    // Fetch all required data in parallel
+    const [allStaff, allContractedHours, manualAssignments, allAllocations, appZeroDate] = await Promise.all([
+      this.staffRepo.findAllWithShifts(),
+      this.contractedHoursRepo.findAll(),
+      this.rotaService.getManualAssignmentsForDate(date),
+      this.allocationRepo.findAll(),
+      this.rotaService.getAppZeroDate()
+    ]);
+
+    // Build Maps for O(1) lookups
+    const allStaffMap = new Map<number, StaffMember>();
+    allStaff.forEach(s => allStaffMap.set(s.id, s));
+
+    const allContractedHoursMap = new Map<number, StaffContractedHours[]>();
+    allContractedHours.forEach(ch => {
+      const existing = allContractedHoursMap.get(ch.staffId) || [];
+      existing.push(ch);
+      allContractedHoursMap.set(ch.staffId, existing);
+    });
+
+    const manualAssignmentsMap = new Map<number, ManualAssignment[]>();
+    manualAssignments.forEach(ma => {
+      const existing = manualAssignmentsMap.get(ma.staffId) || [];
+      existing.push(ma);
+      manualAssignmentsMap.set(ma.staffId, existing);
+    });
+
+    // Build map of temporary assignments by area
+    const temporaryAssignmentsByArea = new Map<string, ManualAssignment[]>();
+    manualAssignments.forEach(ma => {
+      if (ma.areaType && ma.areaId) {
+        const areaKey = `${ma.areaType}:${ma.areaId}`;
+        const existing = temporaryAssignmentsByArea.get(areaKey) || [];
+        existing.push(ma);
+        temporaryAssignmentsByArea.set(areaKey, existing);
+      }
+    });
+
+    // Build map of allocations by area
+    const allocationsByArea = new Map<string, any[]>();
+    allAllocations.forEach(allocation => {
+      const areaKey = `${allocation.areaType}:${allocation.areaId}`;
+      const existing = allocationsByArea.get(areaKey) || [];
+      existing.push(allocation);
+      allocationsByArea.set(areaKey, existing);
+    });
+
+    // Pre-fetch absences for all staff on this date
+    const allStaffIds = Array.from(allStaffMap.keys());
+    const allAbsencesMap = await this.absenceRepo.findAbsencesForDate(allStaffIds, date);
+
+    console.log(`[PERF] Fetched all data in ${Date.now() - startTime}ms`);
+
+    // Create a mock dayRota object for compatibility with getStaffForArea
+    const dayRota = { date };
+
+    // Call the existing getStaffForArea method
+    const staff = await this.getStaffForArea(
+      areaType,
+      areaId,
+      dayRota,
+      allStaffMap,
+      allContractedHoursMap,
+      manualAssignmentsMap,
+      temporaryAssignmentsByArea,
+      allocationsByArea,
+      allAbsencesMap,
+      appZeroDate
+    );
+
+    const totalTime = Date.now() - startTime;
+    console.log(`[PERF] getStaffForSingleArea completed in ${totalTime}ms (${staff.length} staff)`);
+
+    return staff;
   }
 }
 
