@@ -1,6 +1,14 @@
-import { pool } from '../config/database';
-import { BuildingRow, InsertResult } from '../types/database.types';
+import { supabase } from '../config/database';
 import { Building } from '../../shared/types/building';
+
+interface BuildingRow {
+  id: number;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 export class BuildingRepository {
   private mapRowToBuilding(row: BuildingRow): Building {
@@ -15,71 +23,99 @@ export class BuildingRepository {
   }
 
   async findAll(): Promise<Building[]> {
-    const [rows] = await pool.query<BuildingRow[]>(
-      'SELECT * FROM buildings WHERE is_active = TRUE ORDER BY name'
-    );
-    return rows.map(row => this.mapRowToBuilding(row));
+    const { data, error } = await supabase
+      .from('buildings')
+      .select('*')
+      .eq('is_active', true)
+      .order('name');
+
+    if (error) {
+      throw new Error(`Failed to find buildings: ${error.message}`);
+    }
+
+    return (data || []).map(row => this.mapRowToBuilding(row));
   }
 
   async findById(id: number): Promise<Building | null> {
-    const [rows] = await pool.query<BuildingRow[]>(
-      'SELECT * FROM buildings WHERE id = ? AND is_active = TRUE',
-      [id]
-    );
-    return rows.length > 0 ? this.mapRowToBuilding(rows[0]) : null;
+    const { data, error } = await supabase
+      .from('buildings')
+      .select('*')
+      .eq('id', id)
+      .eq('is_active', true)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      throw new Error(`Failed to find building: ${error.message}`);
+    }
+
+    return data ? this.mapRowToBuilding(data) : null;
   }
 
   async create(building: { name: string; description?: string | null }): Promise<Building> {
-    const [result] = await pool.query<InsertResult>(
-      'INSERT INTO buildings (name, description, is_active) VALUES (?, ?, TRUE)',
-      [building.name, building.description || null]
-    );
+    const { data, error } = await supabase
+      .from('buildings')
+      .insert({
+        name: building.name,
+        description: building.description || null,
+        is_active: true
+      })
+      .select()
+      .single();
 
-    const created = await this.findById(result.insertId);
-    if (!created) {
-      throw new Error('Failed to create building');
+    if (error) {
+      throw new Error(`Failed to create building: ${error.message}`);
     }
-    return created;
+
+    return this.mapRowToBuilding(data);
   }
 
   async update(id: number, updates: { name?: string; description?: string | null; isActive?: boolean }): Promise<Building | null> {
-    const fields: string[] = [];
-    const values: any[] = [];
+    const updateData: any = {};
 
     if (updates.name !== undefined) {
-      fields.push('name = ?');
-      values.push(updates.name);
+      updateData.name = updates.name;
     }
 
     if (updates.description !== undefined) {
-      fields.push('description = ?');
-      values.push(updates.description);
+      updateData.description = updates.description;
     }
 
     if (updates.isActive !== undefined) {
-      fields.push('is_active = ?');
-      values.push(updates.isActive);
+      updateData.is_active = updates.isActive;
     }
 
-    if (fields.length === 0) {
+    if (Object.keys(updateData).length === 0) {
       return this.findById(id);
     }
 
-    values.push(id);
-    await pool.query<InsertResult>(
-      `UPDATE buildings SET ${fields.join(', ')} WHERE id = ?`,
-      values
-    );
+    const { data, error } = await supabase
+      .from('buildings')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
 
-    return this.findById(id);
+    if (error) {
+      throw new Error(`Failed to update building: ${error.message}`);
+    }
+
+    return data ? this.mapRowToBuilding(data) : null;
   }
 
   async delete(id: number): Promise<boolean> {
-    const [result] = await pool.query<InsertResult>(
-      'UPDATE buildings SET is_active = FALSE WHERE id = ?',
-      [id]
-    );
-    return result.affectedRows > 0;
+    const { error } = await supabase
+      .from('buildings')
+      .update({ is_active: false })
+      .eq('id', id);
+
+    if (error) {
+      throw new Error(`Failed to delete building: ${error.message}`);
+    }
+
+    return true;
   }
 }
 

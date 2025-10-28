@@ -1,7 +1,21 @@
-import { pool } from '../config/database';
-import { StaffRow, InsertResult, ShiftRow } from '../types/database.types';
+import { supabase } from '../config/database';
 import { StaffMember, StaffMemberWithShift } from '../../shared/types/staff';
 import { Shift } from '../../shared/types/shift';
+
+interface StaffRow {
+  id: number;
+  first_name: string;
+  last_name: string;
+  status: 'Regular' | 'Relief' | 'Supervisor';
+  shift_id: number | null;
+  cycle_type: string | null;
+  days_offset: number;
+  custom_shift_start: string | null;
+  custom_shift_end: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 export class StaffRepository {
   private mapRowToStaffMember(row: StaffRow): StaffMember {
@@ -16,188 +30,200 @@ export class StaffRepository {
       customShiftStart: row.custom_shift_start || null,
       customShiftEnd: row.custom_shift_end || null,
       isActive: row.is_active,
-      createdAt: row.created_at.toISOString(),
-      updatedAt: row.updated_at.toISOString(),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
     };
   }
 
   async findAll(filters?: { status?: string; includeInactive?: boolean }): Promise<StaffMember[]> {
-    let query = 'SELECT * FROM staff';
-    const params: any[] = [];
-    const conditions: string[] = [];
+    let query = supabase
+      .from('staff')
+      .select('*');
 
-    // Only filter by is_active if not explicitly including inactive
     if (!filters?.includeInactive) {
-      conditions.push('is_active = TRUE');
+      query = query.eq('is_active', true);
     }
 
     if (filters?.status) {
-      conditions.push('status = ?');
-      params.push(filters.status);
+      query = query.eq('status', filters.status);
     }
 
-    if (conditions.length > 0) {
-      query += ' WHERE ' + conditions.join(' AND ');
+    query = query.order('last_name').order('first_name');
+
+    const { data, error } = await query;
+
+    if (error) {
+      throw new Error(`Failed to find staff: ${error.message}`);
     }
 
-    query += ' ORDER BY last_name, first_name';
-
-    const [rows] = await pool.query<StaffRow[]>(query, params);
-    return rows.map(row => this.mapRowToStaffMember(row));
+    return (data || []).map(row => this.mapRowToStaffMember(row));
   }
 
   async findById(id: number): Promise<StaffMember | null> {
-    const [rows] = await pool.query<StaffRow[]>(
-      'SELECT * FROM staff WHERE id = ? AND is_active = TRUE',
-      [id]
-    );
-    return rows.length > 0 ? this.mapRowToStaffMember(rows[0]) : null;
+    const { data, error } = await supabase
+      .from('staff')
+      .select('*')
+      .eq('id', id)
+      .eq('is_active', true)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      throw new Error(`Failed to find staff member: ${error.message}`);
+    }
+
+    return data ? this.mapRowToStaffMember(data) : null;
   }
 
   async create(staff: Omit<StaffMember, 'id' | 'createdAt' | 'updatedAt'>): Promise<StaffMember> {
-    const [result] = await pool.query<InsertResult>(
-      `INSERT INTO staff (first_name, last_name, status, shift_id, cycle_type, days_offset, custom_shift_start, custom_shift_end, is_active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        staff.firstName,
-        staff.lastName,
-        staff.status,
-        staff.shiftId,
-        staff.cycleType,
-        staff.daysOffset,
-        staff.customShiftStart,
-        staff.customShiftEnd,
-        staff.isActive,
-      ]
-    );
+    const { data, error } = await supabase
+      .from('staff')
+      .insert({
+        first_name: staff.firstName,
+        last_name: staff.lastName,
+        status: staff.status,
+        shift_id: staff.shiftId,
+        cycle_type: staff.cycleType,
+        days_offset: staff.daysOffset,
+        custom_shift_start: staff.customShiftStart,
+        custom_shift_end: staff.customShiftEnd,
+        is_active: staff.isActive
+      })
+      .select()
+      .single();
 
-    const created = await this.findById(result.insertId);
-    if (!created) {
-      throw new Error('Failed to create staff member');
+    if (error) {
+      throw new Error(`Failed to create staff member: ${error.message}`);
     }
-    return created;
+
+    return this.mapRowToStaffMember(data);
   }
 
   async update(id: number, updates: Partial<StaffMember>): Promise<StaffMember | null> {
-    const fields: string[] = [];
-    const values: any[] = [];
+    const updateData: any = {};
 
     if (updates.firstName !== undefined) {
-      fields.push('first_name = ?');
-      values.push(updates.firstName);
+      updateData.first_name = updates.firstName;
     }
     if (updates.lastName !== undefined) {
-      fields.push('last_name = ?');
-      values.push(updates.lastName);
+      updateData.last_name = updates.lastName;
     }
     if (updates.status !== undefined) {
-      fields.push('status = ?');
-      values.push(updates.status);
+      updateData.status = updates.status;
     }
     if (updates.shiftId !== undefined) {
-      fields.push('shift_id = ?');
-      values.push(updates.shiftId);
+      updateData.shift_id = updates.shiftId;
     }
     if (updates.cycleType !== undefined) {
-      fields.push('cycle_type = ?');
-      values.push(updates.cycleType);
+      updateData.cycle_type = updates.cycleType;
     }
     if (updates.daysOffset !== undefined) {
-      fields.push('days_offset = ?');
-      values.push(updates.daysOffset);
+      updateData.days_offset = updates.daysOffset;
     }
     if (updates.customShiftStart !== undefined) {
-      fields.push('custom_shift_start = ?');
-      values.push(updates.customShiftStart);
+      updateData.custom_shift_start = updates.customShiftStart;
     }
     if (updates.customShiftEnd !== undefined) {
-      fields.push('custom_shift_end = ?');
-      values.push(updates.customShiftEnd);
+      updateData.custom_shift_end = updates.customShiftEnd;
     }
     if (updates.isActive !== undefined) {
-      fields.push('is_active = ?');
-      values.push(updates.isActive);
+      updateData.is_active = updates.isActive;
     }
 
-    if (fields.length === 0) {
+    if (Object.keys(updateData).length === 0) {
       return this.findById(id);
     }
 
-    values.push(id);
-    await pool.query<InsertResult>(
-      `UPDATE staff SET ${fields.join(', ')} WHERE id = ?`,
-      values
-    );
+    const { data, error } = await supabase
+      .from('staff')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
 
-    return this.findById(id);
+    if (error) {
+      throw new Error(`Failed to update staff member: ${error.message}`);
+    }
+
+    return data ? this.mapRowToStaffMember(data) : null;
   }
 
   async delete(id: number): Promise<boolean> {
-    const [result] = await pool.query<InsertResult>(
-      'UPDATE staff SET is_active = FALSE WHERE id = ?',
-      [id]
-    );
-    return result.affectedRows > 0;
+    const { error } = await supabase
+      .from('staff')
+      .update({ is_active: false })
+      .eq('id', id);
+
+    if (error) {
+      throw new Error(`Failed to delete staff member: ${error.message}`);
+    }
+
+    return true;
   }
 
   async hardDelete(id: number): Promise<boolean> {
-    const [result] = await pool.query<InsertResult>(
-      'DELETE FROM staff WHERE id = ?',
-      [id]
-    );
-    return result.affectedRows > 0;
+    const { error } = await supabase
+      .from('staff')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw new Error(`Failed to hard delete staff member: ${error.message}`);
+    }
+
+    return true;
   }
 
   /**
    * Find all staff with their shift information
    */
   async findAllWithShifts(filters?: { status?: string; includeInactive?: boolean }): Promise<StaffMemberWithShift[]> {
-    let query = `
-      SELECT
-        s.*,
-        sh.id as shift_id,
-        sh.name as shift_name,
-        sh.type as shift_type,
-        sh.color as shift_color,
-        sh.description as shift_description,
-        sh.is_active as shift_is_active,
-        sh.created_at as shift_created_at,
-        sh.updated_at as shift_updated_at
-      FROM staff s
-      LEFT JOIN shifts sh ON s.shift_id = sh.id
-    `;
-
-    const params: any[] = [];
-    const conditions: string[] = [];
+    let query = supabase
+      .from('staff')
+      .select(`
+        *,
+        shifts (
+          id,
+          name,
+          type,
+          color,
+          description,
+          is_active,
+          created_at,
+          updated_at
+        )
+      `);
 
     if (!filters?.includeInactive) {
-      conditions.push('s.is_active = TRUE');
+      query = query.eq('is_active', true);
     }
 
     if (filters?.status) {
-      conditions.push('s.status = ?');
-      params.push(filters.status);
+      query = query.eq('status', filters.status);
     }
 
-    if (conditions.length > 0) {
-      query += ' WHERE ' + conditions.join(' AND ');
+    query = query.order('last_name').order('first_name');
+
+    const { data, error } = await query;
+
+    if (error) {
+      throw new Error(`Failed to find staff with shifts: ${error.message}`);
     }
 
-    query += ' ORDER BY s.last_name, s.first_name';
-
-    const [rows] = await pool.query<any[]>(query, params);
-
-    return rows.map(row => {
-      const staff = this.mapRowToStaffMember(row as StaffRow);
-      const shift: Shift | null = row.shift_id ? {
-        id: row.shift_id,
-        name: row.shift_name,
-        type: row.shift_type,
-        color: row.shift_color,
-        description: row.shift_description,
-        isActive: row.shift_is_active,
-        createdAt: row.shift_created_at?.toISOString() || '',
-        updatedAt: row.shift_updated_at?.toISOString() || '',
+    return (data || []).map((row: any) => {
+      const staff = this.mapRowToStaffMember(row);
+      const shiftData = row.shifts;
+      const shift: Shift | null = shiftData ? {
+        id: shiftData.id,
+        name: shiftData.name,
+        type: shiftData.type,
+        color: shiftData.color,
+        description: shiftData.description,
+        isActive: shiftData.is_active,
+        createdAt: shiftData.created_at,
+        updatedAt: shiftData.updated_at,
       } : null;
 
       return {

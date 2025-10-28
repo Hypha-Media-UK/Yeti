@@ -1,6 +1,16 @@
-import { pool } from '../config/database';
-import { ShiftRow, InsertResult } from '../types/database.types';
+import { supabase } from '../config/database';
 import { Shift, CreateShiftDto, UpdateShiftDto } from '../../shared/types/shift';
+
+interface ShiftRow {
+  id: number;
+  name: string;
+  type: 'day' | 'night';
+  color: string;
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 export class ShiftRepository {
   private mapRowToShift(row: ShiftRow): Shift {
@@ -11,123 +21,172 @@ export class ShiftRepository {
       color: row.color,
       description: row.description,
       isActive: row.is_active,
-      createdAt: row.created_at.toISOString(),
-      updatedAt: row.updated_at.toISOString(),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
     };
   }
 
   async findAll(includeInactive = false): Promise<Shift[]> {
-    const query = includeInactive
-      ? 'SELECT * FROM shifts ORDER BY name'
-      : 'SELECT * FROM shifts WHERE is_active = TRUE ORDER BY name';
-    
-    const [rows] = await pool.query<ShiftRow[]>(query);
-    return rows.map(row => this.mapRowToShift(row));
+    let query = supabase
+      .from('shifts')
+      .select('*');
+
+    if (!includeInactive) {
+      query = query.eq('is_active', true);
+    }
+
+    query = query.order('name');
+
+    const { data, error } = await query;
+
+    if (error) {
+      throw new Error(`Failed to find shifts: ${error.message}`);
+    }
+
+    return (data || []).map(row => this.mapRowToShift(row));
   }
 
   async findById(id: number): Promise<Shift | null> {
-    const [rows] = await pool.query<ShiftRow[]>(
-      'SELECT * FROM shifts WHERE id = ? AND is_active = TRUE',
-      [id]
-    );
-    return rows.length > 0 ? this.mapRowToShift(rows[0]) : null;
+    const { data, error } = await supabase
+      .from('shifts')
+      .select('*')
+      .eq('id', id)
+      .eq('is_active', true)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      throw new Error(`Failed to find shift: ${error.message}`);
+    }
+
+    return data ? this.mapRowToShift(data) : null;
   }
 
   async findByType(type: 'day' | 'night'): Promise<Shift[]> {
-    const [rows] = await pool.query<ShiftRow[]>(
-      'SELECT * FROM shifts WHERE type = ? AND is_active = TRUE ORDER BY name',
-      [type]
-    );
-    return rows.map(row => this.mapRowToShift(row));
+    const { data, error } = await supabase
+      .from('shifts')
+      .select('*')
+      .eq('type', type)
+      .eq('is_active', true)
+      .order('name');
+
+    if (error) {
+      throw new Error(`Failed to find shifts by type: ${error.message}`);
+    }
+
+    return (data || []).map(row => this.mapRowToShift(row));
   }
 
   async create(data: CreateShiftDto): Promise<Shift> {
-    const [result] = await pool.query<InsertResult>(
-      'INSERT INTO shifts (name, type, color, description, is_active) VALUES (?, ?, ?, ?, TRUE)',
-      [
-        data.name,
-        data.type,
-        data.color || '#3B82F6',
-        data.description || null,
-      ]
-    );
+    const { data: result, error } = await supabase
+      .from('shifts')
+      .insert({
+        name: data.name,
+        type: data.type,
+        color: data.color || '#3B82F6',
+        description: data.description || null,
+        is_active: true
+      })
+      .select()
+      .single();
 
-    const created = await this.findById(result.insertId);
-    if (!created) {
-      throw new Error('Failed to create shift');
+    if (error) {
+      throw new Error(`Failed to create shift: ${error.message}`);
     }
-    return created;
+
+    return this.mapRowToShift(result);
   }
 
   async update(id: number, updates: UpdateShiftDto): Promise<Shift | null> {
-    const fields: string[] = [];
-    const values: any[] = [];
+    const updateData: any = {};
 
     if (updates.name !== undefined) {
-      fields.push('name = ?');
-      values.push(updates.name);
+      updateData.name = updates.name;
     }
     if (updates.type !== undefined) {
-      fields.push('type = ?');
-      values.push(updates.type);
+      updateData.type = updates.type;
     }
     if (updates.color !== undefined) {
-      fields.push('color = ?');
-      values.push(updates.color);
+      updateData.color = updates.color;
     }
     if (updates.description !== undefined) {
-      fields.push('description = ?');
-      values.push(updates.description);
+      updateData.description = updates.description;
     }
     if (updates.isActive !== undefined) {
-      fields.push('is_active = ?');
-      values.push(updates.isActive);
+      updateData.is_active = updates.isActive;
     }
 
-    if (fields.length === 0) {
+    if (Object.keys(updateData).length === 0) {
       return this.findById(id);
     }
 
-    values.push(id);
-    await pool.query<InsertResult>(
-      `UPDATE shifts SET ${fields.join(', ')} WHERE id = ?`,
-      values
-    );
+    const { data, error } = await supabase
+      .from('shifts')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
 
-    return this.findById(id);
+    if (error) {
+      throw new Error(`Failed to update shift: ${error.message}`);
+    }
+
+    return data ? this.mapRowToShift(data) : null;
   }
 
   async delete(id: number): Promise<boolean> {
-    // Soft delete
-    const [result] = await pool.query<InsertResult>(
-      'UPDATE shifts SET is_active = FALSE WHERE id = ?',
-      [id]
-    );
-    return result.affectedRows > 0;
+    const { error } = await supabase
+      .from('shifts')
+      .update({ is_active: false })
+      .eq('id', id);
+
+    if (error) {
+      throw new Error(`Failed to delete shift: ${error.message}`);
+    }
+
+    return true;
   }
 
   /**
    * Check if a shift name already exists (case-insensitive)
    */
   async existsByName(name: string, excludeId?: number): Promise<boolean> {
-    const query = excludeId
-      ? 'SELECT COUNT(*) as count FROM shifts WHERE LOWER(name) = LOWER(?) AND id != ? AND is_active = TRUE'
-      : 'SELECT COUNT(*) as count FROM shifts WHERE LOWER(name) = LOWER(?) AND is_active = TRUE';
-    
-    const params = excludeId ? [name, excludeId] : [name];
-    const [rows] = await pool.query<any[]>(query, params);
-    return rows[0].count > 0;
+    let query = supabase
+      .from('shifts')
+      .select('id', { count: 'exact', head: true })
+      .ilike('name', name)
+      .eq('is_active', true);
+
+    if (excludeId) {
+      query = query.neq('id', excludeId);
+    }
+
+    const { count, error } = await query;
+
+    if (error) {
+      throw new Error(`Failed to check shift name: ${error.message}`);
+    }
+
+    return (count || 0) > 0;
   }
 
   /**
    * Get count of staff members assigned to this shift
    */
   async getStaffCount(shiftId: number): Promise<number> {
-    const [rows] = await pool.query<any[]>(
-      'SELECT COUNT(*) as count FROM staff WHERE shift_id = ? AND is_active = TRUE',
-      [shiftId]
-    );
-    return rows[0].count;
+    const { count, error } = await supabase
+      .from('staff')
+      .select('id', { count: 'exact', head: true })
+      .eq('shift_id', shiftId)
+      .eq('is_active', true);
+
+    if (error) {
+      throw new Error(`Failed to get staff count: ${error.message}`);
+    }
+
+    return count || 0;
   }
 }
 

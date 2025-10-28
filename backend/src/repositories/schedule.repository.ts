@@ -1,6 +1,17 @@
-import { pool } from '../config/database';
-import { FixedScheduleRow, InsertResult } from '../types/database.types';
+import { supabase } from '../config/database';
 import { FixedSchedule } from '../../shared/types/staff';
+
+interface FixedScheduleRow {
+  id: number;
+  staff_id: number;
+  day_of_week: number | null;
+  shift_start: string;
+  shift_end: string;
+  effective_from: string | null;
+  effective_to: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 export class ScheduleRepository {
   private mapRowToFixedSchedule(row: FixedScheduleRow): FixedSchedule {
@@ -10,67 +21,81 @@ export class ScheduleRepository {
       dayOfWeek: row.day_of_week,
       shiftStart: row.shift_start,
       shiftEnd: row.shift_end,
-      effectiveFrom: row.effective_from ? row.effective_from.toISOString().split('T')[0] : null,
-      effectiveTo: row.effective_to ? row.effective_to.toISOString().split('T')[0] : null,
-      createdAt: row.created_at.toISOString(),
-      updatedAt: row.updated_at.toISOString(),
+      effectiveFrom: row.effective_from ? row.effective_from.split('T')[0] : null,
+      effectiveTo: row.effective_to ? row.effective_to.split('T')[0] : null,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
     };
   }
 
   async findByStaffId(staffId: number): Promise<FixedSchedule[]> {
-    const [rows] = await pool.query<FixedScheduleRow[]>(
-      'SELECT * FROM fixed_schedules WHERE staff_id = ? ORDER BY day_of_week',
-      [staffId]
-    );
-    return rows.map(row => this.mapRowToFixedSchedule(row));
+    const { data, error } = await supabase
+      .from('fixed_schedules')
+      .select('*')
+      .eq('staff_id', staffId)
+      .order('day_of_week');
+
+    if (error) {
+      throw new Error(`Failed to find fixed schedules: ${error.message}`);
+    }
+
+    return (data || []).map(row => this.mapRowToFixedSchedule(row));
   }
 
   async findByStaffIdAndDate(staffId: number, date: string): Promise<FixedSchedule | null> {
     const dateObj = new Date(date);
     const dayOfWeek = dateObj.getDay() === 0 ? 7 : dateObj.getDay(); // Convert Sunday from 0 to 7
 
-    const [rows] = await pool.query<FixedScheduleRow[]>(
-      `SELECT * FROM fixed_schedules 
-       WHERE staff_id = ? 
-       AND (day_of_week IS NULL OR day_of_week = ?)
-       AND (effective_from IS NULL OR effective_from <= ?)
-       AND (effective_to IS NULL OR effective_to >= ?)
-       ORDER BY day_of_week DESC, effective_from DESC
-       LIMIT 1`,
-      [staffId, dayOfWeek, date, date]
-    );
+    const { data, error } = await supabase
+      .from('fixed_schedules')
+      .select('*')
+      .eq('staff_id', staffId)
+      .or(`day_of_week.is.null,day_of_week.eq.${dayOfWeek}`)
+      .or(`effective_from.is.null,effective_from.lte.${date}`)
+      .or(`effective_to.is.null,effective_to.gte.${date}`)
+      .order('day_of_week', { ascending: false })
+      .order('effective_from', { ascending: false })
+      .limit(1);
 
-    return rows.length > 0 ? this.mapRowToFixedSchedule(rows[0]) : null;
+    if (error) {
+      throw new Error(`Failed to find fixed schedule by date: ${error.message}`);
+    }
+
+    return data && data.length > 0 ? this.mapRowToFixedSchedule(data[0]) : null;
   }
 
   async create(schedule: Omit<FixedSchedule, 'id' | 'createdAt' | 'updatedAt'>): Promise<FixedSchedule> {
-    const [result] = await pool.query<InsertResult>(
-      `INSERT INTO fixed_schedules (staff_id, day_of_week, shift_start, shift_end, effective_from, effective_to)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        schedule.staffId,
-        schedule.dayOfWeek,
-        schedule.shiftStart,
-        schedule.shiftEnd,
-        schedule.effectiveFrom,
-        schedule.effectiveTo,
-      ]
-    );
+    const { data, error } = await supabase
+      .from('fixed_schedules')
+      .insert({
+        staff_id: schedule.staffId,
+        day_of_week: schedule.dayOfWeek,
+        shift_start: schedule.shiftStart,
+        shift_end: schedule.shiftEnd,
+        effective_from: schedule.effectiveFrom,
+        effective_to: schedule.effectiveTo
+      })
+      .select()
+      .single();
 
-    const [rows] = await pool.query<FixedScheduleRow[]>(
-      'SELECT * FROM fixed_schedules WHERE id = ?',
-      [result.insertId]
-    );
+    if (error) {
+      throw new Error(`Failed to create fixed schedule: ${error.message}`);
+    }
 
-    return this.mapRowToFixedSchedule(rows[0]);
+    return this.mapRowToFixedSchedule(data);
   }
 
   async delete(id: number): Promise<boolean> {
-    const [result] = await pool.query<InsertResult>(
-      'DELETE FROM fixed_schedules WHERE id = ?',
-      [id]
-    );
-    return result.affectedRows > 0;
+    const { error } = await supabase
+      .from('fixed_schedules')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw new Error(`Failed to delete fixed schedule: ${error.message}`);
+    }
+
+    return true;
   }
 }
 

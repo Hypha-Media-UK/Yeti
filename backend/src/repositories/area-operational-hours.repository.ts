@@ -1,6 +1,16 @@
-import { pool } from '../config/database';
-import { AreaOperationalHoursRow, InsertResult } from '../types/database.types';
+import { supabase } from '../config/database';
 import { AreaOperationalHours, AreaType } from '../../shared/types/operational-hours';
+
+interface AreaOperationalHoursRow {
+  id: number;
+  area_type: 'department' | 'service';
+  area_id: number;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  created_at: string;
+  updated_at: string;
+}
 
 export class AreaOperationalHoursRepository {
   private mapRowToOperationalHours(row: AreaOperationalHoursRow): AreaOperationalHours {
@@ -11,92 +21,137 @@ export class AreaOperationalHoursRepository {
       dayOfWeek: row.day_of_week,
       startTime: row.start_time,
       endTime: row.end_time,
-      createdAt: row.created_at.toISOString(),
-      updatedAt: row.updated_at.toISOString(),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
     };
   }
 
   async findByArea(areaType: AreaType, areaId: number): Promise<AreaOperationalHours[]> {
-    const [rows] = await pool.query<AreaOperationalHoursRow[]>(
-      'SELECT * FROM area_operational_hours WHERE area_type = ? AND area_id = ? ORDER BY day_of_week, start_time',
-      [areaType, areaId]
-    );
-    return rows.map(row => this.mapRowToOperationalHours(row));
+    const { data, error } = await supabase
+      .from('area_operational_hours')
+      .select('*')
+      .eq('area_type', areaType)
+      .eq('area_id', areaId)
+      .order('day_of_week')
+      .order('start_time');
+
+    if (error) {
+      throw new Error(`Failed to find operational hours: ${error.message}`);
+    }
+
+    return (data || []).map(row => this.mapRowToOperationalHours(row));
   }
 
   async findByDay(dayOfWeek: number): Promise<AreaOperationalHours[]> {
-    const [rows] = await pool.query<AreaOperationalHoursRow[]>(
-      'SELECT * FROM area_operational_hours WHERE day_of_week = ? ORDER BY area_type, area_id, start_time',
-      [dayOfWeek]
-    );
-    return rows.map(row => this.mapRowToOperationalHours(row));
+    const { data, error } = await supabase
+      .from('area_operational_hours')
+      .select('*')
+      .eq('day_of_week', dayOfWeek)
+      .order('area_type')
+      .order('area_id')
+      .order('start_time');
+
+    if (error) {
+      throw new Error(`Failed to find operational hours by day: ${error.message}`);
+    }
+
+    return (data || []).map(row => this.mapRowToOperationalHours(row));
   }
 
   async findById(id: number): Promise<AreaOperationalHours | null> {
-    const [rows] = await pool.query<AreaOperationalHoursRow[]>(
-      'SELECT * FROM area_operational_hours WHERE id = ?',
-      [id]
-    );
-    return rows.length > 0 ? this.mapRowToOperationalHours(rows[0]) : null;
+    const { data, error } = await supabase
+      .from('area_operational_hours')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      throw new Error(`Failed to find operational hours by ID: ${error.message}`);
+    }
+
+    return data ? this.mapRowToOperationalHours(data) : null;
   }
 
   async create(data: Omit<AreaOperationalHours, 'id' | 'createdAt' | 'updatedAt'>): Promise<AreaOperationalHours> {
-    const [result] = await pool.query<InsertResult>(
-      'INSERT INTO area_operational_hours (area_type, area_id, day_of_week, start_time, end_time) VALUES (?, ?, ?, ?, ?)',
-      [data.areaType, data.areaId, data.dayOfWeek, data.startTime, data.endTime]
-    );
+    const { data: result, error } = await supabase
+      .from('area_operational_hours')
+      .insert({
+        area_type: data.areaType,
+        area_id: data.areaId,
+        day_of_week: data.dayOfWeek,
+        start_time: data.startTime,
+        end_time: data.endTime
+      })
+      .select()
+      .single();
 
-    const created = await this.findById(result.insertId);
-    if (!created) {
-      throw new Error('Failed to create operational hours');
+    if (error) {
+      throw new Error(`Failed to create operational hours: ${error.message}`);
     }
-    return created;
+
+    return this.mapRowToOperationalHours(result);
   }
 
   async update(id: number, updates: Partial<Omit<AreaOperationalHours, 'id' | 'areaType' | 'areaId' | 'createdAt' | 'updatedAt'>>): Promise<AreaOperationalHours | null> {
-    const fields: string[] = [];
-    const values: any[] = [];
+    const updateData: any = {};
 
     if (updates.dayOfWeek !== undefined) {
-      fields.push('day_of_week = ?');
-      values.push(updates.dayOfWeek);
+      updateData.day_of_week = updates.dayOfWeek;
     }
     if (updates.startTime !== undefined) {
-      fields.push('start_time = ?');
-      values.push(updates.startTime);
+      updateData.start_time = updates.startTime;
     }
     if (updates.endTime !== undefined) {
-      fields.push('end_time = ?');
-      values.push(updates.endTime);
+      updateData.end_time = updates.endTime;
     }
 
-    if (fields.length === 0) {
+    if (Object.keys(updateData).length === 0) {
       return this.findById(id);
     }
 
-    values.push(id);
-    await pool.query<InsertResult>(
-      `UPDATE area_operational_hours SET ${fields.join(', ')} WHERE id = ?`,
-      values
-    );
+    const { data, error } = await supabase
+      .from('area_operational_hours')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
 
-    return this.findById(id);
+    if (error) {
+      throw new Error(`Failed to update operational hours: ${error.message}`);
+    }
+
+    return data ? this.mapRowToOperationalHours(data) : null;
   }
 
   async delete(id: number): Promise<boolean> {
-    const [result] = await pool.query<InsertResult>(
-      'DELETE FROM area_operational_hours WHERE id = ?',
-      [id]
-    );
-    return result.affectedRows > 0;
+    const { error } = await supabase
+      .from('area_operational_hours')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw new Error(`Failed to delete operational hours: ${error.message}`);
+    }
+
+    return true;
   }
 
   async deleteByArea(areaType: AreaType, areaId: number): Promise<number> {
-    const [result] = await pool.query<InsertResult>(
-      'DELETE FROM area_operational_hours WHERE area_type = ? AND area_id = ?',
-      [areaType, areaId]
-    );
-    return result.affectedRows;
+    const { data, error } = await supabase
+      .from('area_operational_hours')
+      .delete()
+      .eq('area_type', areaType)
+      .eq('area_id', areaId)
+      .select();
+
+    if (error) {
+      throw new Error(`Failed to delete operational hours by area: ${error.message}`);
+    }
+
+    return (data || []).length;
   }
 
   // Bulk set operational hours for an area (replaces all existing)
@@ -113,11 +168,21 @@ export class AreaOperationalHoursRepository {
       return [];
     }
 
-    const values = hours.map(h => [areaType, areaId, h.dayOfWeek, h.startTime, h.endTime]);
-    await pool.query<InsertResult>(
-      'INSERT INTO area_operational_hours (area_type, area_id, day_of_week, start_time, end_time) VALUES ?',
-      [values]
-    );
+    const inserts = hours.map(h => ({
+      area_type: areaType,
+      area_id: areaId,
+      day_of_week: h.dayOfWeek,
+      start_time: h.startTime,
+      end_time: h.endTime
+    }));
+
+    const { error } = await supabase
+      .from('area_operational_hours')
+      .insert(inserts);
+
+    if (error) {
+      throw new Error(`Failed to set operational hours: ${error.message}`);
+    }
 
     return this.findByArea(areaType, areaId);
   }
@@ -130,7 +195,7 @@ export class AreaOperationalHoursRepository {
     toAreaId: number
   ): Promise<AreaOperationalHours[]> {
     const sourceHours = await this.findByArea(fromAreaType, fromAreaId);
-    
+
     if (sourceHours.length === 0) {
       return [];
     }

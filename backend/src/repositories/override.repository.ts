@@ -1,6 +1,22 @@
-import { pool } from '../config/database';
-import { ManualAssignmentRow, InsertResult } from '../types/database.types';
+import { supabase } from '../config/database';
 import { ManualAssignment } from '../../shared/types/shift';
+
+interface ManualAssignmentRow {
+  id: number;
+  staff_id: number;
+  assignment_date: string;
+  shift_type: 'Day' | 'Night' | 'day' | 'night';
+  area_type: 'department' | 'service' | null;
+  area_id: number | null;
+  shift_start: string | null;
+  shift_end: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  end_date: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 export class OverrideRepository {
   private mapRowToManualAssignment(row: ManualAssignmentRow): ManualAssignment {
@@ -10,7 +26,7 @@ export class OverrideRepository {
     return {
       id: row.id,
       staffId: row.staff_id,
-      assignmentDate: row.assignment_date.toISOString().split('T')[0],
+      assignmentDate: row.assignment_date.split('T')[0],
       shiftType,
       areaType: row.area_type,
       areaId: row.area_id,
@@ -18,64 +34,80 @@ export class OverrideRepository {
       shiftEnd: row.shift_end,
       startTime: row.start_time,
       endTime: row.end_time,
-      endDate: row.end_date ? row.end_date.toISOString().split('T')[0] : null,
+      endDate: row.end_date ? row.end_date.split('T')[0] : null,
       notes: row.notes,
-      createdAt: row.created_at.toISOString(),
-      updatedAt: row.updated_at.toISOString(),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
     };
   }
 
   async findByDateRange(startDate: string, endDate: string): Promise<ManualAssignment[]> {
-    const [rows] = await pool.query<ManualAssignmentRow[]>(
-      'SELECT * FROM manual_assignments WHERE assignment_date BETWEEN ? AND ? ORDER BY assignment_date, staff_id',
-      [startDate, endDate]
-    );
-    return rows.map(row => this.mapRowToManualAssignment(row));
+    const { data, error } = await supabase
+      .from('manual_assignments')
+      .select('*')
+      .gte('assignment_date', startDate)
+      .lte('assignment_date', endDate)
+      .order('assignment_date')
+      .order('staff_id');
+
+    if (error) {
+      throw new Error(`Failed to find manual assignments by date range: ${error.message}`);
+    }
+
+    return (data || []).map(row => this.mapRowToManualAssignment(row));
   }
 
   async findByDate(date: string): Promise<ManualAssignment[]> {
-    const [rows] = await pool.query<ManualAssignmentRow[]>(
-      'SELECT * FROM manual_assignments WHERE assignment_date = ?',
-      [date]
-    );
-    return rows.map(row => this.mapRowToManualAssignment(row));
+    const { data, error } = await supabase
+      .from('manual_assignments')
+      .select('*')
+      .eq('assignment_date', date);
+
+    if (error) {
+      throw new Error(`Failed to find manual assignments by date: ${error.message}`);
+    }
+
+    return (data || []).map(row => this.mapRowToManualAssignment(row));
   }
 
   async findByStaffAndDate(staffId: number, date: string): Promise<ManualAssignment[]> {
-    const [rows] = await pool.query<ManualAssignmentRow[]>(
-      'SELECT * FROM manual_assignments WHERE staff_id = ? AND assignment_date = ?',
-      [staffId, date]
-    );
-    return rows.map(row => this.mapRowToManualAssignment(row));
+    const { data, error } = await supabase
+      .from('manual_assignments')
+      .select('*')
+      .eq('staff_id', staffId)
+      .eq('assignment_date', date);
+
+    if (error) {
+      throw new Error(`Failed to find manual assignments by staff and date: ${error.message}`);
+    }
+
+    return (data || []).map(row => this.mapRowToManualAssignment(row));
   }
 
   async create(assignment: Omit<ManualAssignment, 'id' | 'createdAt' | 'updatedAt'>): Promise<ManualAssignment> {
-    const [result] = await pool.query<InsertResult>(
-      `INSERT INTO manual_assignments (
-        staff_id, assignment_date, shift_type, area_type, area_id,
-        shift_start, shift_end, start_time, end_time, end_date, notes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        assignment.staffId,
-        assignment.assignmentDate,
-        assignment.shiftType,
-        assignment.areaType,
-        assignment.areaId,
-        assignment.shiftStart,
-        assignment.shiftEnd,
-        assignment.startTime,
-        assignment.endTime,
-        assignment.endDate,
-        assignment.notes,
-      ]
-    );
+    const { data, error } = await supabase
+      .from('manual_assignments')
+      .insert({
+        staff_id: assignment.staffId,
+        assignment_date: assignment.assignmentDate,
+        shift_type: assignment.shiftType,
+        area_type: assignment.areaType,
+        area_id: assignment.areaId,
+        shift_start: assignment.shiftStart,
+        shift_end: assignment.shiftEnd,
+        start_time: assignment.startTime,
+        end_time: assignment.endTime,
+        end_date: assignment.endDate,
+        notes: assignment.notes
+      })
+      .select()
+      .single();
 
-    const [rows] = await pool.query<ManualAssignmentRow[]>(
-      'SELECT * FROM manual_assignments WHERE id = ?',
-      [result.insertId]
-    );
+    if (error) {
+      throw new Error(`Failed to create manual assignment: ${error.message}`);
+    }
 
-    return this.mapRowToManualAssignment(rows[0]);
+    return this.mapRowToManualAssignment(data);
   }
 
   async findByAreaAndDateRange(
@@ -84,17 +116,20 @@ export class OverrideRepository {
     startDate: string,
     endDate: string
   ): Promise<ManualAssignment[]> {
-    const [rows] = await pool.query<ManualAssignmentRow[]>(
-      `SELECT * FROM manual_assignments
-       WHERE area_type = ? AND area_id = ?
-       AND (
-         (assignment_date BETWEEN ? AND ?) OR
-         (end_date IS NOT NULL AND end_date >= ? AND assignment_date <= ?)
-       )
-       ORDER BY assignment_date, staff_id`,
-      [areaType, areaId, startDate, endDate, startDate, endDate]
-    );
-    return rows.map(row => this.mapRowToManualAssignment(row));
+    const { data, error } = await supabase
+      .from('manual_assignments')
+      .select('*')
+      .eq('area_type', areaType)
+      .eq('area_id', areaId)
+      .or(`and(assignment_date.gte.${startDate},assignment_date.lte.${endDate}),and(end_date.gte.${startDate},assignment_date.lte.${endDate})`)
+      .order('assignment_date')
+      .order('staff_id');
+
+    if (error) {
+      throw new Error(`Failed to find manual assignments by area and date range: ${error.message}`);
+    }
+
+    return (data || []).map(row => this.mapRowToManualAssignment(row));
   }
 
   /**
@@ -102,27 +137,33 @@ export class OverrideRepository {
    * Only returns assignments that have areaType and areaId set
    */
   async findTemporaryAssignmentsByStaff(staffId: number, date: string): Promise<ManualAssignment[]> {
-    const [rows] = await pool.query<ManualAssignmentRow[]>(
-      `SELECT * FROM manual_assignments
-       WHERE staff_id = ?
-       AND area_type IS NOT NULL
-       AND area_id IS NOT NULL
-       AND (
-         (assignment_date = ?) OR
-         (end_date IS NOT NULL AND assignment_date <= ? AND end_date >= ?)
-       )
-       ORDER BY assignment_date`,
-      [staffId, date, date, date]
-    );
-    return rows.map(row => this.mapRowToManualAssignment(row));
+    const { data, error } = await supabase
+      .from('manual_assignments')
+      .select('*')
+      .eq('staff_id', staffId)
+      .not('area_type', 'is', null)
+      .not('area_id', 'is', null)
+      .or(`assignment_date.eq.${date},and(assignment_date.lte.${date},end_date.gte.${date})`)
+      .order('assignment_date');
+
+    if (error) {
+      throw new Error(`Failed to find temporary assignments: ${error.message}`);
+    }
+
+    return (data || []).map(row => this.mapRowToManualAssignment(row));
   }
 
   async delete(id: number): Promise<boolean> {
-    const [result] = await pool.query<InsertResult>(
-      'DELETE FROM manual_assignments WHERE id = ?',
-      [id]
-    );
-    return result.affectedRows > 0;
+    const { error } = await supabase
+      .from('manual_assignments')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw new Error(`Failed to delete manual assignment: ${error.message}`);
+    }
+
+    return true;
   }
 }
 

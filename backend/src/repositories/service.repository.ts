@@ -1,6 +1,16 @@
-import { pool } from '../config/database';
-import { ServiceRow, InsertResult } from '../types/database.types';
+import { supabase } from '../config/database';
 import { Service } from '../../shared/types/service';
+
+interface ServiceRow {
+  id: number;
+  name: string;
+  description: string | null;
+  include_in_main_rota: boolean;
+  is_24_7: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 export class ServiceRepository {
   private mapRowToService(row: ServiceRow): Service {
@@ -11,83 +21,111 @@ export class ServiceRepository {
       includeInMainRota: row.include_in_main_rota,
       is24_7: row.is_24_7,
       isActive: row.is_active,
-      createdAt: row.created_at.toISOString(),
-      updatedAt: row.updated_at.toISOString(),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
     };
   }
 
   async findAll(): Promise<Service[]> {
-    const [rows] = await pool.query<ServiceRow[]>(
-      'SELECT * FROM services WHERE is_active = TRUE ORDER BY name'
-    );
-    return rows.map(row => this.mapRowToService(row));
+    const { data, error } = await supabase
+      .from('services')
+      .select('*')
+      .eq('is_active', true)
+      .order('name');
+
+    if (error) {
+      throw new Error(`Failed to find services: ${error.message}`);
+    }
+
+    return (data || []).map(row => this.mapRowToService(row));
   }
 
   async findById(id: number): Promise<Service | null> {
-    const [rows] = await pool.query<ServiceRow[]>(
-      'SELECT * FROM services WHERE id = ? AND is_active = TRUE',
-      [id]
-    );
-    return rows.length > 0 ? this.mapRowToService(rows[0]) : null;
+    const { data, error } = await supabase
+      .from('services')
+      .select('*')
+      .eq('id', id)
+      .eq('is_active', true)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      throw new Error(`Failed to find service: ${error.message}`);
+    }
+
+    return data ? this.mapRowToService(data) : null;
   }
 
   async create(service: Omit<Service, 'id' | 'createdAt' | 'updatedAt'>): Promise<Service> {
-    const [result] = await pool.query<InsertResult>(
-      'INSERT INTO services (name, description, include_in_main_rota, is_24_7, is_active) VALUES (?, ?, ?, ?, ?)',
-      [service.name, service.description, service.includeInMainRota, service.is24_7, service.isActive]
-    );
+    const { data, error } = await supabase
+      .from('services')
+      .insert({
+        name: service.name,
+        description: service.description,
+        include_in_main_rota: service.includeInMainRota,
+        is_24_7: service.is24_7,
+        is_active: service.isActive
+      })
+      .select()
+      .single();
 
-    const created = await this.findById(result.insertId);
-    if (!created) {
-      throw new Error('Failed to create service');
+    if (error) {
+      throw new Error(`Failed to create service: ${error.message}`);
     }
-    return created;
+
+    return this.mapRowToService(data);
   }
 
   async update(id: number, updates: Partial<Service>): Promise<Service | null> {
-    const fields: string[] = [];
-    const values: any[] = [];
+    const updateData: any = {};
 
     if (updates.name !== undefined) {
-      fields.push('name = ?');
-      values.push(updates.name);
+      updateData.name = updates.name;
     }
     if (updates.description !== undefined) {
-      fields.push('description = ?');
-      values.push(updates.description);
+      updateData.description = updates.description;
     }
     if (updates.includeInMainRota !== undefined) {
-      fields.push('include_in_main_rota = ?');
-      values.push(updates.includeInMainRota);
+      updateData.include_in_main_rota = updates.includeInMainRota;
     }
     if (updates.is24_7 !== undefined) {
-      fields.push('is_24_7 = ?');
-      values.push(updates.is24_7);
+      updateData.is_24_7 = updates.is24_7;
     }
     if (updates.isActive !== undefined) {
-      fields.push('is_active = ?');
-      values.push(updates.isActive);
+      updateData.is_active = updates.isActive;
     }
 
-    if (fields.length === 0) {
+    if (Object.keys(updateData).length === 0) {
       return this.findById(id);
     }
 
-    values.push(id);
-    await pool.query<InsertResult>(
-      `UPDATE services SET ${fields.join(', ')} WHERE id = ?`,
-      values
-    );
+    const { data, error } = await supabase
+      .from('services')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
 
-    return this.findById(id);
+    if (error) {
+      throw new Error(`Failed to update service: ${error.message}`);
+    }
+
+    return data ? this.mapRowToService(data) : null;
   }
 
   async delete(id: number): Promise<boolean> {
-    const [result] = await pool.query<InsertResult>(
-      'UPDATE services SET is_active = FALSE WHERE id = ?',
-      [id]
-    );
-    return result.affectedRows > 0;
+    const { error } = await supabase
+      .from('services')
+      .update({ is_active: false })
+      .eq('id', id);
+
+    if (error) {
+      throw new Error(`Failed to delete service: ${error.message}`);
+    }
+
+    return true;
   }
 }
 
