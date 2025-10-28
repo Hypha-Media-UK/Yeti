@@ -16,7 +16,16 @@ export type ShiftType = 'day' | 'night';
 export type ShiftStatus = 'active' | 'pending' | 'expired';
 
 /**
- * Shift entity - represents a named group of staff
+ * Cycle type for shifts
+ * - '4-on-4-off': Regular 8-day cycle (4 days on, 4 days off)
+ * - '16-day-supervisor': Supervisor 16-day cycle (4 day, 4 off, 4 night, 4 off)
+ * - 'relief': Relief staff (no cycle, manual assignments only)
+ * - 'fixed': Fixed schedule (uses fixed_schedules table)
+ */
+export type CycleType = '4-on-4-off' | '16-day-supervisor' | 'relief' | 'fixed';
+
+/**
+ * Shift entity - represents a named group of staff with a rotation cycle
  * Replaces the old ENUM('Day', 'Night') group field with a more flexible system
  */
 export interface Shift {
@@ -25,6 +34,9 @@ export interface Shift {
   type: ShiftType;
   color: string;
   description: string | null;
+  cycleType: CycleType | null;
+  cycleLength: number | null;  // 8 for regular, 16 for supervisor, null for relief/fixed
+  daysOffset: number;           // Offset from app_zero_date for this shift group
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -38,6 +50,9 @@ export interface CreateShiftDto {
   type: ShiftType;
   color?: string;
   description?: string | null;
+  cycleType?: CycleType | null;
+  cycleLength?: number | null;
+  daysOffset?: number;
 }
 
 /**
@@ -48,6 +63,9 @@ export interface UpdateShiftDto {
   type?: ShiftType;
   color?: string;
   description?: string | null;
+  cycleType?: CycleType | null;
+  cycleLength?: number | null;
+  daysOffset?: number;
   isActive?: boolean;
 }
 

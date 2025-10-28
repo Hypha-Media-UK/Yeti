@@ -1,5 +1,6 @@
 import { StaffMember, StaffMemberWithShift } from '../../shared/types/staff';
-import { ShiftAssignment, DayRota, ManualAssignment, ShiftType, ShiftStatus } from '../../shared/types/shift';
+import { ShiftAssignment, DayRota, ManualAssignment, ShiftType, ShiftStatus, Shift } from '../../shared/types/shift';
+import { StaffContractedHours } from '../../shared/types/operational-hours';
 import { StaffRepository } from '../repositories/staff.repository';
 import { ScheduleRepository } from '../repositories/schedule.repository';
 import { OverrideRepository } from '../repositories/override.repository';
@@ -7,6 +8,7 @@ import { ConfigRepository } from '../repositories/config.repository';
 import { AllocationRepository } from '../repositories/allocation.repository';
 import { StaffContractedHoursRepository } from '../repositories/staff-contracted-hours.repository';
 import { AbsenceRepository } from '../repositories/absence.repository';
+import { ShiftRepository } from '../repositories/shift.repository';
 import { daysBetween, formatLocalDate, formatLocalTime, addDaysLocal, parseLocalDate } from '../utils/date.utils';
 import { SHIFT_TIMES, CYCLE_LENGTHS } from '../config/constants';
 
@@ -18,6 +20,7 @@ export class RotaService {
   private allocationRepo: AllocationRepository;
   private contractedHoursRepo: StaffContractedHoursRepository;
   private absenceRepo: AbsenceRepository;
+  private shiftRepo: ShiftRepository;
 
   constructor() {
     this.staffRepo = new StaffRepository();
@@ -27,6 +30,43 @@ export class RotaService {
     this.allocationRepo = new AllocationRepository();
     this.contractedHoursRepo = new StaffContractedHoursRepository();
     this.absenceRepo = new AbsenceRepository();
+    this.shiftRepo = new ShiftRepository();
+  }
+
+  /**
+   * Calculate which shifts are active on a given date
+   * This is a pure math calculation - no database queries
+   * PERFORMANCE: This replaces looping through all 85+ staff members
+   */
+  private calculateActiveShifts(targetDate: string, appZeroDate: string, allShifts: Shift[]): Shift[] {
+    const daysSinceZero = daysBetween(appZeroDate, targetDate);
+    const activeShifts: Shift[] = [];
+
+    for (const shift of allShifts) {
+      // Skip shifts without cycle information (relief, fixed schedules)
+      if (!shift.cycleType || !shift.cycleLength) {
+        continue;
+      }
+
+      const adjustedDays = daysSinceZero - shift.daysOffset;
+      const cyclePosition = ((adjustedDays % shift.cycleLength) + shift.cycleLength) % shift.cycleLength;
+
+      if (shift.cycleType === '4-on-4-off') {
+        // Regular 8-day cycle: 4 on, 4 off
+        if (cyclePosition < 4) {
+          activeShifts.push(shift);
+        }
+      } else if (shift.cycleType === '16-day-supervisor') {
+        // Supervisor 16-day cycle: 4 day, 4 off, 4 night, 4 off
+        // Days 0-3: day shift, Days 8-11: night shift
+        if (cyclePosition < 4 || (cyclePosition >= 8 && cyclePosition < 12)) {
+          activeShifts.push(shift);
+        }
+      }
+    }
+
+    console.log(`[PERF] calculateActiveShifts: ${activeShifts.length} active shifts on ${targetDate}`);
+    return activeShifts;
   }
 
   /**
@@ -115,8 +155,16 @@ export class RotaService {
   /**
    * Get shift times for a specific staff member on a specific date
    * Priority: 1) Custom shift times, 2) Contracted hours for the day, 3) Default shift times
+   * PERFORMANCE: Accepts optional pre-fetched contracted hours map to avoid N+1 queries
    */
-  private async getShiftTimesForStaff(staff: StaffMemberWithShift, shiftType: ShiftType, targetDate: string): Promise<{ start: string; end: string } | null> {
+  private async getShiftTimesForStaff(
+    staff: StaffMemberWithShift,
+    shiftType: ShiftType,
+    targetDate: string,
+    options?: {
+      contractedHoursMap?: Map<number, StaffContractedHours[]>;
+    }
+  ): Promise<{ start: string; end: string } | null> {
     // Check if staff has custom shift times
     if (staff.customShiftStart && staff.customShiftEnd) {
       return {
@@ -126,7 +174,15 @@ export class RotaService {
     }
 
     // Check if staff has contracted hours for this specific day
-    const contractedHours = await this.contractedHoursRepo.findByStaff(staff.id);
+    let contractedHours: StaffContractedHours[];
+    if (options?.contractedHoursMap) {
+      // Use pre-fetched data (PERFORMANCE OPTIMIZATION)
+      contractedHours = options.contractedHoursMap.get(staff.id) || [];
+    } else {
+      // Fall back to individual query (slower)
+      contractedHours = await this.contractedHoursRepo.findByStaff(staff.id);
+    }
+
     if (contractedHours.length > 0) {
       const dateObj = parseLocalDate(targetDate);
       const dayOfWeek = dateObj.getDay() === 0 ? 7 : dateObj.getDay();
@@ -243,19 +299,72 @@ export class RotaService {
 
   /**
    * Get all shifts for a specific date
+   * PERFORMANCE OPTIMIZED: Uses shift-based filtering instead of looping through all staff
    */
   async getRotaForDate(targetDate: string): Promise<DayRota> {
+    const startTime = Date.now();
+    console.log(`[PERF] getRotaForDate started for ${targetDate}`);
+
     const appZeroDate = await this.configRepo.getByKey('app_zero_date');
     if (!appZeroDate) {
       throw new Error('App zero date not configured');
     }
 
-    const allStaff = await this.staffRepo.findAllWithShifts();
+    // PERFORMANCE: Get all shifts and calculate which are active (pure math, no DB queries)
+    const allShifts = await this.shiftRepo.findAll(true);
+    const activeShifts = this.calculateActiveShifts(targetDate, appZeroDate, allShifts);
+    const activeShiftIds = activeShifts.map(s => s.id);
+
+    console.log(`[PERF] Found ${activeShifts.length} active shifts: ${activeShifts.map(s => s.name).join(', ')}`);
+
+    // PERFORMANCE: Only query staff in active shifts (instead of ALL 85+ staff)
+    const staffInActiveShifts = await this.staffRepo.findByShiftIds(activeShiftIds);
+    console.log(`[PERF] Found ${staffInActiveShifts.length} staff in active shifts (vs 85+ before)`);
+
+    // Get manual assignments (these override cycle-based schedules)
     const manualAssignments = await this.overrideRepo.findByDate(targetDate);
 
     // Also get manual assignments for the previous day (for night shifts that started yesterday)
     const previousDate = formatLocalDate(addDaysLocal(targetDate, -1));
     const previousDayAssignments = await this.overrideRepo.findByDate(previousDate);
+
+    // PERFORMANCE: Fetch staff for manual assignments separately (they might not be in active shifts)
+    const manualAssignmentStaffIds = [
+      ...manualAssignments.map(a => a.staffId),
+      ...previousDayAssignments.filter(a => a.shiftType === 'night').map(a => a.staffId)
+    ];
+    const uniqueManualStaffIds = [...new Set(manualAssignmentStaffIds)];
+
+    // Fetch staff for manual assignments (if they're not already in staffInActiveShifts)
+    const manualStaffMap = new Map<number, StaffMemberWithShift>();
+    for (const staffId of uniqueManualStaffIds) {
+      const existingStaff = staffInActiveShifts.find(s => s.id === staffId);
+      if (existingStaff) {
+        manualStaffMap.set(staffId, existingStaff);
+      } else {
+        // Fetch this staff member individually (they're not in an active shift)
+        const staffMember = await this.staffRepo.findById(staffId);
+        if (staffMember) {
+          // Convert to StaffMemberWithShift
+          const shift = staffMember.shiftId ? await this.shiftRepo.findById(staffMember.shiftId) : null;
+          manualStaffMap.set(staffId, { ...staffMember, shift });
+        }
+      }
+    }
+
+    // PERFORMANCE: Pre-fetch all contracted hours for both active shift staff AND manual assignment staff
+    const staffIdsInActiveShifts = staffInActiveShifts.map(s => s.id);
+    const manualStaffIds = Array.from(manualStaffMap.keys());
+    const allStaffIdsNeedingContractedHours = [...new Set([...staffIdsInActiveShifts, ...manualStaffIds])];
+
+    const allContractedHours = await this.contractedHoursRepo.findByStaffIds(allStaffIdsNeedingContractedHours);
+    const contractedHoursByStaffId = new Map<number, StaffContractedHours[]>();
+    for (const hours of allContractedHours) {
+      if (!contractedHoursByStaffId.has(hours.staffId)) {
+        contractedHoursByStaffId.set(hours.staffId, []);
+      }
+      contractedHoursByStaffId.get(hours.staffId)!.push(hours);
+    }
 
     const dayShifts: ShiftAssignment[] = [];
     const nightShifts: ShiftAssignment[] = [];
@@ -265,7 +374,7 @@ export class RotaService {
 
     // Process manual assignments for the target date
     for (const assignment of manualAssignments) {
-      const staff = allStaff.find(s => s.id === assignment.staffId);
+      const staff = manualStaffMap.get(assignment.staffId);
       if (!staff) continue;
 
       // CRITICAL: Skip temporary area assignments
@@ -280,7 +389,9 @@ export class RotaService {
 
       manuallyAssignedStaffIds.add(staff.id);
 
-      const times = await this.getShiftTimesForStaff(staff, assignment.shiftType, targetDate);
+      const times = await this.getShiftTimesForStaff(staff, assignment.shiftType, targetDate, {
+        contractedHoursMap: contractedHoursByStaffId
+      });
       if (!times) continue; // Staff doesn't work on this day based on contracted hours
 
       const shiftStart = formatLocalTime(assignment.shiftStart || times.start);
@@ -311,7 +422,7 @@ export class RotaService {
       // Skip temporary area assignments (same logic as above)
       if (assignment.areaType && assignment.areaId) continue;
 
-      const staff = allStaff.find(s => s.id === assignment.staffId);
+      const staff = manualStaffMap.get(assignment.staffId);
       if (!staff) continue;
 
       // Check if this staff member already has an assignment for the target date
@@ -335,17 +446,31 @@ export class RotaService {
       nightShifts.push(shiftAssignment);
     }
 
-    // Process calculated shifts for staff without manual assignments
-    for (const staff of allStaff) {
+    // PERFORMANCE: Pre-fetch all allocations to avoid N+1 queries
+    const allAllocations = await this.allocationRepo.findAll();
+    const allocationsByStaffId = new Map<number, boolean>();
+    for (const allocation of allAllocations) {
+      allocationsByStaffId.set(allocation.staffId, true);
+    }
+
+    // PERFORMANCE: Pre-fetch all fixed schedules for the target date
+    const allFixedSchedules = await this.scheduleRepo.findByDate(targetDate);
+    const fixedSchedulesByStaffId = new Map();
+    for (const schedule of allFixedSchedules) {
+      fixedSchedulesByStaffId.set(schedule.staffId, schedule);
+    }
+
+    // Process calculated shifts for staff in active shifts (without manual assignments)
+    for (const staff of staffInActiveShifts) {
       if (manuallyAssignedStaffIds.has(staff.id)) continue;
 
       // CRITICAL: Skip staff with permanent area allocations
       // They should ONLY appear in their assigned area cards, NOT in shift pools
-      const hasPermanentAssignment = await this.hasPermanentAllocations(staff.id);
+      const hasPermanentAssignment = allocationsByStaffId.get(staff.id) || false;
       if (hasPermanentAssignment) continue;
 
-      // Check for fixed schedule
-      const fixedSchedule = await this.scheduleRepo.findByStaffIdAndDate(staff.id, targetDate);
+      // Check for fixed schedule (pre-fetched)
+      const fixedSchedule = fixedSchedulesByStaffId.get(staff.id);
       if (fixedSchedule) {
         // Determine shift type based on times (simplified - could be enhanced)
         const shiftType: ShiftType = fixedSchedule.shiftStart >= '12:00:00' ? 'night' : 'day';
@@ -374,7 +499,10 @@ export class RotaService {
       // Calculate based on cycle
       const dutyCheck = this.isStaffOnDuty(staff, targetDate, appZeroDate);
       if (dutyCheck.onDuty && dutyCheck.shiftType) {
-        const times = await this.getShiftTimesForStaff(staff, dutyCheck.shiftType, targetDate);
+        // Use pre-fetched contracted hours
+        const times = await this.getShiftTimesForStaff(staff, dutyCheck.shiftType, targetDate, {
+          contractedHoursMap: contractedHoursByStaffId
+        });
 
         // If times is null, staff has contracted hours but not for this day - skip them
         if (!times) continue;
@@ -439,6 +567,10 @@ export class RotaService {
 
     dayShifts.sort(sortShifts);
     nightShifts.sort(sortShifts);
+
+    const endTime = Date.now();
+    const duration = endTime - startTime;
+    console.log(`[PERF] getRotaForDate completed in ${duration}ms (${dayShifts.length} day, ${nightShifts.length} night)`);
 
     return {
       date: targetDate,

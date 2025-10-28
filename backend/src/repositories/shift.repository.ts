@@ -7,6 +7,9 @@ interface ShiftRow {
   type: 'day' | 'night';
   color: string;
   description: string | null;
+  cycle_type: string | null;
+  cycle_length: number | null;
+  days_offset: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -20,6 +23,9 @@ export class ShiftRepository {
       type: row.type,
       color: row.color,
       description: row.description,
+      cycleType: row.cycle_type as any,
+      cycleLength: row.cycle_length,
+      daysOffset: row.days_offset,
       isActive: row.is_active,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -79,6 +85,24 @@ export class ShiftRepository {
     return (data || []).map(row => this.mapRowToShift(row));
   }
 
+  async findByIds(ids: number[]): Promise<Shift[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    const { data, error } = await supabase
+      .from('shifts')
+      .select('*')
+      .in('id', ids)
+      .eq('is_active', true);
+
+    if (error) {
+      throw new Error(`Failed to find shifts by IDs: ${error.message}`);
+    }
+
+    return (data || []).map(row => this.mapRowToShift(row));
+  }
+
   async create(data: CreateShiftDto): Promise<Shift> {
     const { data: result, error } = await supabase
       .from('shifts')
@@ -87,6 +111,9 @@ export class ShiftRepository {
         type: data.type,
         color: data.color || '#3B82F6',
         description: data.description || null,
+        cycle_type: data.cycleType || null,
+        cycle_length: data.cycleLength || null,
+        days_offset: data.daysOffset || 0,
         is_active: true
       })
       .select()
@@ -113,6 +140,15 @@ export class ShiftRepository {
     }
     if (updates.description !== undefined) {
       updateData.description = updates.description;
+    }
+    if (updates.cycleType !== undefined) {
+      updateData.cycle_type = updates.cycleType;
+    }
+    if (updates.cycleLength !== undefined) {
+      updateData.cycle_length = updates.cycleLength;
+    }
+    if (updates.daysOffset !== undefined) {
+      updateData.days_offset = updates.daysOffset;
     }
     if (updates.isActive !== undefined) {
       updateData.is_active = updates.isActive;

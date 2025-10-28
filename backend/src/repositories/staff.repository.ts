@@ -190,6 +190,9 @@ export class StaffRepository {
           type,
           color,
           description,
+          cycle_type,
+          cycle_length,
+          days_offset,
           is_active,
           created_at,
           updated_at
@@ -221,6 +224,68 @@ export class StaffRepository {
         type: shiftData.type,
         color: shiftData.color,
         description: shiftData.description,
+        cycleType: shiftData.cycle_type,
+        cycleLength: shiftData.cycle_length,
+        daysOffset: shiftData.days_offset,
+        isActive: shiftData.is_active,
+        createdAt: shiftData.created_at,
+        updatedAt: shiftData.updated_at,
+      } : null;
+
+      return {
+        ...staff,
+        shift,
+      };
+    });
+  }
+
+  /**
+   * Find staff by shift IDs (for performance optimization)
+   */
+  async findByShiftIds(shiftIds: number[]): Promise<StaffMemberWithShift[]> {
+    if (shiftIds.length === 0) {
+      return [];
+    }
+
+    const { data, error } = await supabase
+      .from('staff')
+      .select(`
+        *,
+        shifts (
+          id,
+          name,
+          type,
+          color,
+          description,
+          cycle_type,
+          cycle_length,
+          days_offset,
+          is_active,
+          created_at,
+          updated_at
+        )
+      `)
+      .in('shift_id', shiftIds)
+      .eq('is_active', true)
+      .order('last_name')
+      .order('first_name');
+
+    if (error) {
+      throw new Error(`Failed to find staff by shift IDs: ${error.message}`);
+    }
+
+    return (data || []).map((row: any) => {
+      const staff = this.mapRowToStaffMember(row);
+      const shiftData = row.shifts;
+      const shift: Shift | null = shiftData ? {
+        id: shiftData.id,
+        name: shiftData.name,
+        type: shiftData.type,
+        color: shiftData.color,
+        description: shiftData.description,
+        cycleType: shiftData.cycle_type,
+        cycleLength: shiftData.cycle_length,
+        daysOffset: shiftData.days_offset,
         isActive: shiftData.is_active,
         createdAt: shiftData.created_at,
         updatedAt: shiftData.updated_at,

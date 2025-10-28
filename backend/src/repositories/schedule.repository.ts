@@ -42,6 +42,24 @@ export class ScheduleRepository {
     return (data || []).map(row => this.mapRowToFixedSchedule(row));
   }
 
+  async findByDate(date: string): Promise<FixedSchedule[]> {
+    const dateObj = new Date(date);
+    const dayOfWeek = dateObj.getDay() === 0 ? 7 : dateObj.getDay(); // Convert Sunday from 0 to 7
+
+    const { data, error } = await supabase
+      .from('fixed_schedules')
+      .select('*')
+      .or(`day_of_week.is.null,day_of_week.eq.${dayOfWeek}`)
+      .or(`effective_from.is.null,effective_from.lte.${date}`)
+      .or(`effective_to.is.null,effective_to.gte.${date}`);
+
+    if (error) {
+      throw new Error(`Failed to find fixed schedules by date: ${error.message}`);
+    }
+
+    return (data || []).map(row => this.mapRowToFixedSchedule(row));
+  }
+
   async findByStaffIdAndDate(staffId: number, date: string): Promise<FixedSchedule | null> {
     const dateObj = new Date(date);
     const dayOfWeek = dateObj.getDay() === 0 ? 7 : dateObj.getDay(); // Convert Sunday from 0 to 7
