@@ -1,0 +1,31 @@
+# Netlify Configuration
+
+[build]
+  # Build command for the frontend
+  command = "cd frontend && npm install && npm run build"
+  # Directory to publish (frontend build output)
+  publish = "frontend/dist"
+  # Base directory for the build
+  base = "."
+
+[functions]
+  # Directory containing serverless functions
+  directory = "netlify/functions"
+  # Don't bundle Express - keep it as external dependency
+  external_node_modules = ["express"]
+  # Use esbuild for faster builds
+  node_bundler = "esbuild"
+
+# Redirect all API requests to the serverless function
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true
+
+# SPA fallback - redirect all other requests to index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
