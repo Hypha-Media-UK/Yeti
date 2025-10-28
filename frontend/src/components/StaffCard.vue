@@ -132,7 +132,7 @@ const handleAbsenceClick = () => {
 }
 
 .staff-card.status-pending {
-  background-color: rgba(254, 243, 199, 0.8); /* Pale yellow for pending */
+  background-color: rgba(254, 243, 199, 0.3); /* Very pale yellow for pending */
 }
 
 .staff-card.status-expired {

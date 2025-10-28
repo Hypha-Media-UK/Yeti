@@ -648,7 +648,7 @@ onMounted(async () => {
 }
 
 .staff-item.status-pending {
-  background-color: rgba(254, 243, 199, 0.8); /* Pale yellow */
+  background-color: rgba(254, 243, 199, 0.3); /* Very pale yellow */
 }
 
 .staff-item.status-expired {
