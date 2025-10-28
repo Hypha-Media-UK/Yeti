@@ -24,6 +24,21 @@ export class StaffContractedHoursRepository {
     };
   }
 
+  async findAll(): Promise<StaffContractedHours[]> {
+    const { data, error } = await supabase
+      .from('staff_contracted_hours')
+      .select('*')
+      .order('staff_id')
+      .order('day_of_week')
+      .order('start_time');
+
+    if (error) {
+      throw new Error(`Failed to find all contracted hours: ${error.message}`);
+    }
+
+    return (data || []).map(row => this.mapRowToContractedHours(row));
+  }
+
   async findByStaff(staffId: number): Promise<StaffContractedHours[]> {
     const { data, error } = await supabase
       .from('staff_contracted_hours')
