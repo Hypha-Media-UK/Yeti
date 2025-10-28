@@ -3,6 +3,7 @@
     class="staff-card"
     :class="cardClass"
     @click="handleClick"
+    @contextmenu.prevent="handleRightClick"
   >
     <div class="staff-info">
       <div class="staff-name">
@@ -44,6 +45,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   click: [assignment: ShiftAssignment];
+  contextmenu: [assignment: ShiftAssignment];
 }>();
 
 const { formatTime } = useTimeZone();
@@ -77,6 +79,13 @@ const handleClick = () => {
   // Don't allow clicks on absent staff
   if (props.clickable && !isAbsent.value) {
     emit('click', props.assignment);
+  }
+};
+
+const handleRightClick = () => {
+  // Don't allow right-clicks on absent staff
+  if (props.clickable && !isAbsent.value) {
+    emit('contextmenu', props.assignment);
   }
 };
 </script>

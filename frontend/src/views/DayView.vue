@@ -28,12 +28,14 @@
             shift-type="Day"
             :assignments="dayShifts"
             @staff-click="handleStaffClick"
+            @staff-context-menu="handleStaffContextMenu"
           />
 
           <ShiftGroup
             shift-type="Night"
             :assignments="nightShifts"
             @staff-click="handleStaffClick"
+            @staff-context-menu="handleStaffContextMenu"
           />
         </div>
 
@@ -156,6 +158,40 @@
       :services="allServices"
       @deleted="loadRota"
     />
+
+    <!-- Quick Absence Modal -->
+    <QuickAbsenceModal
+      v-model="showQuickAbsenceModal"
+      v-if="selectedStaffForAbsence"
+      :staff-member="selectedStaffForAbsence.staff"
+      :shift-type="selectedStaffForAbsence.shiftType"
+      :current-date="selectedDate"
+      @submit="handleCreateQuickAbsence"
+    />
+
+    <!-- Context Menu -->
+    <div
+      v-if="showContextMenu"
+      class="context-menu"
+      :style="{ top: contextMenuPosition.y + 'px', left: contextMenuPosition.x + 'px' }"
+      @click.stop
+    >
+      <button class="context-menu-item" @click="openTemporaryAssignmentFromMenu">
+        <span class="menu-icon">📋</span>
+        Temporary Assignment
+      </button>
+      <button class="context-menu-item" @click="openQuickAbsenceFromMenu">
+        <span class="menu-icon">🚫</span>
+        Mark Absence
+      </button>
+    </div>
+
+    <!-- Click outside to close context menu -->
+    <div
+      v-if="showContextMenu"
+      class="context-menu-overlay"
+      @click="closeContextMenu"
+    ></div>
   </div>
 </template>
 
@@ -172,9 +208,11 @@ import DateSelector from '@/components/DateSelector.vue';
 import ShiftGroup from '@/components/ShiftGroup.vue';
 import TemporaryAssignmentModal from '@/components/TemporaryAssignmentModal.vue';
 import ManageAssignmentsModal from '@/components/ManageAssignmentsModal.vue';
+import QuickAbsenceModal from '@/components/QuickAbsenceModal.vue';
 import type { ShiftAssignment } from '@shared/types/shift';
 import type { StaffMember } from '@shared/types/staff';
 import type { CreateTemporaryAssignmentDto } from '@shared/types/shift';
+import type { CreateAbsenceRequest } from '@shared/types/absence';
 
 const route = useRoute();
 const router = useRouter();
@@ -198,6 +236,15 @@ const selectedStaffForAssignment = ref<ShiftAssignment | null>(null);
 // Manage assignments modal state
 const showManageAssignmentsModal = ref(false);
 const selectedStaffForManagement = ref<StaffMember | null>(null);
+
+// Quick absence modal state
+const showQuickAbsenceModal = ref(false);
+const selectedStaffForAbsence = ref<ShiftAssignment | null>(null);
+
+// Context menu state
+const showContextMenu = ref(false);
+const contextMenuPosition = ref({ x: 0, y: 0 });
+const contextMenuAssignment = ref<ShiftAssignment | null>(null);
 
 // Categorize areas by area type (all areas, regardless of shift)
 const allDepartments = computed(() =>
@@ -388,10 +435,49 @@ async function loadAreas() {
   }
 }
 
-// Handle staff card click to open temporary assignment modal
+// Handle staff card click to open context menu
 function handleStaffClick(assignment: ShiftAssignment) {
+  // For now, keep the old behavior - open temporary assignment modal directly
   selectedStaffForAssignment.value = assignment;
   showTemporaryAssignmentModal.value = true;
+}
+
+// Handle staff card right-click to open context menu
+function handleStaffContextMenu(assignment: ShiftAssignment) {
+  contextMenuAssignment.value = assignment;
+
+  // Get mouse position
+  const event = window.event as MouseEvent;
+  contextMenuPosition.value = {
+    x: event.clientX,
+    y: event.clientY,
+  };
+
+  showContextMenu.value = true;
+}
+
+// Close context menu
+function closeContextMenu() {
+  showContextMenu.value = false;
+  contextMenuAssignment.value = null;
+}
+
+// Open temporary assignment modal from context menu
+function openTemporaryAssignmentFromMenu() {
+  if (contextMenuAssignment.value) {
+    selectedStaffForAssignment.value = contextMenuAssignment.value;
+    showTemporaryAssignmentModal.value = true;
+  }
+  closeContextMenu();
+}
+
+// Open quick absence modal from context menu
+function openQuickAbsenceFromMenu() {
+  if (contextMenuAssignment.value) {
+    selectedStaffForAbsence.value = contextMenuAssignment.value;
+    showQuickAbsenceModal.value = true;
+  }
+  closeContextMenu();
 }
 
 // Handle area staff click to open manage assignments modal
@@ -431,6 +517,21 @@ async function handleCreateTemporaryAssignment(data: CreateTemporaryAssignmentDt
   } catch (err: any) {
     console.error('Error creating temporary assignment:', err);
     alert(err.message || 'Failed to create temporary assignment');
+  }
+}
+
+// Handle quick absence creation
+async function handleCreateQuickAbsence(data: CreateAbsenceRequest) {
+  try {
+    await api.createAbsence(data);
+    showQuickAbsenceModal.value = false;
+    selectedStaffForAbsence.value = null;
+
+    // Reload rota and areas to show the absence
+    await Promise.all([loadRota(), loadAreas()]);
+  } catch (err: any) {
+    console.error('Error creating absence:', err);
+    alert(err.message || 'Failed to create absence');
   }
 }
 
@@ -695,6 +796,54 @@ onMounted(async () => {
   .date-section {
     padding: var(--spacing-2);
   }
+}
+
+/* Context Menu */
+.context-menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+}
+
+.context-menu {
+  position: fixed;
+  z-index: 1000;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-button);
+  box-shadow: var(--shadow-large);
+  min-width: 200px;
+  overflow: hidden;
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  width: 100%;
+  padding: var(--spacing-2) var(--spacing-3);
+  border: none;
+  background: none;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-body);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--transition-enter);
+}
+
+.context-menu-item:hover {
+  background-color: var(--color-bg);
+}
+
+.context-menu-item:not(:last-child) {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.menu-icon {
+  font-size: 1.2rem;
 }
 </style>
 
