@@ -2,8 +2,6 @@
   <div
     class="staff-card"
     :class="cardClass"
-    @click="handleClick"
-    @contextmenu.prevent="handleRightClick"
   >
     <div class="staff-info">
       <div class="staff-name">
@@ -25,6 +23,28 @@
         Overnight
       </span>
     </div>
+
+    <div v-if="clickable && !isAbsent" class="staff-actions">
+      <button
+        class="btn-icon"
+        @click.stop="handleAssignmentClick"
+        title="Temporary Assignment"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+      </button>
+      <button
+        class="btn-icon btn-absence"
+        @click.stop="handleAbsenceClick"
+        title="Mark Absence"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M15 9l-6 6M9 9l6 6" />
+        </svg>
+      </button>
+    </div>
   </div>
 </template>
 
@@ -44,8 +64,8 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-  click: [assignment: ShiftAssignment];
-  contextmenu: [assignment: ShiftAssignment];
+  assignment: [assignment: ShiftAssignment];
+  absence: [assignment: ShiftAssignment];
 }>();
 
 const { formatTime } = useTimeZone();
@@ -75,18 +95,12 @@ const cardClass = computed(() => ({
   'staff-absent': isAbsent.value,
 }));
 
-const handleClick = () => {
-  // Don't allow clicks on absent staff
-  if (props.clickable && !isAbsent.value) {
-    emit('click', props.assignment);
-  }
+const handleAssignmentClick = () => {
+  emit('assignment', props.assignment);
 };
 
-const handleRightClick = () => {
-  // Don't allow right-clicks on absent staff
-  if (props.clickable && !isAbsent.value) {
-    emit('contextmenu', props.assignment);
-  }
+const handleAbsenceClick = () => {
+  emit('absence', props.assignment);
 };
 </script>
 
@@ -95,6 +109,7 @@ const handleRightClick = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: var(--spacing-2);
   padding: var(--spacing-2);
   background-color: var(--color-surface);
   border-radius: var(--radius-button);
@@ -103,16 +118,6 @@ const handleRightClick = () => {
 
 .staff-card:hover {
   box-shadow: var(--shadow-low);
-  transform: translateY(-1px);
-}
-
-.staff-card.clickable {
-  cursor: pointer;
-}
-
-.staff-card.clickable:hover {
-  box-shadow: var(--shadow-medium);
-  transform: translateY(-2px);
 }
 
 /* Status-based styling */
@@ -212,6 +217,35 @@ const handleRightClick = () => {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
+}
+
+.staff-actions {
+  display: flex;
+  gap: var(--spacing-1);
+  align-items: center;
+}
+
+.btn-icon {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: var(--spacing-1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-button);
+  transition: var(--transition-base);
+}
+
+.btn-icon:hover {
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+.btn-icon.btn-absence:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--color-error);
 }
 
 @media (max-width: 600px) {

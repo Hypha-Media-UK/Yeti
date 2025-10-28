@@ -90,35 +90,38 @@
             ></textarea>
           </div>
 
-          <div class="quick-actions">
-            <button
-              type="button"
-              class="btn btn-secondary btn-sm"
-              @click="setQuickDuration('rest-of-shift')"
-            >
-              Rest of Shift
-            </button>
-            <button
-              type="button"
-              class="btn btn-secondary btn-sm"
-              @click="setQuickDuration('1-hour')"
-            >
-              1 Hour
-            </button>
-            <button
-              type="button"
-              class="btn btn-secondary btn-sm"
-              @click="setQuickDuration('2-hours')"
-            >
-              2 Hours
-            </button>
-            <button
-              type="button"
-              class="btn btn-secondary btn-sm"
-              @click="setQuickDuration('full-day')"
-            >
-              Full Day
-            </button>
+          <div class="form-group">
+            <label class="form-label">Quick Duration</label>
+            <div class="quick-actions">
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                @click="setQuickDuration('rest-of-shift')"
+              >
+                Rest of Shift
+              </button>
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                @click="setQuickDuration('1-hour')"
+              >
+                1 Hour
+              </button>
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                @click="setQuickDuration('2-hours')"
+              >
+                2 Hours
+              </button>
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                @click="setQuickDuration('full-day')"
+              >
+                Full Day
+              </button>
+            </div>
           </div>
 
           <div class="modal-actions">

@@ -27,15 +27,15 @@
           <ShiftGroup
             shift-type="Day"
             :assignments="dayShifts"
-            @staff-click="handleStaffClick"
-            @staff-context-menu="handleStaffContextMenu"
+            @staff-assignment="handleStaffAssignment"
+            @staff-absence="handleStaffAbsence"
           />
 
           <ShiftGroup
             shift-type="Night"
             :assignments="nightShifts"
-            @staff-click="handleStaffClick"
-            @staff-context-menu="handleStaffContextMenu"
+            @staff-assignment="handleStaffAssignment"
+            @staff-absence="handleStaffAbsence"
           />
         </div>
 
@@ -168,30 +168,6 @@
       :current-date="selectedDate"
       @submit="handleCreateQuickAbsence"
     />
-
-    <!-- Context Menu -->
-    <div
-      v-if="showContextMenu"
-      class="context-menu"
-      :style="{ top: contextMenuPosition.y + 'px', left: contextMenuPosition.x + 'px' }"
-      @click.stop
-    >
-      <button class="context-menu-item" @click="openTemporaryAssignmentFromMenu">
-        <span class="menu-icon">📋</span>
-        Temporary Assignment
-      </button>
-      <button class="context-menu-item" @click="openQuickAbsenceFromMenu">
-        <span class="menu-icon">🚫</span>
-        Mark Absence
-      </button>
-    </div>
-
-    <!-- Click outside to close context menu -->
-    <div
-      v-if="showContextMenu"
-      class="context-menu-overlay"
-      @click="closeContextMenu"
-    ></div>
   </div>
 </template>
 
@@ -240,11 +216,6 @@ const selectedStaffForManagement = ref<StaffMember | null>(null);
 // Quick absence modal state
 const showQuickAbsenceModal = ref(false);
 const selectedStaffForAbsence = ref<ShiftAssignment | null>(null);
-
-// Context menu state
-const showContextMenu = ref(false);
-const contextMenuPosition = ref({ x: 0, y: 0 });
-const contextMenuAssignment = ref<ShiftAssignment | null>(null);
 
 // Categorize areas by area type (all areas, regardless of shift)
 const allDepartments = computed(() =>
@@ -435,49 +406,16 @@ async function loadAreas() {
   }
 }
 
-// Handle staff card click to open context menu
-function handleStaffClick(assignment: ShiftAssignment) {
-  // For now, keep the old behavior - open temporary assignment modal directly
+// Handle staff assignment button click
+function handleStaffAssignment(assignment: ShiftAssignment) {
   selectedStaffForAssignment.value = assignment;
   showTemporaryAssignmentModal.value = true;
 }
 
-// Handle staff card right-click to open context menu
-function handleStaffContextMenu(assignment: ShiftAssignment) {
-  contextMenuAssignment.value = assignment;
-
-  // Get mouse position
-  const event = window.event as MouseEvent;
-  contextMenuPosition.value = {
-    x: event.clientX,
-    y: event.clientY,
-  };
-
-  showContextMenu.value = true;
-}
-
-// Close context menu
-function closeContextMenu() {
-  showContextMenu.value = false;
-  contextMenuAssignment.value = null;
-}
-
-// Open temporary assignment modal from context menu
-function openTemporaryAssignmentFromMenu() {
-  if (contextMenuAssignment.value) {
-    selectedStaffForAssignment.value = contextMenuAssignment.value;
-    showTemporaryAssignmentModal.value = true;
-  }
-  closeContextMenu();
-}
-
-// Open quick absence modal from context menu
-function openQuickAbsenceFromMenu() {
-  if (contextMenuAssignment.value) {
-    selectedStaffForAbsence.value = contextMenuAssignment.value;
-    showQuickAbsenceModal.value = true;
-  }
-  closeContextMenu();
+// Handle staff absence button click
+function handleStaffAbsence(assignment: ShiftAssignment) {
+  selectedStaffForAbsence.value = assignment;
+  showQuickAbsenceModal.value = true;
 }
 
 // Handle area staff click to open manage assignments modal
@@ -796,54 +734,6 @@ onMounted(async () => {
   .date-section {
     padding: var(--spacing-2);
   }
-}
-
-/* Context Menu */
-.context-menu-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 999;
-}
-
-.context-menu {
-  position: fixed;
-  z-index: 1000;
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-button);
-  box-shadow: var(--shadow-large);
-  min-width: 200px;
-  overflow: hidden;
-}
-
-.context-menu-item {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-  width: 100%;
-  padding: var(--spacing-2) var(--spacing-3);
-  border: none;
-  background: none;
-  color: var(--color-text-primary);
-  font-size: var(--font-size-body);
-  text-align: left;
-  cursor: pointer;
-  transition: background-color var(--transition-enter);
-}
-
-.context-menu-item:hover {
-  background-color: var(--color-bg);
-}
-
-.context-menu-item:not(:last-child) {
-  border-bottom: 1px solid var(--color-border);
-}
-
-.menu-icon {
-  font-size: 1.2rem;
 }
 </style>
 

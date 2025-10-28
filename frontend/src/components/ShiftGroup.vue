@@ -20,8 +20,8 @@
         :key="`${assignment.staff.id}-${assignment.assignmentDate}`"
         :assignment="assignment"
         :clickable="true"
-        @click="$emit('staffClick', assignment)"
-        @contextmenu="$emit('staffContextMenu', assignment)"
+        @assignment="$emit('staffAssignment', assignment)"
+        @absence="$emit('staffAbsence', assignment)"
       />
     </div>
   </section>
@@ -38,8 +38,8 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  staffClick: [assignment: ShiftAssignment];
-  staffContextMenu: [assignment: ShiftAssignment];
+  staffAssignment: [assignment: ShiftAssignment];
+  staffAbsence: [assignment: ShiftAssignment];
 }>();
 
 const shiftTime = computed(() => {
