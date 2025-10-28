@@ -474,8 +474,8 @@ async function loadRotaWithCache() {
       error: null
     });
 
-    // Prefetch adjacent days in background
-    prefetchAdjacentDays(dateKey);
+    // Prefetch adjacent days in background AFTER cache hit
+    setTimeout(() => prefetchAdjacentDays(dateKey), 0);
     return;
   }
 
@@ -489,8 +489,8 @@ async function loadRotaWithCache() {
     nightShifts: [...rotaStore.nightShifts]
   });
 
-  // Prefetch adjacent days in background
-  prefetchAdjacentDays(dateKey);
+  // Prefetch adjacent days in background AFTER load completes
+  setTimeout(() => prefetchAdjacentDays(dateKey), 0);
 }
 
 // Load areas with cache support
