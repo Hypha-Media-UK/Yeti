@@ -115,6 +115,18 @@ const selectedAbsence = ref<Absence | null>(null);
 const showDeleteConfirm = ref(false);
 const deleteTarget = ref<Absence | null>(null);
 
+// Load absences function (defined before watch to avoid hoisting issues)
+const loadAbsences = async () => {
+  isLoading.value = true;
+  try {
+    absences.value = await api.getAbsencesByStaffId(props.staffMember.id);
+  } catch (error) {
+    console.error('Error loading absences:', error);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
 // Load absences when modal opens
 watch(() => props.modelValue, (newValue) => {
   if (newValue) {
@@ -128,17 +140,6 @@ const sortedAbsences = computed(() => {
     return new Date(b.startDatetime).getTime() - new Date(a.startDatetime).getTime();
   });
 });
-
-const loadAbsences = async () => {
-  isLoading.value = true;
-  try {
-    absences.value = await api.getAbsencesByStaffId(props.staffMember.id);
-  } catch (error) {
-    console.error('Error loading absences:', error);
-  } finally {
-    isLoading.value = false;
-  }
-};
 
 const closeModal = () => {
   emit('update:modelValue', false);
