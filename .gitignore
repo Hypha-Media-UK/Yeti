@@ -51,3 +51,4 @@ temp/
 # Sensitive files
 *-pw.txt
 *password*.txt
+.vercel
