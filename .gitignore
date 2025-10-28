@@ -44,3 +44,10 @@ coverage/
 tmp/
 temp/
 
+# Backup files
+*.backup
+*.bak
+
+# Sensitive files
+*-pw.txt
+*password*.txt
