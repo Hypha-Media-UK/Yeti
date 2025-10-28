@@ -72,8 +72,8 @@
                 >
                   <span class="staff-name">
                     {{ staff.firstName }} {{ staff.lastName }}
-                    <span v-if="staff.currentAbsence" class="absence-badge">
-                      {{ formatAbsenceType(staff.currentAbsence.absenceType) }}
+                    <span v-if="isStaffAbsent(staff)" class="absence-badge" :title="formatAbsenceDisplay(staff.currentAbsence!)">
+                      {{ formatAbsencePeriod(staff.currentAbsence!) }}
                     </span>
                   </span>
                   <span class="staff-hours">{{ getContractedHoursForToday(staff.contractedHours) }}</span>
@@ -119,8 +119,8 @@
                 >
                   <span class="staff-name">
                     {{ staff.firstName }} {{ staff.lastName }}
-                    <span v-if="staff.currentAbsence" class="absence-badge">
-                      {{ formatAbsenceType(staff.currentAbsence.absenceType) }}
+                    <span v-if="isStaffAbsent(staff)" class="absence-badge" :title="formatAbsenceDisplay(staff.currentAbsence!)">
+                      {{ formatAbsencePeriod(staff.currentAbsence!) }}
                     </span>
                   </span>
                   <span class="staff-hours">{{ getContractedHoursForToday(staff.contractedHours) }}</span>
@@ -166,6 +166,7 @@ import { useRotaStore } from '@/stores/rota';
 import { useStaffStore } from '@/stores/staff';
 import { useConfigStore } from '@/stores/config';
 import { useTimeZone } from '@/composables/useTimeZone';
+import { useAbsence } from '@/composables/useAbsence';
 import { api } from '@/services/api';
 import DateSelector from '@/components/DateSelector.vue';
 import ShiftGroup from '@/components/ShiftGroup.vue';
@@ -181,6 +182,7 @@ const rotaStore = useRotaStore();
 const staffStore = useStaffStore();
 const configStore = useConfigStore();
 const { getTodayString } = useTimeZone();
+const { isAbsenceActive, formatAbsencePeriod, formatAbsenceDisplay } = useAbsence();
 
 const selectedDate = ref<string>(getTodayString());
 const areas = ref<any[]>([]);
@@ -265,15 +267,9 @@ function getContractedHoursForToday(contractedHours: any[]): string {
   return `${formatTime(hoursForDay.startTime)} - ${formatTime(hoursForDay.endTime)}`;
 }
 
-// Format absence type for display
-function formatAbsenceType(type: string): string {
-  const types: Record<string, string> = {
-    'sickness': 'Sick',
-    'annual_leave': 'Leave',
-    'training': 'Training',
-    'absence': 'Absent',
-  };
-  return types[type] || type;
+// Check if staff is currently absent
+function isStaffAbsent(staff: any): boolean {
+  return isAbsenceActive(staff.currentAbsence);
 }
 
 // Get combined class for staff item (status + absence)
@@ -281,7 +277,7 @@ function getStaffItemClass(staff: any): string {
   const classes: string[] = [];
 
   // Check if staff is absent
-  if (staff.currentAbsence) {
+  if (isStaffAbsent(staff)) {
     classes.push('staff-absent');
   } else {
     // Only add clickable if not absent
@@ -298,8 +294,8 @@ function getStaffItemClass(staff: any): string {
 
 // Get title for staff item
 function getStaffItemTitle(staff: any): string {
-  if (staff.currentAbsence) {
-    return `${formatAbsenceType(staff.currentAbsence.absenceType)} - Cannot assign`;
+  if (isStaffAbsent(staff)) {
+    return `${formatAbsenceDisplay(staff.currentAbsence!)} - Cannot assign`;
   }
   return 'Click to manage temporary assignments';
 }
@@ -401,7 +397,7 @@ function handleStaffClick(assignment: ShiftAssignment) {
 // Handle area staff click to open manage assignments modal
 function handleAreaStaffClick(staff: any) {
   // Don't allow clicks on absent staff
-  if (staff.currentAbsence) {
+  if (isStaffAbsent(staff)) {
     return;
   }
 

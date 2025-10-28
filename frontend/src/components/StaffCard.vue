@@ -11,8 +11,8 @@
     </div>
 
     <div class="staff-badges">
-      <span v-if="isAbsent" class="badge badge-absent" :title="`${formatAbsenceType(staff.currentAbsence!.absenceType)}`">
-        {{ formatAbsenceType(staff.currentAbsence!.absenceType) }}
+      <span v-if="isAbsent" class="badge badge-absent" :title="formatAbsenceDisplay(staff.currentAbsence!)">
+        {{ formatAbsencePeriod(staff.currentAbsence!) }}
       </span>
       <span v-if="isManualAssignment" class="badge badge-manual" title="Manual assignment">
         Manual
@@ -31,6 +31,7 @@
 import { computed } from 'vue';
 import type { ShiftAssignment } from '@shared/types/shift';
 import { useTimeZone } from '@/composables/useTimeZone';
+import { useAbsence } from '@/composables/useAbsence';
 
 interface Props {
   assignment: ShiftAssignment;
@@ -46,9 +47,10 @@ const emit = defineEmits<{
 }>();
 
 const { formatTime } = useTimeZone();
+const { isAbsenceActive, formatAbsencePeriod, formatAbsenceDisplay } = useAbsence();
 
 const staff = computed(() => props.assignment.staff);
-const isAbsent = computed(() => !!staff.value.currentAbsence);
+const isAbsent = computed(() => isAbsenceActive(staff.value.currentAbsence));
 const isManualAssignment = computed(() => props.assignment.isManualAssignment);
 const isFixedSchedule = computed(() => props.assignment.isFixedSchedule);
 const isOvernight = computed(() => {
@@ -56,16 +58,6 @@ const isOvernight = computed(() => {
   return props.assignment.shiftType === 'night' &&
          props.assignment.assignmentDate !== new Date().toISOString().split('T')[0];
 });
-
-const formatAbsenceType = (type: string): string => {
-  const types: Record<string, string> = {
-    'sickness': 'Sick',
-    'annual_leave': 'Leave',
-    'training': 'Training',
-    'absence': 'Absent',
-  };
-  return types[type] || type;
-};
 
 const formattedTime = computed(() => {
   return `${formatTime(props.assignment.shiftStart)} - ${formatTime(props.assignment.shiftEnd)}`;
