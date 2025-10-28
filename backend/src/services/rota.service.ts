@@ -466,10 +466,26 @@ export class RotaService {
   /**
    * Check if a staff member is working on a specific date based on their cycle or contracted hours
    * This is used to determine if permanently allocated staff should appear in area cards
+   *
+   * OPTIMIZED VERSION: Accepts pre-fetched data to avoid N+1 queries
    */
-  async isStaffWorkingOnDate(staff: StaffMemberWithShift, targetDate: string): Promise<boolean> {
+  async isStaffWorkingOnDate(
+    staff: StaffMemberWithShift,
+    targetDate: string,
+    options?: {
+      manualAssignmentsMap?: Map<number, ManualAssignment[]>;
+      contractedHoursMap?: Map<number, StaffContractedHours[]>;
+      appZeroDate?: string;
+    }
+  ): Promise<boolean> {
     // Check for manual assignments first
-    const manualAssignments = await this.overrideRepo.findByStaffAndDate(staff.id, targetDate);
+    let manualAssignments: ManualAssignment[];
+    if (options?.manualAssignmentsMap) {
+      manualAssignments = options.manualAssignmentsMap.get(staff.id) || [];
+    } else {
+      manualAssignments = await this.overrideRepo.findByStaffAndDate(staff.id, targetDate);
+    }
+
     if (manualAssignments.length > 0) {
       const assignment = manualAssignments[0];
       // If there's a manual assignment with shiftType, they're working
@@ -482,7 +498,13 @@ export class RotaService {
 
     // If staff has 'No Shift' (shift_id is NULL), check contracted hours
     if (!staff.shiftId) {
-      const contractedHours = await this.contractedHoursRepo.findByStaff(staff.id);
+      let contractedHours: StaffContractedHours[];
+      if (options?.contractedHoursMap) {
+        contractedHours = options.contractedHoursMap.get(staff.id) || [];
+      } else {
+        contractedHours = await this.contractedHoursRepo.findByStaff(staff.id);
+      }
+
       if (contractedHours.length === 0) {
         // No contracted hours defined, so they're not working
         return false;
@@ -497,7 +519,7 @@ export class RotaService {
     }
 
     // Check cycle-based schedule for staff with shifts
-    const appZeroDate = await this.configRepo.getByKey('app_zero_date') || '2024-01-01';
+    const appZeroDate = options?.appZeroDate || await this.configRepo.getByKey('app_zero_date') || '2024-01-01';
     const daysSinceZero = daysBetween(appZeroDate, targetDate);
 
     if (staff.status === 'Relief') {
@@ -516,6 +538,22 @@ export class RotaService {
       const cyclePosition = adjustedDays % CYCLE_LENGTHS.REGULAR;
       return cyclePosition < 4;
     }
+  }
+
+  /**
+   * Get all manual assignments for a specific date
+   * Used for performance optimization to avoid N+1 queries
+   */
+  async getManualAssignmentsForDate(date: string): Promise<ManualAssignment[]> {
+    return this.overrideRepo.findByDate(date);
+  }
+
+  /**
+   * Get the app zero date from config
+   * Used for performance optimization to avoid repeated queries
+   */
+  async getAppZeroDate(): Promise<string> {
+    return await this.configRepo.getByKey('app_zero_date') || '2024-01-01';
   }
 }
 

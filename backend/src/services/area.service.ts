@@ -11,7 +11,7 @@ import type { Department } from '../../shared/types/department';
 import type { Service } from '../../shared/types/service';
 import type { AreaOperationalHours, StaffContractedHours } from '../../shared/types/operational-hours';
 import type { StaffMember } from '../../shared/types/staff';
-import type { ShiftType } from '../../shared/types/shift';
+import type { ShiftType, ManualAssignment } from '../../shared/types/shift';
 import type { Absence } from '../../shared/types/absence';
 
 export interface StaffAssignmentForArea {
@@ -81,16 +81,28 @@ export class AreaService {
       dayRota = await this.rotaService.getRotaForDate(date);
     }
 
-    // OPTIMIZATION: Fetch all staff and contracted hours once upfront
+    // OPTIMIZATION: Fetch all data once upfront to avoid N+1 queries
     let allStaffMap: Map<number, StaffMember> | null = null;
     let allContractedHoursMap: Map<number, StaffContractedHours[]> | null = null;
+    let manualAssignmentsMap: Map<number, ManualAssignment[]> | null = null;
+    let temporaryAssignmentsByArea: Map<string, ManualAssignment[]> | null = null;
+    let appZeroDate: string | null = null;
 
     if (date) {
       const fetchStart = Date.now();
-      const allStaff = await this.staffRepo.findAllWithShifts();
+
+      // Fetch all data in parallel
+      const [allStaff, allContractedHours, manualAssignments, zeroDate] = await Promise.all([
+        this.staffRepo.findAllWithShifts(),
+        this.contractedHoursRepo.findAll(),
+        this.rotaService.getManualAssignmentsForDate(date),
+        this.rotaService.getAppZeroDate()
+      ]);
+
+      // Build staff map
       allStaffMap = new Map(allStaff.map(s => [s.id, s]));
 
-      const allContractedHours = await this.contractedHoursRepo.findAll();
+      // Build contracted hours map
       allContractedHoursMap = new Map();
       for (const hours of allContractedHours) {
         if (!allContractedHoursMap.has(hours.staffId)) {
@@ -98,7 +110,31 @@ export class AreaService {
         }
         allContractedHoursMap.get(hours.staffId)!.push(hours);
       }
-      console.log(`[PERF] Fetched all staff (${allStaff.length}) and contracted hours (${allContractedHours.length}) in ${Date.now() - fetchStart}ms`);
+
+      // Build manual assignments map (by staff ID for working status checks)
+      manualAssignmentsMap = new Map();
+      for (const assignment of manualAssignments) {
+        if (!manualAssignmentsMap.has(assignment.staffId)) {
+          manualAssignmentsMap.set(assignment.staffId, []);
+        }
+        manualAssignmentsMap.get(assignment.staffId)!.push(assignment);
+      }
+
+      // Build temporary assignments map (by area for area staff lists)
+      temporaryAssignmentsByArea = new Map();
+      for (const assignment of manualAssignments) {
+        if (assignment.areaType && assignment.areaId) {
+          const key = `${assignment.areaType}:${assignment.areaId}`;
+          if (!temporaryAssignmentsByArea.has(key)) {
+            temporaryAssignmentsByArea.set(key, []);
+          }
+          temporaryAssignmentsByArea.get(key)!.push(assignment);
+        }
+      }
+
+      appZeroDate = zeroDate;
+
+      console.log(`[PERF] Fetched all data in ${Date.now() - fetchStart}ms: ${allStaff.length} staff, ${allContractedHours.length} contracted hours, ${manualAssignments.length} manual assignments`);
     }
 
     // Process departments
@@ -109,7 +145,16 @@ export class AreaService {
 
       // Include if department has operational hours for this day OR is 24/7
       if (deptHours.length > 0 || dept.is24_7) {
-        const staff = date ? await this.getStaffForArea('department', dept.id, dayRota, allStaffMap!, allContractedHoursMap!) : [];
+        const staff = date ? await this.getStaffForArea(
+          'department',
+          dept.id,
+          dayRota,
+          allStaffMap!,
+          allContractedHoursMap!,
+          manualAssignmentsMap!,
+          temporaryAssignmentsByArea!,
+          appZeroDate!
+        ) : [];
 
         areas.push({
           id: dept.id,
@@ -130,7 +175,16 @@ export class AreaService {
 
       // Include if service has operational hours for this day OR is 24/7
       if (serviceHours.length > 0 || service.is24_7) {
-        const staff = date ? await this.getStaffForArea('service', service.id, dayRota, allStaffMap!, allContractedHoursMap!) : [];
+        const staff = date ? await this.getStaffForArea(
+          'service',
+          service.id,
+          dayRota,
+          allStaffMap!,
+          allContractedHoursMap!,
+          manualAssignmentsMap!,
+          temporaryAssignmentsByArea!,
+          appZeroDate!
+        ) : [];
 
         areas.push({
           id: service.id,
@@ -154,14 +208,17 @@ export class AreaService {
   /**
    * Get staff members assigned to a specific area who are working on the given date
    * Includes both permanently allocated staff and temporarily assigned pool staff
-   * OPTIMIZED: Uses pre-fetched staff and contracted hours maps to avoid N+1 queries
+   * OPTIMIZED: Uses pre-fetched data maps to avoid N+1 queries
    */
   private async getStaffForArea(
     areaType: 'department' | 'service',
     areaId: number,
     dayRota: any,
     allStaffMap: Map<number, StaffMember>,
-    allContractedHoursMap: Map<number, StaffContractedHours[]>
+    allContractedHoursMap: Map<number, StaffContractedHours[]>,
+    manualAssignmentsMap: Map<number, ManualAssignment[]>,
+    temporaryAssignmentsByArea: Map<string, ManualAssignment[]>,
+    appZeroDate: string
   ): Promise<StaffAssignmentForArea[]> {
     if (!dayRota) return [];
 
@@ -184,8 +241,13 @@ export class AreaService {
       if (!staff || !staff.isActive) continue;
 
       // Check if this staff member is working today using the rota service
+      // OPTIMIZED: Pass pre-fetched data to avoid database queries
       workingChecks++;
-      const isWorking = await this.rotaService.isStaffWorkingOnDate(staff, date);
+      const isWorking = await this.rotaService.isStaffWorkingOnDate(staff, date, {
+        manualAssignmentsMap,
+        contractedHoursMap: allContractedHoursMap,
+        appZeroDate
+      });
 
       if (isWorking) {
         // OPTIMIZED: Get contracted hours from pre-fetched map instead of querying database
@@ -209,13 +271,9 @@ export class AreaService {
     }
     console.log(`[PERF] Checked ${workingChecks} staff working status in ${Date.now() - checkWorkingStart}ms for area ${areaType}:${areaId}`);
 
-    // Get temporary assignments for this area on this date
-    const temporaryAssignments = await this.overrideRepo.findByAreaAndDateRange(
-      areaType,
-      areaId,
-      date,
-      date
-    );
+    // OPTIMIZED: Get temporary assignments from pre-fetched map
+    const areaKey = `${areaType}:${areaId}`;
+    const temporaryAssignments = temporaryAssignmentsByArea.get(areaKey) || [];
 
     // Add temporarily assigned pool staff
     for (const assignment of temporaryAssignments) {
