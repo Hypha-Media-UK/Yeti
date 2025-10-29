@@ -131,11 +131,13 @@ const handleAbsenceClick = () => {
   background-color: rgba(99, 102, 241, 0.08); /* Subtle indigo for night shift */
 }
 
-.staff-card.status-pending {
+.staff-card.shift-day.status-pending,
+.staff-card.shift-night.status-pending {
   background-color: rgba(254, 243, 199, 0.3); /* Very pale yellow for pending */
 }
 
-.staff-card.status-expired {
+.staff-card.shift-day.status-expired,
+.staff-card.shift-night.status-expired {
   background-color: rgba(156, 163, 175, 0.15); /* Grey */
   opacity: 0.6;
 }
