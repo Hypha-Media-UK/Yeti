@@ -13,6 +13,8 @@ interface StaffRow {
   custom_shift_start: string | null;
   custom_shift_end: string | null;
   use_cycle_for_permanent: boolean;
+  reference_shift_id: number | null;
+  use_contracted_hours_for_shift: boolean;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -31,6 +33,8 @@ export class StaffRepository {
       customShiftStart: row.custom_shift_start || null,
       customShiftEnd: row.custom_shift_end || null,
       useCycleForPermanent: row.use_cycle_for_permanent || false,
+      referenceShiftId: row.reference_shift_id || null,
+      useContractedHoursForShift: row.use_contracted_hours_for_shift || false,
       isActive: row.is_active,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -92,6 +96,8 @@ export class StaffRepository {
         custom_shift_start: staff.customShiftStart,
         custom_shift_end: staff.customShiftEnd,
         use_cycle_for_permanent: staff.useCycleForPermanent || false,
+        reference_shift_id: staff.referenceShiftId || null,
+        use_contracted_hours_for_shift: staff.useContractedHoursForShift || false,
         is_active: staff.isActive
       })
       .select()
@@ -133,6 +139,12 @@ export class StaffRepository {
     }
     if (updates.useCycleForPermanent !== undefined) {
       updateData.use_cycle_for_permanent = updates.useCycleForPermanent;
+    }
+    if (updates.referenceShiftId !== undefined) {
+      updateData.reference_shift_id = updates.referenceShiftId;
+    }
+    if (updates.useContractedHoursForShift !== undefined) {
+      updateData.use_contracted_hours_for_shift = updates.useContractedHoursForShift;
     }
     if (updates.isActive !== undefined) {
       updateData.is_active = updates.isActive;

@@ -80,41 +80,72 @@
       </div>
     </div>
 
-    <!-- Use Cycle for Permanent Assignment (only show for permanent assignments) -->
+    <!-- Reference Shift for Permanent Assignment (only show for permanent assignments) -->
     <div v-if="shiftSelection === 'PERMANENT'" class="form-group">
       <label class="checkbox-label">
         <input
           type="checkbox"
-          v-model="formData.useCycleForPermanent"
+          v-model="useReferenceShift"
         />
         <span>Use shift cycle pattern (instead of contracted hours)</span>
       </label>
       <p class="form-hint">
         Enable this if the staff member works a regular cycle rotation
         but is permanently assigned to specific areas. When enabled, you can select
-        their cycle type and set their offset below instead of defining contracted hours.
+        a shift whose cycle pattern they follow.
       </p>
     </div>
 
-    <!-- Cycle Type Selection (only show when cycle is enabled for permanent staff) -->
-    <div v-if="shiftSelection === 'PERMANENT' && formData.useCycleForPermanent" class="form-group">
-      <label for="cycleType">Cycle Type <span class="required">*</span></label>
+    <!-- Reference Shift Selection (only show when cycle is enabled for permanent staff) -->
+    <div v-if="shiftSelection === 'PERMANENT' && useReferenceShift" class="form-group">
+      <label for="referenceShift">Reference Shift <span class="required">*</span></label>
       <select
-        id="cycleType"
-        v-model="formData.cycleType"
+        id="referenceShift"
+        v-model="formData.referenceShiftId"
         required
       >
-        <option value="">Select cycle type...</option>
-        <option value="4-on-4-off">4-on-4-off (8-day cycle)</option>
-        <option value="16-day-supervisor">16-day Supervisor (4 day / 4 off / 4 night / 4 off)</option>
-        <option value="relief">Relief</option>
+        <option :value="null">Select shift...</option>
+        <optgroup label="Day Shifts">
+          <option
+            v-for="shift in dayShifts"
+            :key="shift.id"
+            :value="shift.id"
+          >
+            {{ shift.name }}
+          </option>
+        </optgroup>
+        <optgroup label="Night Shifts">
+          <option
+            v-for="shift in nightShifts"
+            :key="shift.id"
+            :value="shift.id"
+          >
+            {{ shift.name }}
+          </option>
+        </optgroup>
       </select>
       <p class="form-hint">
-        Select the cycle pattern this staff member follows.
+        Select the shift whose cycle pattern this staff member follows.
+        They will appear in their permanent allocations, NOT in the shift pool.
       </p>
     </div>
 
-    <!-- Custom Shift Times (only show for shift-based staff) -->
+    <!-- Use Contracted Hours for Shift Staff (only show for shift-based staff) -->
+    <div v-if="formData.status === 'Regular' && formData.shiftId !== null" class="form-group">
+      <label class="checkbox-label">
+        <input
+          type="checkbox"
+          v-model="formData.useContractedHoursForShift"
+        />
+        <span>Use contracted hours instead of shift cycle</span>
+      </label>
+      <p class="form-hint">
+        Enable this if the staff member is in a shift pool but works custom days
+        instead of following the shift's cycle pattern. They will still appear in the shift pool.
+      </p>
+    </div>
+
+    <!-- Custom Shift Times (only show for shift-based staff not using contracted hours) -->
     <div v-if="showCustomShiftTimes" class="form-group">
       <label class="form-label">Custom Shift Times (Optional)</label>
       <div class="time-range-group">
@@ -156,8 +187,8 @@
         :max="formData.status === 'Supervisor' ? 15 : 7"
       />
       <p class="form-hint">
-        <span v-if="formData.useCycleForPermanent">
-          Set the offset for this staff member's 4-on-4-off cycle (0-7).
+        <span v-if="formData.referenceShiftId !== null && shiftSelection === 'PERMANENT'">
+          Set the offset for this staff member's cycle (0-7 for 8-day cycles, 0-15 for 16-day cycles).
           This determines which days they work in the rotation.
         </span>
         <span v-else-if="selectedShiftDefaultOffset !== null">
@@ -293,27 +324,45 @@ const formData = reactive({
   daysOffset: props.staff?.daysOffset || 0,
   customShiftStart: props.staff?.customShiftStart?.substring(0, 5) || '',  // Convert "HH:mm:ss" to "HH:mm"
   customShiftEnd: props.staff?.customShiftEnd?.substring(0, 5) || '',      // Convert "HH:mm:ss" to "HH:mm"
-  useCycleForPermanent: props.staff?.useCycleForPermanent || false,
-  cycleType: (props.staff?.cycleType || '') as CycleType | '',
+  useCycleForPermanent: props.staff?.useCycleForPermanent || false,  // DEPRECATED
+  referenceShiftId: props.staff?.referenceShiftId || null as number | null,
+  useContractedHoursForShift: props.staff?.useContractedHoursForShift || false,
+  cycleType: (props.staff?.cycleType || '') as CycleType | '',  // DEPRECATED
   contractedHours: [] as HoursEntry[],
+});
+
+// Computed property to determine if reference shift is being used
+const useReferenceShift = computed({
+  get() {
+    return formData.referenceShiftId !== null;
+  },
+  set(value: boolean) {
+    if (!value) {
+      formData.referenceShiftId = null;
+    }
+  }
 });
 
 // Computed properties for conditional field visibility
 const showCustomShiftTimes = computed(() => {
-  // Show for Regular staff with a shift assigned (not null, not "No Shift", not "Permanent Assignment")
-  return formData.status === 'Regular' && formData.shiftId !== null;
+  // Show for Regular staff with a shift assigned (not using contracted hours)
+  return formData.status === 'Regular' &&
+         formData.shiftId !== null &&
+         !formData.useContractedHoursForShift;
 });
 
 const showDaysOffset = computed(() => {
-  // Show for Regular staff with a shift assigned
-  if (formData.status === 'Regular' && formData.shiftId !== null) {
+  // Show for Regular staff with a shift assigned (not using contracted hours)
+  if (formData.status === 'Regular' &&
+      formData.shiftId !== null &&
+      !formData.useContractedHoursForShift) {
     return true;
   }
 
-  // Also show for permanent staff using cycle
+  // Also show for permanent staff using reference shift
   if (formData.status === 'Regular' &&
       shiftSelection.value === 'PERMANENT' &&
-      formData.useCycleForPermanent) {
+      formData.referenceShiftId !== null) {
     return true;
   }
 
@@ -328,14 +377,21 @@ const showAllocations = computed(() => {
 });
 
 const showContractedHours = computed(() => {
-  // Show for Relief, Supervisor, or Regular with "Permanent Assignment" (but not if using cycle)
+  // Show for Relief, Supervisor
   if (formData.status === 'Relief' || formData.status === 'Supervisor') {
     return true;
   }
 
-  // For permanent assignments, only show if NOT using cycle
+  // Show for shift-based staff using contracted hours
+  if (formData.status === 'Regular' &&
+      formData.shiftId !== null &&
+      formData.useContractedHoursForShift) {
+    return true;
+  }
+
+  // For permanent assignments, only show if NOT using reference shift
   if (formData.status === 'Regular' && shiftSelection.value === 'PERMANENT') {
-    return !formData.useCycleForPermanent;
+    return formData.referenceShiftId === null;
   }
 
   return false;
@@ -429,19 +485,14 @@ const handleSubmit = () => {
 
   loading.value = true;
 
-  // Determine cycle type based on status and permanent cycle settings
+  // Determine cycle type based on status (DEPRECATED - kept for backward compatibility)
   let cycleType: CycleType | '' = null;
 
   if (formData.status === 'Supervisor') {
     cycleType = '16-day-supervisor';
-  } else if (formData.status === 'Regular') {
-    if (formData.useCycleForPermanent && formData.cycleType) {
-      // Use the selected cycle type for permanent staff
-      cycleType = formData.cycleType;
-    } else if (formData.shiftId) {
-      // For shift-based staff, default to 4-on-4-off
-      cycleType = '4-on-4-off';
-    }
+  } else if (formData.status === 'Regular' && formData.shiftId) {
+    // For shift-based staff, default to 4-on-4-off
+    cycleType = '4-on-4-off';
   }
 
   // Convert custom shift times to HH:mm:ss format or null
@@ -457,7 +508,9 @@ const handleSubmit = () => {
     daysOffset: formData.daysOffset,
     customShiftStart,
     customShiftEnd,
-    useCycleForPermanent: formData.useCycleForPermanent,
+    useCycleForPermanent: formData.useCycleForPermanent,  // DEPRECATED
+    referenceShiftId: formData.referenceShiftId,
+    useContractedHoursForShift: formData.useContractedHoursForShift,
     isActive: true,
   };
 
@@ -492,8 +545,10 @@ watch(() => props.staff, async (newStaff) => {
     formData.daysOffset = newStaff.daysOffset;
     formData.customShiftStart = newStaff.customShiftStart?.substring(0, 5) || '';
     formData.customShiftEnd = newStaff.customShiftEnd?.substring(0, 5) || '';
-    formData.useCycleForPermanent = newStaff.useCycleForPermanent || false;
-    formData.cycleType = newStaff.cycleType || '';
+    formData.useCycleForPermanent = newStaff.useCycleForPermanent || false;  // DEPRECATED
+    formData.referenceShiftId = newStaff.referenceShiftId || null;
+    formData.useContractedHoursForShift = newStaff.useContractedHoursForShift || false;
+    formData.cycleType = newStaff.cycleType || '';  // DEPRECATED
 
     // Load contracted hours
     try {

@@ -637,31 +637,38 @@ export class RotaService {
 
     // If staff has 'No Shift' (shift_id is NULL), check if they use cycle or contracted hours
     if (!staff.shiftId) {
-      // NEW: Check if they use cycle-based calculation for permanent assignments
-      if (staff.useCycleForPermanent && staff.cycleType) {
+      // NEW: Check if they reference a shift's cycle pattern for permanent assignments
+      if (staff.referenceShiftId) {
+        // Fetch the reference shift to get its cycle pattern
+        const referenceShift = await this.shiftRepo.findById(staff.referenceShiftId);
+        if (!referenceShift) {
+          console.warn(`Reference shift ${staff.referenceShiftId} not found for staff ${staff.id}`);
+          return false;
+        }
+
         const appZeroDate = options?.appZeroDate || await this.configRepo.getByKey('app_zero_date') || '2024-01-01';
         const daysSinceZero = daysBetween(appZeroDate, targetDate);
 
-        // Use personal offset for cycle calculation
-        const effectiveOffset = staff.daysOffset || 0;
+        // Use personal offset if set, otherwise use reference shift's offset
+        const effectiveOffset = (staff.daysOffset !== null && staff.daysOffset !== undefined)
+          ? staff.daysOffset
+          : (referenceShift.daysOffset || 0);
+
         const adjustedDays = daysSinceZero - effectiveOffset;
 
-        // Handle different cycle types
-        if (staff.cycleType === '4-on-4-off') {
+        // Use the reference shift's cycle type
+        if (referenceShift.cycleType === '4-on-4-off') {
           // Regular 4-on-4-off pattern (8-day cycle)
           const cyclePosition = adjustedDays % CYCLE_LENGTHS.REGULAR;
           return cyclePosition < 4;
-        } else if (staff.cycleType === '16-day-supervisor') {
+        } else if (referenceShift.cycleType === '16-day-supervisor') {
           // Supervisor 16-day cycle: 4 day / 4 off / 4 night / 4 off
           const cyclePosition = adjustedDays % CYCLE_LENGTHS.SUPERVISOR;
           return cyclePosition < 4 || (cyclePosition >= 8 && cyclePosition < 12);
-        } else if (staff.cycleType === 'relief') {
-          // Relief staff - always available (or handle based on contracted hours)
-          return true;
         }
       }
 
-      // EXISTING: Fall back to contracted hours for other permanent staff
+      // Fall back to contracted hours for permanent staff without reference shift
       let contractedHours: StaffContractedHours[];
       if (options?.contractedHoursMap) {
         contractedHours = options.contractedHoursMap.get(staff.id) || [];
@@ -683,6 +690,29 @@ export class RotaService {
     }
 
     // Check cycle-based schedule for staff with shifts
+    // NEW: Check if shift-based staff use contracted hours instead of cycle
+    if (staff.useContractedHoursForShift) {
+      let contractedHours: StaffContractedHours[];
+      if (options?.contractedHoursMap) {
+        contractedHours = options.contractedHoursMap.get(staff.id) || [];
+      } else {
+        contractedHours = await this.contractedHoursRepo.findByStaff(staff.id);
+      }
+
+      if (contractedHours.length === 0) {
+        // No contracted hours defined, so they're not working
+        return false;
+      }
+
+      // Get day of week for target date (1 = Monday, 7 = Sunday)
+      const dateObj = parseLocalDate(targetDate);
+      const dayOfWeek = dateObj.getDay() === 0 ? 7 : dateObj.getDay();
+
+      // Check if they have contracted hours for this day
+      return contractedHours.some(ch => ch.dayOfWeek === dayOfWeek);
+    }
+
+    // Default: Use shift cycle pattern
     const appZeroDate = options?.appZeroDate || await this.configRepo.getByKey('app_zero_date') || '2024-01-01';
     const daysSinceZero = daysBetween(appZeroDate, targetDate);
 

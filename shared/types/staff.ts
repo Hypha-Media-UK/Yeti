@@ -15,7 +15,9 @@ export interface StaffMember {
   daysOffset: number;
   customShiftStart: string | null;  // Custom shift start time (e.g., "10:00:00")
   customShiftEnd: string | null;    // Custom shift end time (e.g., "22:00:00")
-  useCycleForPermanent: boolean;    // If true, permanent staff use cycle calculation instead of contracted hours
+  useCycleForPermanent: boolean;    // DEPRECATED: Use referenceShiftId instead
+  referenceShiftId: number | null;  // For permanent staff: references a shift whose cycle pattern to use
+  useContractedHoursForShift: boolean; // If true, shift-based staff use contracted hours instead of shift cycle
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
