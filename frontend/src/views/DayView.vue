@@ -16,7 +16,7 @@
 
       <div v-else-if="error" class="error-state">
         <p class="error-message">{{ error }}</p>
-        <button class="btn btn-primary" @click="loadRota">
+        <button class="btn btn-primary" @click="loadDay">
           Retry
         </button>
       </div>
@@ -182,12 +182,11 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useRotaStore } from '@/stores/rota';
+import { useDayStore } from '@/stores/day';
 import { useStaffStore } from '@/stores/staff';
 import { useConfigStore } from '@/stores/config';
 import { useTimeZone } from '@/composables/useTimeZone';
 import { useAbsence } from '@/composables/useAbsence';
-import { api } from '@/services/api';
 import DateSelector from '@/components/DateSelector.vue';
 import ShiftGroup from '@/components/ShiftGroup.vue';
 import TemporaryAssignmentModal from '@/components/TemporaryAssignmentModal.vue';
@@ -200,18 +199,18 @@ import type { CreateAbsenceRequest } from '@shared/types/absence';
 
 const route = useRoute();
 const router = useRouter();
-const rotaStore = useRotaStore();
+const dayStore = useDayStore();
 const staffStore = useStaffStore();
 const configStore = useConfigStore();
 const { getTodayString } = useTimeZone();
 const { isAbsenceActive, formatAbsencePeriod, formatAbsenceDisplay } = useAbsence();
 
 const selectedDate = ref<string>(getTodayString());
-const areas = ref<any[]>([]);
-const isLoading = computed(() => rotaStore.isLoading);
-const error = computed(() => rotaStore.error);
-const dayShifts = computed(() => rotaStore.dayShifts);
-const nightShifts = computed(() => rotaStore.nightShifts);
+const isLoading = computed(() => dayStore.isLoading);
+const error = computed(() => dayStore.error);
+const dayShifts = computed(() => dayStore.dayShifts);
+const nightShifts = computed(() => dayStore.nightShifts);
+const areas = computed(() => dayStore.areas);
 
 // Temporary assignment modal state
 const showTemporaryAssignmentModal = ref(false);
@@ -227,11 +226,11 @@ const selectedStaffForAbsence = ref<ShiftAssignment | null>(null);
 
 // Categorize areas by area type (all areas, regardless of shift)
 const allDepartments = computed(() =>
-  areas.value.filter(a => a.type === 'department')
+  areas.value.filter((a: any) => a.type === 'department')
 );
 
 const allServices = computed(() =>
-  areas.value.filter(a => a.type === 'service')
+  areas.value.filter((a: any) => a.type === 'service')
 );
 
 // Get day of week from date string (ISO 8601: Monday=1, Sunday=7)
@@ -382,10 +381,9 @@ function getStaffStatusClass(contractedHours: any[]): string {
 }
 
 // Watch for date changes and update URL
-watch(selectedDate, (newDate) => {
+watch(selectedDate, async (newDate) => {
   router.push({ name: 'day', params: { date: newDate } });
-  loadRota();
-  loadAreas();
+  await loadDay();
 });
 
 // Watch for route changes
@@ -399,39 +397,11 @@ watch(
   { immediate: true }
 );
 
-async function loadRota() {
-  await rotaStore.fetchRotaForDate(selectedDate.value);
-}
-
-async function loadAreas() {
-  try {
-    const dayOfWeek = getDayOfWeek(selectedDate.value);
-
-    // Phase 1: Load area structure without staff (fast)
-    console.log('[PERF] Loading area structure...');
-    const response = await api.getMainRotaAreasForDay(dayOfWeek, selectedDate.value, false);
-    areas.value = response.areas;
-    console.log(`[PERF] Loaded ${areas.value.length} areas`);
-
-    // Phase 2: Load staff for each area progressively
-    console.log('[PERF] Loading staff for each area...');
-    const staffLoadPromises = areas.value.map(area => loadAreaStaff(area));
-    await Promise.all(staffLoadPromises);
-    console.log('[PERF] All area staff loaded');
-  } catch (err) {
-    console.error('Error loading areas:', err);
-    areas.value = [];
-  }
-}
-
-async function loadAreaStaff(area: any) {
-  try {
-    const response = await api.getAreaStaff(area.type, area.id, selectedDate.value);
-    area.staff = response.staff;
-  } catch (err) {
-    console.error(`Error loading staff for ${area.name}:`, err);
-    area.staff = [];
-  }
+// Load day data (rota + areas) and prefetch adjacent days
+async function loadDay() {
+  await dayStore.loadDay(selectedDate.value);
+  // Prefetch adjacent days in background (non-blocking)
+  dayStore.prefetchAdjacentDays(selectedDate.value);
 }
 
 // Handle staff assignment button click
@@ -496,8 +466,8 @@ async function handleCreateQuickAbsence(data: CreateAbsenceRequest) {
     selectedStaffForAbsence.value = null;
 
     // Clear cache and reload
-    rotaStore.clearCacheForDate(selectedDate.value);
-    await Promise.all([loadRota(), loadAreas()]);
+    dayStore.clearCache([selectedDate.value]);
+    await loadDay();
   } catch (err: any) {
     console.error('Error creating absence:', err);
     alert(err.message || 'Failed to create absence');
@@ -518,8 +488,7 @@ onMounted(async () => {
   await Promise.all([
     configStore.fetchConfig(),
     staffStore.fetchAllStaff(),
-    loadRota(),
-    loadAreas(),
+    loadDay(),
   ]);
 });
 </script>

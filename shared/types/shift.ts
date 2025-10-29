@@ -86,6 +86,22 @@ export interface DayRota {
   nightShifts: ShiftAssignment[];
 }
 
+export interface AreaWithStaff {
+  id: number;
+  name: string;
+  type: 'department' | 'service';
+  buildingId?: number;
+  operationalHours?: any[];
+  staff?: any[];
+}
+
+export interface DaySnapshot {
+  date: string;
+  rota: DayRota;
+  areas: AreaWithStaff[];
+  loadedAt: number; // Timestamp for LRU tracking
+}
+
 export interface ManualAssignment {
   id: number;
   staffId: number;
