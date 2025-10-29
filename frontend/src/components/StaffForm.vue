@@ -46,12 +46,12 @@
         <label for="shift" class="form-label">Shift</label>
         <select
           id="shift"
-          v-model="formData.shiftId"
+          v-model="shiftSelection"
           class="form-input"
         >
-          <option :value="null">No Shift</option>
+          <option value="NO_SHIFT">No Shift</option>
           <option :value="null" disabled>──────────</option>
-          <option :value="'permanent'" disabled>Permanent Assignment</option>
+          <option value="PERMANENT">Permanent Assignment</option>
           <option :value="null" disabled>──────────</option>
           <optgroup label="Day Shifts">
             <option
@@ -73,16 +73,15 @@
           </optgroup>
         </select>
         <p class="form-hint">
-          {{ hasAllocations
-            ? 'This staff member has permanent area assignments. "Permanent Assignment" is shown for reference only.'
-            : 'Select "No Shift" for staff not yet assigned to a rotation, or choose a shift group for pool staff.'
-          }}
+          Select "Permanent Assignment" to assign staff to specific departments/services below.
+          Select a shift to add staff to a rotating shift pool.
+          "No Shift" is for staff not yet configured.
         </p>
       </div>
     </div>
 
-    <!-- Custom Shift Times (only show if staff has a shift) -->
-    <div v-if="formData.shiftId !== null" class="form-group">
+    <!-- Custom Shift Times (only show for shift-based staff) -->
+    <div v-if="showCustomShiftTimes" class="form-group">
       <label class="form-label">Custom Shift Times (Optional)</label>
       <div class="time-range-group">
         <div class="time-input-wrapper">
@@ -111,9 +110,9 @@
       </p>
     </div>
 
-    <!-- Days Offset (only show if staff has a shift) -->
-    <div v-if="formData.shiftId !== null" class="form-group">
-      <label for="daysOffset" class="form-label">Days Offset</label>
+    <!-- Days Offset (only show for shift-based staff) -->
+    <div v-if="showDaysOffset" class="form-group">
+      <label for="daysOffset" class="form-label">Days Offset (Optional)</label>
       <input
         id="daysOffset"
         v-model.number="formData.daysOffset"
@@ -123,12 +122,16 @@
         :max="formData.status === 'Supervisor' ? 15 : 7"
       />
       <p class="form-hint">
-        {{ formData.status === 'Supervisor' ? '0-15 for supervisors (16-day cycle)' : '0-7 for regular staff (8-day cycle)' }}
+        <span v-if="selectedShiftDefaultOffset !== null">
+          Shift default offset: {{ selectedShiftDefaultOffset }}.
+        </span>
+        Leave blank or set to {{ selectedShiftDefaultOffset ?? 0 }} to use shift's default.
+        Set a personal offset if this staff member works different days than the rest of their shift.
       </p>
     </div>
 
-    <!-- Department & Service (side by side) -->
-    <div class="form-row">
+    <!-- Department & Service (only show for permanent assignments, relief, or supervisor) -->
+    <div v-if="showAllocations" class="form-row">
       <div class="form-group">
         <label for="department" class="form-label">Department</label>
         <select
@@ -170,8 +173,8 @@
       </div>
     </div>
 
-    <!-- Contracted Hours -->
-    <div class="form-group">
+    <!-- Contracted Hours (only show for permanent assignments, relief, or supervisor) -->
+    <div v-if="showContractedHours" class="form-group">
       <OperationalHoursEditor
         v-model="formData.contractedHours"
         title="Contracted Hours"
@@ -255,9 +258,59 @@ const formData = reactive({
   contractedHours: [] as HoursEntry[],
 });
 
-// Check if staff has permanent area allocations
-const hasAllocations = computed(() => {
-  return formData.departmentId !== null || formData.serviceId !== null;
+// Computed properties for conditional field visibility
+const showCustomShiftTimes = computed(() => {
+  // Show for Regular staff with a shift assigned (not null, not "No Shift", not "Permanent Assignment")
+  return formData.status === 'Regular' && formData.shiftId !== null;
+});
+
+const showDaysOffset = computed(() => {
+  // Show for Regular staff with a shift assigned
+  return formData.status === 'Regular' && formData.shiftId !== null;
+});
+
+const showAllocations = computed(() => {
+  // Show for Relief, Supervisor, or Regular with "Permanent Assignment"
+  return formData.status === 'Relief' ||
+         formData.status === 'Supervisor' ||
+         (formData.status === 'Regular' && shiftSelection.value === 'PERMANENT');
+});
+
+const showContractedHours = computed(() => {
+  // Show for Relief, Supervisor, or Regular with "Permanent Assignment"
+  return formData.status === 'Relief' ||
+         formData.status === 'Supervisor' ||
+         (formData.status === 'Regular' && shiftSelection.value === 'PERMANENT');
+});
+
+// Get the selected shift's default offset for reference
+const selectedShiftDefaultOffset = computed(() => {
+  if (!formData.shiftId) return null;
+  const shift = shifts.value.find(s => s.id === formData.shiftId);
+  return shift?.daysOffset ?? null;
+});
+
+// Computed property to handle shift selection display
+// This converts between the display value (NO_SHIFT, PERMANENT, or shift ID) and the actual shiftId
+const shiftSelection = computed({
+  get() {
+    if (formData.shiftId === null) {
+      // Determine if this is "No Shift" or "Permanent Assignment" based on allocations
+      // If staff has allocations, it's a permanent assignment
+      if (props.staff?.id && props.staffAllocations && props.staffAllocations.length > 0) {
+        return 'PERMANENT';
+      }
+      return 'NO_SHIFT';
+    }
+    return formData.shiftId;
+  },
+  set(value: string | number) {
+    if (value === 'NO_SHIFT' || value === 'PERMANENT') {
+      formData.shiftId = null;
+    } else {
+      formData.shiftId = value as number;
+    }
+  }
 });
 
 // Organize departments by building for grouped select

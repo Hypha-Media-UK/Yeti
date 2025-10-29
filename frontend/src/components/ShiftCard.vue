@@ -19,7 +19,20 @@
       </span>
     </div>
     <div v-if="staffMembers && staffMembers.length > 0" class="staff-list">
-      <strong>Staff:</strong> {{ staffMembers.map(s => `${s.firstName} ${s.lastName}`).join(', ') }}
+      <div class="staff-list-header">Staff:</div>
+      <ul class="staff-items">
+        <li
+          v-for="staff in staffMembers"
+          :key="staff.id"
+          class="staff-item"
+          @click="$emit('staff-click', staff)"
+        >
+          {{ staff.firstName }} {{ staff.lastName }}
+          <span v-if="hasPersonalOffset(staff)" class="offset-badge">
+            {{ formatOffset(staff) }}
+          </span>
+        </li>
+      </ul>
     </div>
     <div class="shift-actions">
       <button class="btn-icon" @click="$emit('edit', shift)" title="Edit">
@@ -53,12 +66,25 @@ interface Props {
   staffMembers?: StaffMember[];
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
 defineEmits<{
   edit: [shift: Shift];
   delete: [shift: Shift];
+  'staff-click': [staff: StaffMember];
 }>();
+
+// Check if staff has a personal offset different from the shift's default
+const hasPersonalOffset = (staff: StaffMember): boolean => {
+  if (!props.shift.daysOffset && staff.daysOffset === 0) return false;
+  return staff.daysOffset !== props.shift.daysOffset;
+};
+
+// Format the offset for display
+const formatOffset = (staff: StaffMember): string => {
+  const offset = staff.daysOffset;
+  return offset >= 0 ? `+${offset}` : `${offset}`;
+};
 </script>
 
 <style scoped>
@@ -155,11 +181,51 @@ defineEmits<{
 }
 
 .staff-list {
-  font-size: var(--font-size-body-sm);
-  color: var(--color-text-secondary);
   padding-top: var(--spacing-2);
   border-top: 1px solid var(--color-border);
-  line-height: 1.5;
+}
+
+.staff-list-header {
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-1);
+}
+
+.staff-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.staff-item {
+  font-size: var(--font-size-body-sm);
+  padding: 6px 10px;
+  background-color: rgba(156, 163, 175, 0.1);
+  border-radius: var(--radius-button);
+  cursor: pointer;
+  transition: var(--transition-base);
+  color: var(--color-text-primary);
+}
+
+.staff-item:hover {
+  background-color: rgba(156, 163, 175, 0.2);
+  color: var(--color-primary);
+}
+
+.offset-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: var(--font-weight-medium);
+  background-color: rgba(99, 102, 241, 0.15);
+  color: #6366F1;
+  border-radius: 4px;
+  vertical-align: middle;
 }
 
 .shift-actions {

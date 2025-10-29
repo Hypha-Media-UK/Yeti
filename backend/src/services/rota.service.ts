@@ -72,6 +72,7 @@ export class RotaService {
   /**
    * Calculate if a staff member is on duty for a given date based on their cycle
    * Now uses shift.type instead of staff.group
+   * Uses personal offset if set, otherwise uses shift's offset
    */
   private isStaffOnDuty(
     staff: StaffMemberWithShift,
@@ -84,7 +85,13 @@ export class RotaService {
     }
 
     const daysSinceZero = daysBetween(appZeroDate, targetDate);
-    const adjustedDays = daysSinceZero - staff.daysOffset;
+
+    // Use personal offset if set, otherwise use shift's offset
+    const effectiveOffset = (staff.daysOffset !== null && staff.daysOffset !== undefined)
+      ? staff.daysOffset
+      : (staff.shift?.daysOffset || 0);
+
+    const adjustedDays = daysSinceZero - effectiveOffset;
 
     if (staff.status === 'Supervisor') {
       // Supervisor pattern: 4 days / 4 off / 4 nights / 4 off (16-day cycle)
@@ -659,7 +666,13 @@ export class RotaService {
       return false;
     }
 
-    const adjustedDays = daysSinceZero - (staff.daysOffset || 0);
+    // Use personal offset if set, otherwise use shift's offset
+    // This allows staff to "straddle" shifts with their own personal offset
+    const effectiveOffset = (staff.daysOffset !== null && staff.daysOffset !== undefined)
+      ? staff.daysOffset
+      : (staff.shift?.daysOffset || 0);
+
+    const adjustedDays = daysSinceZero - effectiveOffset;
 
     if (staff.status === 'Supervisor') {
       // 16-day cycle: 4 day / 4 off / 4 night / 4 off

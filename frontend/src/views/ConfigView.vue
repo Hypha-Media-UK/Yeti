@@ -146,6 +146,7 @@
               :staff-members="staffByShift.get(shift.id)"
               @edit="openEditShiftModal"
               @delete="confirmDeleteShift"
+              @staff-click="openEditStaffModal"
             />
           </div>
           <p v-else class="empty-state">No shifts</p>
@@ -161,9 +162,16 @@
                 <span v-if="area.buildingName" class="building-name">({{ area.buildingName }})</span>
                 <span class="area-type-badge">{{ area.areaType === 'department' ? 'Department' : 'Service' }}</span>
               </h3>
-              <p class="staff-names">
-                {{ area.staff.map(s => `${s.firstName} ${s.lastName}`).join(', ') }}
-              </p>
+              <ul class="staff-items">
+                <li
+                  v-for="staff in area.staff"
+                  :key="staff.id"
+                  class="staff-item"
+                  @click="openEditStaffModal(staff)"
+                >
+                  {{ staff.firstName }} {{ staff.lastName }}
+                </li>
+              </ul>
             </div>
           </div>
           <p v-else class="empty-state">No permanently assigned staff</p>
@@ -951,11 +959,28 @@ onMounted(() => {
   color: #6366F1;
 }
 
-.staff-names {
-  font-size: var(--font-size-body);
-  color: var(--color-text-secondary);
+.staff-items {
+  list-style: none;
+  padding: 0;
   margin: 0;
-  line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.staff-item {
+  font-size: var(--font-size-body-sm);
+  padding: 6px 10px;
+  background-color: rgba(156, 163, 175, 0.1);
+  border-radius: var(--radius-button);
+  cursor: pointer;
+  transition: var(--transition-base);
+  color: var(--color-text-primary);
+}
+
+.staff-item:hover {
+  background-color: rgba(156, 163, 175, 0.2);
+  color: var(--color-primary);
 }
 
 .empty-state {
