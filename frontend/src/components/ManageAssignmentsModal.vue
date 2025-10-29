@@ -140,6 +140,8 @@ const handleDelete = async (assignmentId: number) => {
     assignments.value = assignments.value.filter(a => a.id !== assignmentId);
     // Notify parent to refresh
     emit('deleted');
+    // Reload assignments to ensure we have the latest data
+    await loadAssignments();
   } catch (err) {
     console.error('Error deleting assignment:', err);
     alert('Failed to delete assignment');
