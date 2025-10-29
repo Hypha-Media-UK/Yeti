@@ -87,12 +87,30 @@
           type="checkbox"
           v-model="formData.useCycleForPermanent"
         />
-        <span>Use 4-on-4-off cycle pattern (instead of contracted hours)</span>
+        <span>Use shift cycle pattern (instead of contracted hours)</span>
       </label>
       <p class="form-hint">
-        Enable this if the staff member works a regular 4-on-4-off rotation
-        but is permanently assigned to specific areas. When enabled, you can set
-        their cycle offset below instead of defining contracted hours.
+        Enable this if the staff member works a regular cycle rotation
+        but is permanently assigned to specific areas. When enabled, you can select
+        their cycle type and set their offset below instead of defining contracted hours.
+      </p>
+    </div>
+
+    <!-- Cycle Type Selection (only show when cycle is enabled for permanent staff) -->
+    <div v-if="shiftSelection === 'PERMANENT' && formData.useCycleForPermanent" class="form-group">
+      <label for="cycleType">Cycle Type <span class="required">*</span></label>
+      <select
+        id="cycleType"
+        v-model="formData.cycleType"
+        required
+      >
+        <option value="">Select cycle type...</option>
+        <option value="4-on-4-off">4-on-4-off (8-day cycle)</option>
+        <option value="16-day-supervisor">16-day Supervisor (4 day / 4 off / 4 night / 4 off)</option>
+        <option value="relief">Relief</option>
+      </select>
+      <p class="form-hint">
+        Select the cycle pattern this staff member follows.
       </p>
     </div>
 
@@ -276,6 +294,7 @@ const formData = reactive({
   customShiftStart: props.staff?.customShiftStart?.substring(0, 5) || '',  // Convert "HH:mm:ss" to "HH:mm"
   customShiftEnd: props.staff?.customShiftEnd?.substring(0, 5) || '',      // Convert "HH:mm:ss" to "HH:mm"
   useCycleForPermanent: props.staff?.useCycleForPermanent || false,
+  cycleType: (props.staff?.cycleType || '') as CycleType | '',
   contractedHours: [] as HoursEntry[],
 });
 
@@ -410,8 +429,20 @@ const handleSubmit = () => {
 
   loading.value = true;
 
-  const cycleType = formData.status === 'Supervisor' ? 'supervisor' :
-                    formData.status === 'Regular' ? '4-on-4-off' : null;
+  // Determine cycle type based on status and permanent cycle settings
+  let cycleType: CycleType | '' = null;
+
+  if (formData.status === 'Supervisor') {
+    cycleType = '16-day-supervisor';
+  } else if (formData.status === 'Regular') {
+    if (formData.useCycleForPermanent && formData.cycleType) {
+      // Use the selected cycle type for permanent staff
+      cycleType = formData.cycleType;
+    } else if (formData.shiftId) {
+      // For shift-based staff, default to 4-on-4-off
+      cycleType = '4-on-4-off';
+    }
+  }
 
   // Convert custom shift times to HH:mm:ss format or null
   const customShiftStart = formData.customShiftStart ? `${formData.customShiftStart}:00` : null;
@@ -422,7 +453,7 @@ const handleSubmit = () => {
     lastName: formData.lastName.trim(),
     status: formData.status,
     shiftId: formData.status === 'Regular' ? formData.shiftId : null,
-    cycleType,
+    cycleType: cycleType || null,
     daysOffset: formData.daysOffset,
     customShiftStart,
     customShiftEnd,
@@ -462,6 +493,7 @@ watch(() => props.staff, async (newStaff) => {
     formData.customShiftStart = newStaff.customShiftStart?.substring(0, 5) || '';
     formData.customShiftEnd = newStaff.customShiftEnd?.substring(0, 5) || '';
     formData.useCycleForPermanent = newStaff.useCycleForPermanent || false;
+    formData.cycleType = newStaff.cycleType || '';
 
     // Load contracted hours
     try {

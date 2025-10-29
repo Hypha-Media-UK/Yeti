@@ -3,7 +3,7 @@ import type { Shift } from './shift';
 import type { Absence } from './absence';
 
 export type StaffStatus = 'Regular' | 'Relief' | 'Supervisor';
-export type CycleType = '4-on-4-off' | 'supervisor' | null;
+export type CycleType = '4-on-4-off' | '16-day-supervisor' | 'relief' | null;
 
 export interface StaffMember {
   id: number;

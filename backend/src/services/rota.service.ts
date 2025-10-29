@@ -638,7 +638,7 @@ export class RotaService {
     // If staff has 'No Shift' (shift_id is NULL), check if they use cycle or contracted hours
     if (!staff.shiftId) {
       // NEW: Check if they use cycle-based calculation for permanent assignments
-      if (staff.useCycleForPermanent && staff.cycleType === '4-on-4-off') {
+      if (staff.useCycleForPermanent && staff.cycleType) {
         const appZeroDate = options?.appZeroDate || await this.configRepo.getByKey('app_zero_date') || '2024-01-01';
         const daysSinceZero = daysBetween(appZeroDate, targetDate);
 
@@ -646,9 +646,19 @@ export class RotaService {
         const effectiveOffset = staff.daysOffset || 0;
         const adjustedDays = daysSinceZero - effectiveOffset;
 
-        // Regular 4-on-4-off pattern
-        const cyclePosition = adjustedDays % CYCLE_LENGTHS.REGULAR;
-        return cyclePosition < 4;
+        // Handle different cycle types
+        if (staff.cycleType === '4-on-4-off') {
+          // Regular 4-on-4-off pattern (8-day cycle)
+          const cyclePosition = adjustedDays % CYCLE_LENGTHS.REGULAR;
+          return cyclePosition < 4;
+        } else if (staff.cycleType === '16-day-supervisor') {
+          // Supervisor 16-day cycle: 4 day / 4 off / 4 night / 4 off
+          const cyclePosition = adjustedDays % CYCLE_LENGTHS.SUPERVISOR;
+          return cyclePosition < 4 || (cyclePosition >= 8 && cyclePosition < 12);
+        } else if (staff.cycleType === 'relief') {
+          // Relief staff - always available (or handle based on contracted hours)
+          return true;
+        }
       }
 
       // EXISTING: Fall back to contracted hours for other permanent staff
