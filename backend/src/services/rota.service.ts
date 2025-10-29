@@ -665,6 +665,18 @@ export class RotaService {
           // Supervisor 16-day cycle: 4 day / 4 off / 4 night / 4 off
           const cyclePosition = adjustedDays % CYCLE_LENGTHS.SUPERVISOR;
           return cyclePosition < 4 || (cyclePosition >= 8 && cyclePosition < 12);
+        } else if (referenceShift.cycleType === 'relief') {
+          // Relief staff have no cycle pattern - they work based on manual assignments only
+          // If we're checking cycle-based work, they're not working (manual assignments are checked earlier)
+          return false;
+        } else if (referenceShift.cycleType === 'fixed') {
+          // Fixed schedule staff should use fixed_schedules table, not cycle patterns
+          // For now, return false (fixed schedules are handled separately)
+          return false;
+        } else {
+          // Unknown cycle type for reference shift - log warning and return false
+          console.warn(`Unknown cycle type '${referenceShift.cycleType}' for reference shift ${referenceShift.id} (${referenceShift.name})`);
+          return false;
         }
       }
 
