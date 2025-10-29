@@ -1,5 +1,6 @@
 <template>
   <form @submit.prevent="handleSubmit" class="staff-form">
+    <!-- SECTION 1: Basic Info -->
     <!-- First Name & Last Name (side by side) -->
     <div class="form-row">
       <div class="form-group">
@@ -25,7 +26,7 @@
       </div>
     </div>
 
-    <!-- Status & Shift (side by side) -->
+    <!-- Status & Permanent Assignment (side by side) -->
     <div class="form-row">
       <div class="form-group">
         <label for="status" class="form-label">Status *</label>
@@ -43,163 +44,20 @@
       </div>
 
       <div v-if="formData.status === 'Regular'" class="form-group">
-        <label for="shift" class="form-label">Shift</label>
-        <select
-          id="shift"
-          v-model="shiftSelection"
-          class="form-input"
-        >
-          <option value="NO_SHIFT">No Shift</option>
-          <option :value="null" disabled>──────────</option>
-          <option value="PERMANENT">Permanent Assignment</option>
-          <option :value="null" disabled>──────────</option>
-          <optgroup label="Day Shifts">
-            <option
-              v-for="shift in dayShifts"
-              :key="shift.id"
-              :value="shift.id"
-            >
-              {{ shift.name }}
-            </option>
-          </optgroup>
-          <optgroup label="Night Shifts">
-            <option
-              v-for="shift in nightShifts"
-              :key="shift.id"
-              :value="shift.id"
-            >
-              {{ shift.name }}
-            </option>
-          </optgroup>
-        </select>
+        <label class="checkbox-label">
+          <input
+            type="checkbox"
+            v-model="formData.permanentAssignment"
+          />
+          <span>Permanent Assignment</span>
+        </label>
         <p class="form-hint">
-          Select "Permanent Assignment" to assign staff to specific departments/services below.
-          Select a shift to add staff to a rotating shift pool.
-          "No Shift" is for staff not yet configured.
+          Check this to assign staff to specific departments/services.
         </p>
       </div>
     </div>
 
-    <!-- Reference Shift for Permanent Assignment (only show for permanent assignments) -->
-    <div v-if="shiftSelection === 'PERMANENT'" class="form-group">
-      <label class="checkbox-label">
-        <input
-          type="checkbox"
-          v-model="useReferenceShift"
-        />
-        <span>Use shift cycle pattern (instead of contracted hours)</span>
-      </label>
-      <p class="form-hint">
-        Enable this if the staff member works a regular cycle rotation
-        but is permanently assigned to specific areas. When enabled, you can select
-        a shift whose cycle pattern they follow.
-      </p>
-    </div>
-
-    <!-- Reference Shift Selection (only show when cycle is enabled for permanent staff) -->
-    <div v-if="shiftSelection === 'PERMANENT' && useReferenceShift" class="form-group">
-      <label for="referenceShift">Reference Shift <span class="required">*</span></label>
-      <select
-        id="referenceShift"
-        v-model="formData.referenceShiftId"
-        required
-      >
-        <option :value="null">Select shift...</option>
-        <optgroup label="Day Shifts">
-          <option
-            v-for="shift in dayShifts"
-            :key="shift.id"
-            :value="shift.id"
-          >
-            {{ shift.name }}
-          </option>
-        </optgroup>
-        <optgroup label="Night Shifts">
-          <option
-            v-for="shift in nightShifts"
-            :key="shift.id"
-            :value="shift.id"
-          >
-            {{ shift.name }}
-          </option>
-        </optgroup>
-      </select>
-      <p class="form-hint">
-        Select the shift whose cycle pattern this staff member follows.
-        They will appear in their permanent allocations, NOT in the shift pool.
-      </p>
-    </div>
-
-    <!-- Use Contracted Hours for Shift Staff (only show for shift-based staff) -->
-    <div v-if="formData.status === 'Regular' && formData.shiftId !== null" class="form-group">
-      <label class="checkbox-label">
-        <input
-          type="checkbox"
-          v-model="formData.useContractedHoursForShift"
-        />
-        <span>Use contracted hours instead of shift cycle</span>
-      </label>
-      <p class="form-hint">
-        Enable this if the staff member is in a shift pool but works custom days
-        instead of following the shift's cycle pattern. They will still appear in the shift pool.
-      </p>
-    </div>
-
-    <!-- Custom Shift Times (only show for shift-based staff not using contracted hours) -->
-    <div v-if="showCustomShiftTimes" class="form-group">
-      <label class="form-label">Custom Shift Times (Optional)</label>
-      <div class="time-range-group">
-        <div class="time-input-wrapper">
-          <label for="customShiftStart" class="time-label">Start Time</label>
-          <input
-            id="customShiftStart"
-            v-model="formData.customShiftStart"
-            type="time"
-            class="form-input"
-            placeholder="HH:mm"
-          />
-        </div>
-        <div class="time-input-wrapper">
-          <label for="customShiftEnd" class="time-label">End Time</label>
-          <input
-            id="customShiftEnd"
-            v-model="formData.customShiftEnd"
-            type="time"
-            class="form-input"
-            placeholder="HH:mm"
-          />
-        </div>
-      </div>
-      <p class="form-hint">
-        Leave blank to use default shift times. Set custom times for staff with non-standard hours (e.g., 10:00-22:00).
-      </p>
-    </div>
-
-    <!-- Days Offset (only show for shift-based staff or permanent with cycle) -->
-    <div v-if="showDaysOffset" class="form-group">
-      <label for="daysOffset" class="form-label">Days Offset</label>
-      <input
-        id="daysOffset"
-        v-model.number="formData.daysOffset"
-        type="number"
-        class="form-input"
-        min="0"
-        :max="formData.status === 'Supervisor' ? 15 : 7"
-      />
-      <p class="form-hint">
-        <span v-if="formData.referenceShiftId !== null && shiftSelection === 'PERMANENT'">
-          Set the offset for this staff member's cycle (0-7 for 8-day cycles, 0-15 for 16-day cycles).
-          This determines which days they work in the rotation.
-        </span>
-        <span v-else-if="selectedShiftDefaultOffset !== null">
-          Shift default offset: {{ selectedShiftDefaultOffset }}.
-          Leave blank or set to {{ selectedShiftDefaultOffset ?? 0 }} to use shift's default.
-          Set a personal offset if this staff member works different days than the rest of their shift.
-        </span>
-      </p>
-    </div>
-
-    <!-- Department & Service (only show for permanent assignments, relief, or supervisor) -->
+    <!-- SECTION 2: Permanent Assignment Areas (only if checkbox checked) -->
     <div v-if="showAllocations" class="form-row">
       <div class="form-group">
         <label for="department" class="form-label">Department</label>
@@ -231,7 +89,7 @@
         >
           <option :value="null">No Service</option>
           <option
-            v-for="service in services"
+            v-for="service in props.services"
             :key="service.id"
             :value="service.id"
           >
@@ -240,6 +98,121 @@
         </select>
         <p class="form-hint">Optional: Assign staff to a specific service</p>
       </div>
+    </div>
+
+    <!-- SECTION 3: Shift Assignment -->
+    <div v-if="formData.status === 'Regular'" class="form-row">
+      <div class="form-group">
+        <label for="shift" class="form-label">Shift</label>
+        <select
+          id="shift"
+          v-model="formData.shiftId"
+          class="form-input"
+        >
+          <option :value="null">No Shift</option>
+          <option :value="null" disabled>──────────</option>
+          <optgroup label="Day Shifts">
+            <option
+              v-for="shift in dayShifts"
+              :key="shift.id"
+              :value="shift.id"
+            >
+              {{ shift.name }}
+            </option>
+          </optgroup>
+          <optgroup label="Night Shifts">
+            <option
+              v-for="shift in nightShifts"
+              :key="shift.id"
+              :value="shift.id"
+            >
+              {{ shift.name }}
+            </option>
+          </optgroup>
+        </select>
+        <p class="form-hint">
+          Select a shift to use its cycle pattern for determining working days.
+          Leave as "No Shift" to use contracted hours instead.
+        </p>
+      </div>
+
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input
+            type="checkbox"
+            v-model="formData.useContractedHours"
+            :disabled="isContractedHoursDisabled"
+          />
+          <span>Contracted Hours</span>
+        </label>
+        <p class="form-hint">
+          Check this to define custom working days/hours.
+          {{ isContractedHoursDisabled ? '(Disabled when shift is selected)' : '' }}
+        </p>
+      </div>
+    </div>
+
+    <!-- Adjust Start and End Time (only show for shift-based staff) -->
+    <div v-if="showAdjustShiftTimes" class="form-group">
+      <label class="checkbox-label">
+        <input
+          type="checkbox"
+          v-model="formData.adjustShiftTimes"
+        />
+        <span>Adjust Start and End Time</span>
+      </label>
+      <p class="form-hint">
+        Check this for staff who work the shift pattern but have slightly different hours
+        (e.g., phased return to work, part-time hours).
+      </p>
+    </div>
+
+    <!-- Custom Shift Times (only show when "Adjust Start and End Time" is checked) -->
+    <div v-if="showCustomShiftTimes" class="form-group">
+      <label class="form-label">Custom Shift Times</label>
+      <div class="time-range-group">
+        <div class="time-input-wrapper">
+          <label for="customShiftStart" class="time-label">Start Time</label>
+          <input
+            id="customShiftStart"
+            v-model="formData.customShiftStart"
+            type="time"
+            class="form-input"
+            placeholder="HH:mm"
+          />
+        </div>
+        <div class="time-input-wrapper">
+          <label for="customShiftEnd" class="time-label">End Time</label>
+          <input
+            id="customShiftEnd"
+            v-model="formData.customShiftEnd"
+            type="time"
+            class="form-input"
+            placeholder="HH:mm"
+          />
+        </div>
+      </div>
+      <p class="form-hint">
+        Set custom start and end times for this staff member.
+      </p>
+    </div>
+
+    <!-- Days Offset (only show for shift-based staff) -->
+    <div v-if="showDaysOffset" class="form-group">
+      <label for="daysOffset" class="form-label">Days Offset</label>
+      <input
+        id="daysOffset"
+        v-model.number="formData.daysOffset"
+        type="number"
+        class="form-input"
+        min="0"
+        :max="formData.status === 'Supervisor' ? 15 : 7"
+      />
+      <p class="form-hint">
+        Shift default offset: {{ selectedShiftDefaultOffset ?? 0 }}.
+        Leave blank or set to {{ selectedShiftDefaultOffset ?? 0 }} to use shift's default.
+        Set a personal offset if this staff member works different days than the rest of their shift.
+      </p>
     </div>
 
     <!-- Contracted Hours (only show for permanent assignments, relief, or supervisor) -->
@@ -318,62 +291,44 @@ const formData = reactive({
   firstName: props.staff?.firstName || '',
   lastName: props.staff?.lastName || '',
   status: (props.staff?.status || 'Regular') as StaffStatus,
+  permanentAssignment: false,  // Will be set in watch
   shiftId: props.staff?.shiftId || null as number | null,
   departmentId: null as number | null,
   serviceId: null as number | null,
+  useContractedHours: false,  // Will be set in watch
+  adjustShiftTimes: false,  // Will be set based on customShiftStart/End
   daysOffset: props.staff?.daysOffset || 0,
   customShiftStart: props.staff?.customShiftStart?.substring(0, 5) || '',  // Convert "HH:mm:ss" to "HH:mm"
   customShiftEnd: props.staff?.customShiftEnd?.substring(0, 5) || '',      // Convert "HH:mm:ss" to "HH:mm"
-  useCycleForPermanent: props.staff?.useCycleForPermanent || false,  // DEPRECATED
-  referenceShiftId: props.staff?.referenceShiftId || null as number | null,
-  useContractedHoursForShift: props.staff?.useContractedHoursForShift || false,
-  cycleType: (props.staff?.cycleType || '') as CycleType | '',  // DEPRECATED
   contractedHours: [] as HoursEntry[],
 });
 
-// Computed property to determine if reference shift is being used
-const useReferenceShift = computed({
-  get() {
-    return formData.referenceShiftId !== null;
-  },
-  set(value: boolean) {
-    if (!value) {
-      formData.referenceShiftId = null;
-    }
-  }
+// Computed properties for conditional field visibility
+const showAllocations = computed(() => {
+  // Show for Relief, Supervisor, or Regular with "Permanent Assignment" checked
+  return formData.status === 'Relief' ||
+         formData.status === 'Supervisor' ||
+         (formData.status === 'Regular' && formData.permanentAssignment);
 });
 
-// Computed properties for conditional field visibility
+const isContractedHoursDisabled = computed(() => {
+  // Contracted hours checkbox is disabled when a shift is selected
+  return formData.shiftId !== null;
+});
+
+const showAdjustShiftTimes = computed(() => {
+  // Show "Adjust Start and End Time" checkbox only when shift is selected
+  return formData.status === 'Regular' && formData.shiftId !== null;
+});
+
 const showCustomShiftTimes = computed(() => {
-  // Show for Regular staff with a shift assigned (not using contracted hours)
-  return formData.status === 'Regular' &&
-         formData.shiftId !== null &&
-         !formData.useContractedHoursForShift;
+  // Show custom shift times only when "Adjust Start and End Time" is checked
+  return formData.adjustShiftTimes && formData.shiftId !== null;
 });
 
 const showDaysOffset = computed(() => {
-  // Show for Regular staff with a shift assigned (not using contracted hours)
-  if (formData.status === 'Regular' &&
-      formData.shiftId !== null &&
-      !formData.useContractedHoursForShift) {
-    return true;
-  }
-
-  // Also show for permanent staff using reference shift
-  if (formData.status === 'Regular' &&
-      shiftSelection.value === 'PERMANENT' &&
-      formData.referenceShiftId !== null) {
-    return true;
-  }
-
-  return false;
-});
-
-const showAllocations = computed(() => {
-  // Show for Relief, Supervisor, or Regular with "Permanent Assignment"
-  return formData.status === 'Relief' ||
-         formData.status === 'Supervisor' ||
-         (formData.status === 'Regular' && shiftSelection.value === 'PERMANENT');
+  // Show days offset only when shift is selected
+  return formData.status === 'Regular' && formData.shiftId !== null;
 });
 
 const showContractedHours = computed(() => {
@@ -382,16 +337,9 @@ const showContractedHours = computed(() => {
     return true;
   }
 
-  // Show for shift-based staff using contracted hours
-  if (formData.status === 'Regular' &&
-      formData.shiftId !== null &&
-      formData.useContractedHoursForShift) {
+  // Show for Regular staff when "Contracted Hours" checkbox is checked
+  if (formData.status === 'Regular' && formData.useContractedHours) {
     return true;
-  }
-
-  // For permanent assignments, only show if NOT using reference shift
-  if (formData.status === 'Regular' && shiftSelection.value === 'PERMANENT') {
-    return formData.referenceShiftId === null;
   }
 
   return false;
@@ -402,29 +350,6 @@ const selectedShiftDefaultOffset = computed(() => {
   if (!formData.shiftId) return null;
   const shift = shifts.value.find(s => s.id === formData.shiftId);
   return shift?.daysOffset ?? null;
-});
-
-// Computed property to handle shift selection display
-// This converts between the display value (NO_SHIFT, PERMANENT, or shift ID) and the actual shiftId
-const shiftSelection = computed({
-  get() {
-    if (formData.shiftId === null) {
-      // Determine if this is "No Shift" or "Permanent Assignment" based on allocations
-      // If staff has allocations, it's a permanent assignment
-      if (props.staff?.id && props.staffAllocations && props.staffAllocations.length > 0) {
-        return 'PERMANENT';
-      }
-      return 'NO_SHIFT';
-    }
-    return formData.shiftId;
-  },
-  set(value: string | number) {
-    if (value === 'NO_SHIFT' || value === 'PERMANENT') {
-      formData.shiftId = null;
-    } else {
-      formData.shiftId = value as number;
-    }
-  }
 });
 
 // Organize departments by building for grouped select
@@ -475,22 +400,47 @@ const handleSubmit = () => {
     allocations.push({ areaType: 'service', areaId: formData.serviceId });
   }
 
-  // Validation: Regular staff must have either a shift OR permanent allocations
-  if (formData.status === 'Regular') {
-    if (!formData.shiftId && allocations.length === 0) {
-      error.value = 'Regular staff must either be assigned to a shift (for pool staff) or have permanent area assignments.';
+  // Validation: Regular staff with permanent assignment must have allocations OR contracted hours
+  if (formData.status === 'Regular' && formData.permanentAssignment) {
+    if (allocations.length === 0) {
+      error.value = 'Permanent assignment requires at least one department or service allocation.';
+      return;
+    }
+    if (!formData.shiftId && !formData.useContractedHours) {
+      error.value = 'Permanent assignment requires either a shift (for cycle pattern) or contracted hours.';
       return;
     }
   }
 
   loading.value = true;
 
+  // Map UI state to database fields
+  let shiftId: number | null = null;
+  let referenceShiftId: number | null = null;
+  let useContractedHoursForShift = false;
+
+  if (formData.status === 'Regular') {
+    if (formData.permanentAssignment && formData.shiftId) {
+      // Permanent assignment with shift cycle pattern
+      referenceShiftId = formData.shiftId;
+      shiftId = null;  // Not in shift pool
+    } else if (!formData.permanentAssignment && formData.shiftId) {
+      // Pool staff assigned to shift
+      shiftId = formData.shiftId;
+      referenceShiftId = null;
+    } else {
+      // No shift selected
+      shiftId = null;
+      referenceShiftId = null;
+    }
+  }
+
   // Determine cycle type based on status (DEPRECATED - kept for backward compatibility)
   let cycleType: CycleType | '' = null;
 
   if (formData.status === 'Supervisor') {
     cycleType = '16-day-supervisor';
-  } else if (formData.status === 'Regular' && formData.shiftId) {
+  } else if (formData.status === 'Regular' && shiftId) {
     // For shift-based staff, default to 4-on-4-off
     cycleType = '4-on-4-off';
   }
@@ -503,14 +453,14 @@ const handleSubmit = () => {
     firstName: formData.firstName.trim(),
     lastName: formData.lastName.trim(),
     status: formData.status,
-    shiftId: formData.status === 'Regular' ? formData.shiftId : null,
+    shiftId,
     cycleType: cycleType || null,
     daysOffset: formData.daysOffset,
     customShiftStart,
     customShiftEnd,
-    useCycleForPermanent: formData.useCycleForPermanent,  // DEPRECATED
-    referenceShiftId: formData.referenceShiftId,
-    useContractedHoursForShift: formData.useContractedHoursForShift,
+    useCycleForPermanent: false,  // DEPRECATED
+    referenceShiftId,
+    useContractedHoursForShift,
     isActive: true,
   };
 
@@ -541,14 +491,38 @@ watch(() => props.staff, async (newStaff) => {
     formData.firstName = newStaff.firstName;
     formData.lastName = newStaff.lastName;
     formData.status = newStaff.status;
-    formData.shiftId = newStaff.shiftId;
     formData.daysOffset = newStaff.daysOffset;
     formData.customShiftStart = newStaff.customShiftStart?.substring(0, 5) || '';
     formData.customShiftEnd = newStaff.customShiftEnd?.substring(0, 5) || '';
-    formData.useCycleForPermanent = newStaff.useCycleForPermanent || false;  // DEPRECATED
-    formData.referenceShiftId = newStaff.referenceShiftId || null;
-    formData.useContractedHoursForShift = newStaff.useContractedHoursForShift || false;
-    formData.cycleType = newStaff.cycleType || '';  // DEPRECATED
+
+    // Determine UI state from database fields
+    // If referenceShiftId is set, this is permanent assignment with shift cycle
+    if (newStaff.referenceShiftId) {
+      formData.permanentAssignment = true;
+      formData.shiftId = newStaff.referenceShiftId;  // Show the reference shift in dropdown
+      formData.useContractedHours = false;
+    }
+    // If shiftId is set, this is pool staff
+    else if (newStaff.shiftId) {
+      formData.permanentAssignment = false;
+      formData.shiftId = newStaff.shiftId;
+      formData.useContractedHours = false;
+    }
+    // Otherwise, check if they have allocations (permanent without shift)
+    else if (props.staffAllocations && props.staffAllocations.length > 0) {
+      formData.permanentAssignment = true;
+      formData.shiftId = null;
+      formData.useContractedHours = true;  // They must be using contracted hours
+    }
+    // No shift, no allocations
+    else {
+      formData.permanentAssignment = false;
+      formData.shiftId = null;
+      formData.useContractedHours = false;
+    }
+
+    // Set adjustShiftTimes based on whether custom times are set
+    formData.adjustShiftTimes = !!(newStaff.customShiftStart || newStaff.customShiftEnd);
 
     // Load contracted hours
     try {
@@ -559,6 +533,11 @@ watch(() => props.staff, async (newStaff) => {
         startTime: h.startTime.substring(0, 5), // Convert "HH:mm:ss" to "HH:mm"
         endTime: h.endTime.substring(0, 5),
       }));
+
+      // If they have contracted hours, set the checkbox
+      if (formData.contractedHours.length > 0 && !formData.shiftId) {
+        formData.useContractedHours = true;
+      }
     } catch (error) {
       console.error('Failed to load contracted hours:', error);
       formData.contractedHours = [];
@@ -578,16 +557,28 @@ watch(() => props.staffAllocations, (allocations) => {
     // Find service allocation
     const serviceAlloc = allocations.find(a => a.areaType === 'service');
     formData.serviceId = serviceAlloc ? serviceAlloc.areaId : null;
+
+    // If staff has allocations, set permanent assignment checkbox
+    if (props.staff?.id) {
+      formData.permanentAssignment = true;
+    }
   } else {
     formData.departmentId = null;
     formData.serviceId = null;
   }
 }, { immediate: true });
 
-// Reset daysOffset and custom times when 'No Shift' is selected
+// Watch for shift selection changes
 watch(() => formData.shiftId, (newShiftId) => {
+  // When shift is selected, disable contracted hours checkbox
+  if (newShiftId !== null) {
+    formData.useContractedHours = false;
+  }
+
+  // When "No Shift" is selected, reset days offset and custom times
   if (newShiftId === null) {
     formData.daysOffset = 0;
+    formData.adjustShiftTimes = false;
     formData.customShiftStart = '';
     formData.customShiftEnd = '';
   }
