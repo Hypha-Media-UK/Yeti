@@ -187,7 +187,7 @@ import { useStaffStore } from '@/stores/staff';
 import { useConfigStore } from '@/stores/config';
 import { useTimeZone } from '@/composables/useTimeZone';
 import { useAbsence } from '@/composables/useAbsence';
-import api from '@/services/api';
+import { api } from '@/services/api';
 import DateSelector from '@/components/DateSelector.vue';
 import ShiftGroup from '@/components/ShiftGroup.vue';
 import TemporaryAssignmentModal from '@/components/TemporaryAssignmentModal.vue';
