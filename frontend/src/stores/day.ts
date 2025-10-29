@@ -13,10 +13,11 @@ function debug(message: string, ...args: any[]) {
   if (DEBUG) console.log(message, ...args);
 }
 
-// Helper: Get day of week (0 = Sunday, 1 = Monday, etc.)
+// Helper: Get day of week (ISO 8601: Monday=1, Sunday=7)
 function getDayOfWeek(dateStr: string): number {
   const date = new Date(dateStr + 'T00:00:00');
-  return date.getDay();
+  const jsDay = date.getDay(); // JavaScript: Sunday=0, Monday=1, ..., Saturday=6
+  return jsDay === 0 ? 7 : jsDay; // Convert to ISO 8601: Monday=1, Sunday=7
 }
 
 // Helper: Add days to a date string
