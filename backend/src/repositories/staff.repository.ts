@@ -202,7 +202,7 @@ export class StaffRepository {
       .from('staff')
       .select(`
         *,
-        shifts (
+        shifts!shift_id (
           id,
           name,
           type,
@@ -269,7 +269,7 @@ export class StaffRepository {
       .from('staff')
       .select(`
         *,
-        shifts (
+        shifts!shift_id (
           id,
           name,
           type,
