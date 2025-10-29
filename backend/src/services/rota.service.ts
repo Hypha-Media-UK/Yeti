@@ -649,10 +649,12 @@ export class RotaService {
         const appZeroDate = options?.appZeroDate || await this.configRepo.getByKey('app_zero_date') || '2024-01-01';
         const daysSinceZero = daysBetween(appZeroDate, targetDate);
 
-        // Use personal offset if set, otherwise use reference shift's offset
-        const effectiveOffset = (staff.daysOffset !== null && staff.daysOffset !== undefined)
-          ? staff.daysOffset
-          : (referenceShift.daysOffset || 0);
+        // For staff with reference shifts, use the reference shift's offset by default
+        // Personal offset (staff.daysOffset) is only used for special cases like "straddling" shifts
+        // where the staff member needs a different offset than their reference shift
+        // Since 0 is a valid offset value, we can't distinguish between "not set" and "set to 0"
+        // So we default to using the reference shift's offset for reference shift staff
+        const effectiveOffset = referenceShift.daysOffset || 0;
 
         const adjustedDays = daysSinceZero - effectiveOffset;
 
