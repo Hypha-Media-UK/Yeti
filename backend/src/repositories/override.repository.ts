@@ -85,12 +85,15 @@ export class OverrideRepository {
   }
 
   async create(assignment: Omit<ManualAssignment, 'id' | 'createdAt' | 'updatedAt'>): Promise<ManualAssignment> {
+    // Convert lowercase shift type to capitalized for database enum
+    const dbShiftType = assignment.shiftType === 'day' ? 'Day' : 'Night';
+
     const { data, error } = await supabase
       .from('manual_assignments')
       .insert({
         staff_id: assignment.staffId,
         assignment_date: assignment.assignmentDate,
-        shift_type: assignment.shiftType,
+        shift_type: dbShiftType,
         area_type: assignment.areaType,
         area_id: assignment.areaId,
         shift_start: assignment.shiftStart,
