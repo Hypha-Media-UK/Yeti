@@ -43,16 +43,16 @@
       </div>
 
       <div v-if="formData.status === 'Regular'" class="form-group">
-        <label for="shift" class="form-label">Shift {{ hasAllocations ? '' : '*' }}</label>
+        <label for="shift" class="form-label">Shift</label>
         <select
           id="shift"
           v-model="formData.shiftId"
           class="form-input"
-          :required="!hasAllocations"
         >
-          <option :value="null" :disabled="!hasAllocations">
-            {{ hasAllocations ? 'No Shift (Permanently Assigned)' : 'Select a shift' }}
-          </option>
+          <option :value="null">No Shift</option>
+          <option :value="null" disabled>──────────</option>
+          <option :value="'permanent'" disabled>Permanent Assignment</option>
+          <option :value="null" disabled>──────────</option>
           <optgroup label="Day Shifts">
             <option
               v-for="shift in dayShifts"
@@ -74,8 +74,8 @@
         </select>
         <p class="form-hint">
           {{ hasAllocations
-            ? 'Staff with permanent area assignments should select "No Shift"'
-            : 'Pool staff must be assigned to a shift group'
+            ? 'This staff member has permanent area assignments. "Permanent Assignment" is shown for reference only.'
+            : 'Select "No Shift" for staff not yet assigned to a rotation, or choose a shift group for pool staff.'
           }}
         </p>
       </div>
@@ -288,15 +288,9 @@ const handleStatusChange = () => {
   } else if (formData.status === 'Supervisor') {
     formData.shiftId = null;
   } else if (formData.status === 'Regular' && !formData.shiftId) {
-    // If staff has allocations, set to null (No Shift)
-    if (hasAllocations.value) {
-      formData.shiftId = null;
-    } else {
-      // Auto-select first day shift if available for pool staff
-      if (dayShifts.value.length > 0) {
-        formData.shiftId = dayShifts.value[0].id;
-      }
-    }
+    // Default to "No Shift" for all regular staff
+    // User can manually select a shift if needed
+    formData.shiftId = null;
   }
 };
 

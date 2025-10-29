@@ -448,10 +448,9 @@ async function handleCreateTemporaryAssignment(data: CreateTemporaryAssignmentDt
     showTemporaryAssignmentModal.value = false;
     selectedStaffForAssignment.value = null;
 
-    // Clear cache for affected date and reload
-    rotaCache.delete(selectedDate.value);
-    areasCache.delete(selectedDate.value);
-    await Promise.all([loadRotaWithCache(), loadAreasWithCache()]);
+    // Invalidate cache and reload using day store
+    dayStore.invalidateCache(selectedDate.value);
+    await loadDay();
   } catch (err: any) {
     console.error('Error creating temporary assignment:', err);
     alert(err.message || 'Failed to create temporary assignment');

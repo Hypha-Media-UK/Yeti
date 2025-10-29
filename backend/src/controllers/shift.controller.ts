@@ -259,13 +259,13 @@ export class ShiftController {
         return;
       }
 
-      // Check if shift has staff assigned
+      // Get count of staff assigned to this shift
       const staffCount = await this.shiftRepo.getStaffCount(id);
+
+      // If staff are assigned, set them to "No Shift" (shift_id = NULL)
       if (staffCount > 0) {
-        res.status(409).json({ 
-          error: `Cannot delete shift. ${staffCount} staff member(s) are currently assigned to this shift. Please reassign them first.` 
-        });
-        return;
+        await this.shiftRepo.unassignStaffFromShift(id);
+        console.log(`Set ${staffCount} staff member(s) to "No Shift" before deleting shift ${id}`);
       }
 
       const success = await this.shiftRepo.delete(id);
@@ -275,7 +275,10 @@ export class ShiftController {
         return;
       }
 
-      res.json({ message: 'Shift deleted successfully' });
+      res.json({
+        message: 'Shift deleted successfully',
+        staffReassigned: staffCount
+      });
     } catch (error) {
       console.error('Error deleting shift:', error);
       res.status(500).json({ error: 'Failed to delete shift' });

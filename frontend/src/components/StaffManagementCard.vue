@@ -1,7 +1,8 @@
 <template>
-  <div class="staff-management-card">
+  <div class="staff-management-card" :class="{ 'no-shift': !staff.shiftId }">
     <div class="staff-info">
       <h3 class="staff-name">{{ staff.firstName }} {{ staff.lastName }}</h3>
+      <p v-if="!staff.shiftId" class="no-shift-label">No Shift</p>
     </div>
     <div class="staff-actions">
       <button class="btn-icon" @click="$emit('manageAbsences', staff)" title="Manage Absences">
@@ -57,6 +58,11 @@ defineEmits<{
   transition: var(--transition-base);
 }
 
+.staff-management-card.no-shift {
+  background: rgba(156, 163, 175, 0.1); /* Pale grey background */
+  border-color: rgba(156, 163, 175, 0.3);
+}
+
 .staff-management-card:hover {
   box-shadow: var(--shadow-low);
 }
@@ -71,6 +77,13 @@ defineEmits<{
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   margin: 0;
+}
+
+.no-shift-label {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  margin: var(--spacing-0-5) 0 0 0;
+  font-style: italic;
 }
 
 .staff-actions {

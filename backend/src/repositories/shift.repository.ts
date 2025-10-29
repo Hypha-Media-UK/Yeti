@@ -224,5 +224,21 @@ export class ShiftRepository {
 
     return count || 0;
   }
+
+  /**
+   * Unassign all staff from a shift (set shift_id to NULL)
+   * Used when deleting a shift to set staff to "No Shift"
+   */
+  async unassignStaffFromShift(shiftId: number): Promise<void> {
+    const { error } = await supabase
+      .from('staff')
+      .update({ shift_id: null })
+      .eq('shift_id', shiftId)
+      .eq('is_active', true);
+
+    if (error) {
+      throw new Error(`Failed to unassign staff from shift: ${error.message}`);
+    }
+  }
 }
 

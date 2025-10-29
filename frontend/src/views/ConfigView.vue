@@ -143,11 +143,30 @@
               :key="shift.id"
               :shift="shift"
               :staff-count="shiftStaffCounts.get(shift.id)"
+              :staff-members="staffByShift.get(shift.id)"
               @edit="openEditShiftModal"
               @delete="confirmDeleteShift"
             />
           </div>
           <p v-else class="empty-state">No shifts</p>
+
+          <!-- Permanently Assigned Staff Section -->
+          <div class="section-header" style="margin-top: var(--spacing-6);">
+            <h2 class="section-title">Permanently Assigned Staff</h2>
+          </div>
+          <div v-if="permanentlyAssignedByArea.length > 0" class="permanent-staff-list">
+            <div v-for="area in permanentlyAssignedByArea" :key="`${area.areaType}-${area.areaName}`" class="area-group">
+              <h3 class="area-name">
+                {{ area.areaName }}
+                <span v-if="area.buildingName" class="building-name">({{ area.buildingName }})</span>
+                <span class="area-type-badge">{{ area.areaType === 'department' ? 'Department' : 'Service' }}</span>
+              </h3>
+              <p class="staff-names">
+                {{ area.staff.map(s => `${s.firstName} ${s.lastName}`).join(', ') }}
+              </p>
+            </div>
+          </div>
+          <p v-else class="empty-state">No permanently assigned staff</p>
         </div>
 
         <!-- Settings Tab -->
@@ -274,6 +293,7 @@ const departments = ref<Department[]>([]);
 const services = ref<Service[]>([]);
 const shifts = ref<Shift[]>([]);
 const shiftStaffCounts = ref<Map<number, number>>(new Map());
+const allAllocations = ref<Map<number, AllocationWithDetails[]>>(new Map());
 
 const showStaffModal = ref(false);
 const editingStaff = ref<StaffMember | null>(null);
@@ -316,6 +336,83 @@ const reliefStaff = computed(() => allStaff.value.filter(s => s.status === 'Reli
 const supervisorStaff = computed(() => allStaff.value.filter(s => s.status === 'Supervisor' && s.isActive));
 const inactiveStaff = computed(() => allStaff.value.filter(s => !s.isActive));
 
+// Group staff by shift ID
+const staffByShift = computed(() => {
+  const grouped = new Map<number, StaffMember[]>();
+
+  allStaff.value.forEach(staff => {
+    if (staff.shiftId && staff.isActive) {
+      if (!grouped.has(staff.shiftId)) {
+        grouped.set(staff.shiftId, []);
+      }
+      grouped.get(staff.shiftId)!.push(staff);
+    }
+  });
+
+  return grouped;
+});
+
+// Group permanently assigned staff by area (department or service)
+const permanentlyAssignedByArea = computed(() => {
+  const grouped: Array<{
+    areaType: 'department' | 'service';
+    areaName: string;
+    buildingName?: string;
+    staff: StaffMember[];
+  }> = [];
+
+  // Create a map to track unique areas
+  const areaMap = new Map<string, {
+    areaType: 'department' | 'service';
+    areaName: string;
+    buildingName?: string;
+    staff: StaffMember[];
+  }>();
+
+  // Iterate through all staff with no shift
+  allStaff.value.forEach(staff => {
+    if (staff.isActive && !staff.shiftId) {
+      const allocations = allAllocations.value.get(staff.id) || [];
+
+      allocations.forEach(allocation => {
+        const key = `${allocation.areaType}-${allocation.areaId}`;
+
+        if (!areaMap.has(key)) {
+          areaMap.set(key, {
+            areaType: allocation.areaType,
+            areaName: allocation.areaName,
+            buildingName: allocation.buildingName,
+            staff: []
+          });
+        }
+
+        areaMap.get(key)!.staff.push(staff);
+      });
+    }
+  });
+
+  // Convert map to array and sort
+  areaMap.forEach(area => {
+    // Sort staff within each area
+    area.staff.sort((a, b) => {
+      const lastNameCompare = a.lastName.localeCompare(b.lastName);
+      if (lastNameCompare !== 0) return lastNameCompare;
+      return a.firstName.localeCompare(b.firstName);
+    });
+    grouped.push(area);
+  });
+
+  // Sort areas by type (departments first) then by name
+  grouped.sort((a, b) => {
+    if (a.areaType !== b.areaType) {
+      return a.areaType === 'department' ? -1 : 1;
+    }
+    return a.areaName.localeCompare(b.areaName);
+  });
+
+  return grouped;
+});
+
 const staffTabs = computed<Tab[]>(() => [
   { label: 'Regular', value: 'regular', count: regularStaff.value.length },
   { label: 'Relief', value: 'relief', count: reliefStaff.value.length },
@@ -336,8 +433,35 @@ const loadStaff = async () => {
   try {
     const response = await api.getAllStaff({ includeInactive: true });
     allStaff.value = response.staff;
+
+    // Load allocations for all staff
+    await loadAllAllocations();
   } catch (error) {
     console.error('Failed to load staff:', error);
+  }
+};
+
+const loadAllAllocations = async () => {
+  try {
+    // Load allocations for each staff member
+    const allocationsMap = new Map<number, AllocationWithDetails[]>();
+
+    await Promise.all(
+      allStaff.value.map(async (staff) => {
+        try {
+          const response = await api.getStaffAllocations(staff.id);
+          if (response.allocations.length > 0) {
+            allocationsMap.set(staff.id, response.allocations);
+          }
+        } catch (error) {
+          console.error(`Failed to load allocations for staff ${staff.id}:`, error);
+        }
+      })
+    );
+
+    allAllocations.value = allocationsMap;
+  } catch (error) {
+    console.error('Failed to load allocations:', error);
   }
 };
 
@@ -674,15 +798,16 @@ const handleShiftSubmit = async (data: {
 const confirmDeleteShift = (shift: Shift) => {
   const staffCount = shiftStaffCounts.value.get(shift.id) || 0;
 
-  if (staffCount > 0) {
-    alert(`Cannot delete shift "${shift.name}" because it has ${staffCount} staff member${staffCount === 1 ? '' : 's'} assigned to it.`);
-    return;
-  }
-
   deleteTarget.value = shift;
   deleteType.value = 'shift';
   deleteConfirmTitle.value = 'Delete Shift';
-  deleteConfirmMessage.value = `Are you sure you want to delete ${shift.name}?`;
+
+  if (staffCount > 0) {
+    deleteConfirmMessage.value = `Are you sure you want to delete ${shift.name}?\n\n${staffCount} staff member${staffCount === 1 ? '' : 's'} will be set to "No Shift".`;
+  } else {
+    deleteConfirmMessage.value = `Are you sure you want to delete ${shift.name}?`;
+  }
+
   showDeleteConfirm.value = true;
 };
 
@@ -784,6 +909,53 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: var(--spacing-3);
+}
+
+.permanent-staff-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.area-group {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: var(--spacing-3);
+}
+
+.area-name {
+  font-size: var(--font-size-section);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-2) 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  flex-wrap: wrap;
+}
+
+.building-name {
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-normal);
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.area-type-badge {
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--font-weight-medium);
+  padding: 4px 8px;
+  border-radius: var(--radius-button);
+  background-color: rgba(99, 102, 241, 0.1);
+  color: #6366F1;
+}
+
+.staff-names {
+  font-size: var(--font-size-body);
+  color: var(--color-text-secondary);
+  margin: 0;
+  line-height: 1.6;
 }
 
 .empty-state {

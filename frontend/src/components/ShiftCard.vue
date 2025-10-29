@@ -18,6 +18,9 @@
         {{ staffCount }} {{ staffCount === 1 ? 'staff member' : 'staff members' }}
       </span>
     </div>
+    <div v-if="staffMembers && staffMembers.length > 0" class="staff-list">
+      <strong>Staff:</strong> {{ staffMembers.map(s => `${s.firstName} ${s.lastName}`).join(', ') }}
+    </div>
     <div class="shift-actions">
       <button class="btn-icon" @click="$emit('edit', shift)" title="Edit">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -42,10 +45,12 @@
 
 <script setup lang="ts">
 import type { Shift } from '@shared/types/shift';
+import type { StaffMember } from '@shared/types/staff';
 
 interface Props {
   shift: Shift;
   staffCount?: number;
+  staffMembers?: StaffMember[];
 }
 
 defineProps<Props>();
@@ -147,6 +152,14 @@ defineEmits<{
 
 .staff-count {
   color: var(--color-text-secondary);
+}
+
+.staff-list {
+  font-size: var(--font-size-body-sm);
+  color: var(--color-text-secondary);
+  padding-top: var(--spacing-2);
+  border-top: 1px solid var(--color-border);
+  line-height: 1.5;
 }
 
 .shift-actions {
