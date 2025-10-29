@@ -138,22 +138,46 @@ export class OverrideRepository {
   /**
    * Find temporary area assignments for a specific staff member
    * Only returns assignments that have areaType and areaId set
+   * Includes assignments that:
+   * - Start on the given date, OR
+   * - Span across the given date (start before, end after)
    */
   async findTemporaryAssignmentsByStaff(staffId: number, date: string): Promise<ManualAssignment[]> {
+    // Fetch all temporary assignments for this staff member
     const { data, error } = await supabase
       .from('manual_assignments')
       .select('*')
       .eq('staff_id', staffId)
       .not('area_type', 'is', null)
       .not('area_id', 'is', null)
-      .or(`assignment_date.eq.${date},and(assignment_date.lte.${date},end_date.gte.${date})`)
       .order('assignment_date');
 
     if (error) {
       throw new Error(`Failed to find temporary assignments: ${error.message}`);
     }
 
-    return (data || []).map(row => this.mapRowToManualAssignment(row));
+    // Filter in JavaScript to handle complex date logic
+    // Include assignments where:
+    // 1. assignment_date equals the given date, OR
+    // 2. assignment_date is before the date AND (end_date is null OR end_date is after or equal to the date)
+    return (data || [])
+      .filter(row => {
+        const assignmentDate = row.assignment_date.split('T')[0];
+        const endDate = row.end_date ? row.end_date.split('T')[0] : null;
+
+        // Single-day assignment on the given date
+        if (assignmentDate === date) {
+          return true;
+        }
+
+        // Multi-day assignment that spans the given date
+        if (assignmentDate < date && (!endDate || endDate >= date)) {
+          return true;
+        }
+
+        return false;
+      })
+      .map(row => this.mapRowToManualAssignment(row));
   }
 
   async delete(id: number): Promise<boolean> {
