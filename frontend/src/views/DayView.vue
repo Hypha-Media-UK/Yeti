@@ -164,7 +164,7 @@
       :current-date="selectedDate"
       :departments="allDepartments"
       :services="allServices"
-      @deleted="loadRota"
+      @deleted="loadDay"
     />
 
     <!-- Quick Absence Modal -->
