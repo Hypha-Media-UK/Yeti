@@ -163,11 +163,9 @@ const formatDate = (dateStr: string): string => {
   return date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 };
 
-// Load assignments when modal opens AND when staff member changes
+// Load assignments when modal opens
 watch(() => props.modelValue, async (isOpen) => {
   if (isOpen) {
-    // Small delay to ensure props are fully updated
-    await new Promise(resolve => setTimeout(resolve, 0));
     loadAssignments();
   }
 });
