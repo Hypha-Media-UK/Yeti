@@ -65,6 +65,60 @@
         />
       </div>
 
+      <div class="form-group">
+        <label for="cycleType" class="form-label">Cycle Type *</label>
+        <select
+          id="cycleType"
+          v-model="formData.cycleType"
+          class="form-input"
+          required
+        >
+          <option value="4-on-4-off">4-on-4-off (Regular 8-day cycle)</option>
+          <option value="16-day-supervisor">16-day Supervisor (4 day, 4 off, 4 night, 4 off)</option>
+          <option value="relief">Relief (No cycle, manual assignments only)</option>
+          <option value="fixed">Fixed Schedule (Uses fixed_schedules table)</option>
+        </select>
+        <p class="form-hint">Determines the rotation pattern for this shift</p>
+      </div>
+
+      <div v-if="formData.cycleType !== 'relief' && formData.cycleType !== 'fixed'" class="form-group">
+        <label for="cycleLength" class="form-label">Cycle Length (days) *</label>
+        <input
+          id="cycleLength"
+          v-model.number="formData.cycleLength"
+          type="number"
+          class="form-input"
+          min="1"
+          max="365"
+          required
+          :placeholder="formData.cycleType === '16-day-supervisor' ? '16' : '8'"
+        />
+        <p class="form-hint">
+          {{ formData.cycleType === '16-day-supervisor'
+            ? 'Typically 16 days for supervisor shifts'
+            : 'Typically 8 days for regular shifts (4 on, 4 off)' }}
+        </p>
+      </div>
+
+      <div class="form-group">
+        <label for="daysOffset" class="form-label">Days Offset *</label>
+        <input
+          id="daysOffset"
+          v-model.number="formData.daysOffset"
+          type="number"
+          class="form-input"
+          min="0"
+          :max="formData.cycleLength || 365"
+          required
+        />
+        <p class="form-hint">
+          Offset from app zero date ({{ appZeroDate }}).
+          {{ formData.cycleType === 'relief' || formData.cycleType === 'fixed'
+            ? 'Not used for relief/fixed shifts, but required for database.'
+            : `Must be 0-${(formData.cycleLength || 8) - 1} for ${formData.cycleLength || 8}-day cycles.` }}
+        </p>
+      </div>
+
       <div v-if="shift" class="form-group">
         <label class="checkbox-label">
           <input
@@ -94,9 +148,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue';
+import { ref, reactive, watch, computed } from 'vue';
 import BaseModal from './BaseModal.vue';
-import type { Shift } from '@shared/types/shift';
+import type { Shift, CycleType } from '@shared/types/shift';
+import { api } from '@/services/api';
 
 interface Props {
   modelValue: boolean;
@@ -107,26 +162,66 @@ const props = defineProps<Props>();
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean];
-  submit: [data: { name: string; type: 'day' | 'night'; color: string; description: string | null; isActive?: boolean }];
+  submit: [data: {
+    name: string;
+    type: 'day' | 'night';
+    color: string;
+    description: string | null;
+    cycleType: CycleType | null;
+    cycleLength: number | null;
+    daysOffset: number;
+    isActive?: boolean;
+  }];
 }>();
 
 const loading = ref(false);
 const error = ref('');
+const appZeroDate = ref('Loading...');
+
+// Fetch app zero date for display
+api.getConfig('app_zero_date').then(config => {
+  appZeroDate.value = config.value || 'Not set';
+}).catch(() => {
+  appZeroDate.value = 'Error loading';
+});
 
 const formData = reactive({
   name: props.shift?.name || '',
   type: props.shift?.type || 'day' as 'day' | 'night',
   color: props.shift?.color || '#3B82F6',
   description: props.shift?.description || '',
+  cycleType: (props.shift?.cycleType || '4-on-4-off') as CycleType,
+  cycleLength: props.shift?.cycleLength || 8,
+  daysOffset: props.shift?.daysOffset || 0,
   isActive: props.shift?.isActive !== undefined ? props.shift.isActive : true,
 });
 
 const handleSubmit = () => {
   error.value = '';
-  
+
   // Validate color format
   if (!/^#[0-9A-Fa-f]{6}$/.test(formData.color)) {
     error.value = 'Color must be in hex format (e.g., #3B82F6)';
+    return;
+  }
+
+  // Validate cycle length for non-relief/fixed shifts
+  if (formData.cycleType !== 'relief' && formData.cycleType !== 'fixed') {
+    if (!formData.cycleLength || formData.cycleLength < 1) {
+      error.value = 'Cycle length must be at least 1 day';
+      return;
+    }
+
+    // Validate offset is within cycle length
+    if (formData.daysOffset >= formData.cycleLength) {
+      error.value = `Days offset must be less than cycle length (0-${formData.cycleLength - 1})`;
+      return;
+    }
+  }
+
+  // Validate offset is non-negative
+  if (formData.daysOffset < 0) {
+    error.value = 'Days offset cannot be negative';
     return;
   }
 
@@ -137,6 +232,9 @@ const handleSubmit = () => {
     type: formData.type,
     color: formData.color.toUpperCase(),
     description: formData.description?.trim() || null,
+    cycleType: formData.cycleType,
+    cycleLength: formData.cycleType === 'relief' || formData.cycleType === 'fixed' ? null : formData.cycleLength,
+    daysOffset: formData.daysOffset,
   };
 
   // Only include isActive when editing
@@ -155,15 +253,37 @@ watch(() => props.shift, (newShift) => {
     formData.type = newShift.type;
     formData.color = newShift.color;
     formData.description = newShift.description || '';
+    formData.cycleType = newShift.cycleType || '4-on-4-off';
+    formData.cycleLength = newShift.cycleLength || 8;
+    formData.daysOffset = newShift.daysOffset || 0;
     formData.isActive = newShift.isActive;
   } else {
     formData.name = '';
     formData.type = 'day';
     formData.color = '#3B82F6';
     formData.description = '';
+    formData.cycleType = '4-on-4-off';
+    formData.cycleLength = 8;
+    formData.daysOffset = 0;
     formData.isActive = true;
   }
 }, { immediate: true });
+
+// Auto-set cycle length based on cycle type
+watch(() => formData.cycleType, (newType) => {
+  if (newType === '16-day-supervisor') {
+    formData.cycleLength = 16;
+  } else if (newType === '4-on-4-off') {
+    formData.cycleLength = 8;
+  } else if (newType === 'relief' || newType === 'fixed') {
+    formData.cycleLength = null as any;
+  }
+
+  // Reset offset if it's now out of range
+  if (formData.cycleLength && formData.daysOffset >= formData.cycleLength) {
+    formData.daysOffset = 0;
+  }
+});
 </script>
 
 <style scoped>

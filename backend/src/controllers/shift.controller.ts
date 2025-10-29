@@ -65,7 +65,7 @@ export class ShiftController {
   // POST /api/shifts
   createShift = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { name, type, color, description } = req.body;
+      const { name, type, color, description, cycleType, cycleLength, daysOffset } = req.body;
 
       // Validation
       if (!name || !name.trim()) {
@@ -76,6 +76,33 @@ export class ShiftController {
       if (!type || (type !== 'day' && type !== 'night')) {
         res.status(400).json({ error: 'Shift type must be "day" or "night"' });
         return;
+      }
+
+      // Validate cycle type
+      const validCycleTypes = ['4-on-4-off', '16-day-supervisor', 'relief', 'fixed'];
+      if (cycleType && !validCycleTypes.includes(cycleType)) {
+        res.status(400).json({ error: 'Invalid cycle type' });
+        return;
+      }
+
+      // Validate cycle length for non-relief/fixed shifts
+      if (cycleType !== 'relief' && cycleType !== 'fixed') {
+        if (cycleLength === undefined || cycleLength === null || cycleLength < 1) {
+          res.status(400).json({ error: 'Cycle length is required and must be at least 1 for non-relief/fixed shifts' });
+          return;
+        }
+      }
+
+      // Validate days offset
+      if (daysOffset !== undefined && daysOffset !== null) {
+        if (daysOffset < 0) {
+          res.status(400).json({ error: 'Days offset cannot be negative' });
+          return;
+        }
+        if (cycleLength && daysOffset >= cycleLength) {
+          res.status(400).json({ error: `Days offset must be less than cycle length (0-${cycleLength - 1})` });
+          return;
+        }
       }
 
       // Check for duplicate name
@@ -96,6 +123,9 @@ export class ShiftController {
         type,
         color,
         description: description?.trim() || null,
+        cycleType: cycleType || null,
+        cycleLength: cycleLength || null,
+        daysOffset: daysOffset !== undefined ? daysOffset : 0,
       });
 
       res.status(201).json({ shift });
@@ -139,6 +169,40 @@ export class ShiftController {
         return;
       }
 
+      // Validate cycle type if provided
+      if (updates.cycleType !== undefined) {
+        const validCycleTypes = ['4-on-4-off', '16-day-supervisor', 'relief', 'fixed'];
+        if (updates.cycleType && !validCycleTypes.includes(updates.cycleType)) {
+          res.status(400).json({ error: 'Invalid cycle type' });
+          return;
+        }
+      }
+
+      // Validate cycle length for non-relief/fixed shifts
+      if (updates.cycleType !== undefined && updates.cycleType !== 'relief' && updates.cycleType !== 'fixed') {
+        if (updates.cycleLength === undefined || updates.cycleLength === null || updates.cycleLength < 1) {
+          res.status(400).json({ error: 'Cycle length is required and must be at least 1 for non-relief/fixed shifts' });
+          return;
+        }
+      }
+
+      // Validate days offset if provided
+      if (updates.daysOffset !== undefined && updates.daysOffset !== null) {
+        if (updates.daysOffset < 0) {
+          res.status(400).json({ error: 'Days offset cannot be negative' });
+          return;
+        }
+        // Get current shift to check cycle length
+        const currentShift = await this.shiftRepo.findById(id);
+        if (currentShift) {
+          const cycleLength = updates.cycleLength !== undefined ? updates.cycleLength : currentShift.cycleLength;
+          if (cycleLength && updates.daysOffset >= cycleLength) {
+            res.status(400).json({ error: `Days offset must be less than cycle length (0-${cycleLength - 1})` });
+            return;
+          }
+        }
+      }
+
       // Check for duplicate name (excluding current shift)
       if (updates.name) {
         const exists = await this.shiftRepo.existsByName(updates.name.trim(), id);
@@ -154,6 +218,14 @@ export class ShiftController {
         if (staffCount > 0) {
           // Note: We allow the change but could add a warning header
           res.setHeader('X-Warning', `This shift has ${staffCount} staff member(s) assigned. Changing type will affect their rota display.`);
+        }
+      }
+
+      // Warn if changing cycle parameters and shift has staff assigned
+      if (updates.cycleType !== undefined || updates.cycleLength !== undefined || updates.daysOffset !== undefined) {
+        const staffCount = await this.shiftRepo.getStaffCount(id);
+        if (staffCount > 0) {
+          res.setHeader('X-Warning', `This shift has ${staffCount} staff member(s) assigned. Changing cycle parameters will affect their rota schedule.`);
         }
       }
 
