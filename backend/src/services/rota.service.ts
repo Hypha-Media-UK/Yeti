@@ -635,8 +635,23 @@ export class RotaService {
       return false;
     }
 
-    // If staff has 'No Shift' (shift_id is NULL), check contracted hours
+    // If staff has 'No Shift' (shift_id is NULL), check if they use cycle or contracted hours
     if (!staff.shiftId) {
+      // NEW: Check if they use cycle-based calculation for permanent assignments
+      if (staff.useCycleForPermanent && staff.cycleType === '4-on-4-off') {
+        const appZeroDate = options?.appZeroDate || await this.configRepo.getByKey('app_zero_date') || '2024-01-01';
+        const daysSinceZero = daysBetween(appZeroDate, targetDate);
+
+        // Use personal offset for cycle calculation
+        const effectiveOffset = staff.daysOffset || 0;
+        const adjustedDays = daysSinceZero - effectiveOffset;
+
+        // Regular 4-on-4-off pattern
+        const cyclePosition = adjustedDays % CYCLE_LENGTHS.REGULAR;
+        return cyclePosition < 4;
+      }
+
+      // EXISTING: Fall back to contracted hours for other permanent staff
       let contractedHours: StaffContractedHours[];
       if (options?.contractedHoursMap) {
         contractedHours = options.contractedHoursMap.get(staff.id) || [];

@@ -80,6 +80,22 @@
       </div>
     </div>
 
+    <!-- Use Cycle for Permanent Assignment (only show for permanent assignments) -->
+    <div v-if="shiftSelection === 'PERMANENT'" class="form-group">
+      <label class="checkbox-label">
+        <input
+          type="checkbox"
+          v-model="formData.useCycleForPermanent"
+        />
+        <span>Use 4-on-4-off cycle pattern (instead of contracted hours)</span>
+      </label>
+      <p class="form-hint">
+        Enable this if the staff member works a regular 4-on-4-off rotation
+        but is permanently assigned to specific areas. When enabled, you can set
+        their cycle offset below instead of defining contracted hours.
+      </p>
+    </div>
+
     <!-- Custom Shift Times (only show for shift-based staff) -->
     <div v-if="showCustomShiftTimes" class="form-group">
       <label class="form-label">Custom Shift Times (Optional)</label>
@@ -110,9 +126,9 @@
       </p>
     </div>
 
-    <!-- Days Offset (only show for shift-based staff) -->
+    <!-- Days Offset (only show for shift-based staff or permanent with cycle) -->
     <div v-if="showDaysOffset" class="form-group">
-      <label for="daysOffset" class="form-label">Days Offset (Optional)</label>
+      <label for="daysOffset" class="form-label">Days Offset</label>
       <input
         id="daysOffset"
         v-model.number="formData.daysOffset"
@@ -122,11 +138,15 @@
         :max="formData.status === 'Supervisor' ? 15 : 7"
       />
       <p class="form-hint">
-        <span v-if="selectedShiftDefaultOffset !== null">
-          Shift default offset: {{ selectedShiftDefaultOffset }}.
+        <span v-if="formData.useCycleForPermanent">
+          Set the offset for this staff member's 4-on-4-off cycle (0-7).
+          This determines which days they work in the rotation.
         </span>
-        Leave blank or set to {{ selectedShiftDefaultOffset ?? 0 }} to use shift's default.
-        Set a personal offset if this staff member works different days than the rest of their shift.
+        <span v-else-if="selectedShiftDefaultOffset !== null">
+          Shift default offset: {{ selectedShiftDefaultOffset }}.
+          Leave blank or set to {{ selectedShiftDefaultOffset ?? 0 }} to use shift's default.
+          Set a personal offset if this staff member works different days than the rest of their shift.
+        </span>
       </p>
     </div>
 
@@ -255,6 +275,7 @@ const formData = reactive({
   daysOffset: props.staff?.daysOffset || 0,
   customShiftStart: props.staff?.customShiftStart?.substring(0, 5) || '',  // Convert "HH:mm:ss" to "HH:mm"
   customShiftEnd: props.staff?.customShiftEnd?.substring(0, 5) || '',      // Convert "HH:mm:ss" to "HH:mm"
+  useCycleForPermanent: props.staff?.useCycleForPermanent || false,
   contractedHours: [] as HoursEntry[],
 });
 
@@ -266,7 +287,18 @@ const showCustomShiftTimes = computed(() => {
 
 const showDaysOffset = computed(() => {
   // Show for Regular staff with a shift assigned
-  return formData.status === 'Regular' && formData.shiftId !== null;
+  if (formData.status === 'Regular' && formData.shiftId !== null) {
+    return true;
+  }
+
+  // Also show for permanent staff using cycle
+  if (formData.status === 'Regular' &&
+      shiftSelection.value === 'PERMANENT' &&
+      formData.useCycleForPermanent) {
+    return true;
+  }
+
+  return false;
 });
 
 const showAllocations = computed(() => {
@@ -277,10 +309,17 @@ const showAllocations = computed(() => {
 });
 
 const showContractedHours = computed(() => {
-  // Show for Relief, Supervisor, or Regular with "Permanent Assignment"
-  return formData.status === 'Relief' ||
-         formData.status === 'Supervisor' ||
-         (formData.status === 'Regular' && shiftSelection.value === 'PERMANENT');
+  // Show for Relief, Supervisor, or Regular with "Permanent Assignment" (but not if using cycle)
+  if (formData.status === 'Relief' || formData.status === 'Supervisor') {
+    return true;
+  }
+
+  // For permanent assignments, only show if NOT using cycle
+  if (formData.status === 'Regular' && shiftSelection.value === 'PERMANENT') {
+    return !formData.useCycleForPermanent;
+  }
+
+  return false;
 });
 
 // Get the selected shift's default offset for reference
@@ -387,6 +426,7 @@ const handleSubmit = () => {
     daysOffset: formData.daysOffset,
     customShiftStart,
     customShiftEnd,
+    useCycleForPermanent: formData.useCycleForPermanent,
     isActive: true,
   };
 
@@ -421,6 +461,7 @@ watch(() => props.staff, async (newStaff) => {
     formData.daysOffset = newStaff.daysOffset;
     formData.customShiftStart = newStaff.customShiftStart?.substring(0, 5) || '';
     formData.customShiftEnd = newStaff.customShiftEnd?.substring(0, 5) || '';
+    formData.useCycleForPermanent = newStaff.useCycleForPermanent || false;
 
     // Load contracted hours
     try {
@@ -511,6 +552,21 @@ watch(() => formData.shiftId, (newShiftId) => {
   font-size: var(--font-size-secondary);
   color: var(--color-text-secondary);
   margin: 0;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  cursor: pointer;
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
 }
 
 .form-error {

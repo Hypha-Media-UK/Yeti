@@ -12,6 +12,7 @@ interface StaffRow {
   days_offset: number;
   custom_shift_start: string | null;
   custom_shift_end: string | null;
+  use_cycle_for_permanent: boolean;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -29,6 +30,7 @@ export class StaffRepository {
       daysOffset: row.days_offset,
       customShiftStart: row.custom_shift_start || null,
       customShiftEnd: row.custom_shift_end || null,
+      useCycleForPermanent: row.use_cycle_for_permanent || false,
       isActive: row.is_active,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -89,6 +91,7 @@ export class StaffRepository {
         days_offset: staff.daysOffset,
         custom_shift_start: staff.customShiftStart,
         custom_shift_end: staff.customShiftEnd,
+        use_cycle_for_permanent: staff.useCycleForPermanent || false,
         is_active: staff.isActive
       })
       .select()
@@ -127,6 +130,9 @@ export class StaffRepository {
     }
     if (updates.customShiftEnd !== undefined) {
       updateData.custom_shift_end = updates.customShiftEnd;
+    }
+    if (updates.useCycleForPermanent !== undefined) {
+      updateData.use_cycle_for_permanent = updates.useCycleForPermanent;
     }
     if (updates.isActive !== undefined) {
       updateData.is_active = updates.isActive;
