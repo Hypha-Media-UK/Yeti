@@ -15,6 +15,7 @@ interface StaffRow {
   use_cycle_for_permanent: boolean;
   reference_shift_id: number | null;
   use_contracted_hours_for_shift: boolean;
+  is_pool_staff: boolean;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -35,13 +36,14 @@ export class StaffRepository {
       useCycleForPermanent: row.use_cycle_for_permanent || false,
       referenceShiftId: row.reference_shift_id || null,
       useContractedHoursForShift: row.use_contracted_hours_for_shift || false,
+      isPoolStaff: row.is_pool_staff || false,
       isActive: row.is_active,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
   }
 
-  async findAll(filters?: { status?: string; includeInactive?: boolean }): Promise<StaffMember[]> {
+  async findAll(filters?: { status?: string; includeInactive?: boolean; isPoolStaff?: boolean }): Promise<StaffMember[]> {
     let query = supabase
       .from('staff')
       .select('*');
@@ -52,6 +54,10 @@ export class StaffRepository {
 
     if (filters?.status) {
       query = query.eq('status', filters.status);
+    }
+
+    if (filters?.isPoolStaff !== undefined) {
+      query = query.eq('is_pool_staff', filters.isPoolStaff);
     }
 
     query = query.order('last_name').order('first_name');
@@ -98,6 +104,7 @@ export class StaffRepository {
         use_cycle_for_permanent: staff.useCycleForPermanent || false,
         reference_shift_id: staff.referenceShiftId || null,
         use_contracted_hours_for_shift: staff.useContractedHoursForShift || false,
+        is_pool_staff: staff.isPoolStaff || false,
         is_active: staff.isActive
       })
       .select()
@@ -145,6 +152,9 @@ export class StaffRepository {
     }
     if (updates.useContractedHoursForShift !== undefined) {
       updateData.use_contracted_hours_for_shift = updates.useContractedHoursForShift;
+    }
+    if (updates.isPoolStaff !== undefined) {
+      updateData.is_pool_staff = updates.isPoolStaff;
     }
     if (updates.isActive !== undefined) {
       updateData.is_active = updates.isActive;
@@ -197,7 +207,7 @@ export class StaffRepository {
   /**
    * Find all staff with their shift information
    */
-  async findAllWithShifts(filters?: { status?: string; includeInactive?: boolean }): Promise<StaffMemberWithShift[]> {
+  async findAllWithShifts(filters?: { status?: string; includeInactive?: boolean; isPoolStaff?: boolean }): Promise<StaffMemberWithShift[]> {
     let query = supabase
       .from('staff')
       .select(`
@@ -223,6 +233,10 @@ export class StaffRepository {
 
     if (filters?.status) {
       query = query.eq('status', filters.status);
+    }
+
+    if (filters?.isPoolStaff !== undefined) {
+      query = query.eq('is_pool_staff', filters.isPoolStaff);
     }
 
     query = query.order('last_name').order('first_name');

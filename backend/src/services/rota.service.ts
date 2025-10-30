@@ -506,6 +506,79 @@ export class RotaService {
       }
     }
 
+    // POOL STAFF: Process pool staff who are on duty (not assigned to specific areas)
+    // Pool staff appear in shift panels alongside shift-based staff
+    const poolStaff = await this.staffRepo.findAllWithShifts({ isPoolStaff: true });
+    console.log(`[PERF] Found ${poolStaff.length} pool staff`);
+
+    for (const staff of poolStaff) {
+      // Skip if already processed via manual assignment
+      if (manuallyAssignedStaffIds.has(staff.id)) continue;
+
+      // Pool staff can work either via shift cycle OR contracted hours
+      let onDuty = false;
+      let shiftType: ShiftType | null = null;
+
+      if (staff.useContractedHoursForShift) {
+        // Pool staff using contracted hours: check if they have hours for today
+        let contractedHours = contractedHoursByStaffId.get(staff.id);
+        if (!contractedHours) {
+          contractedHours = await this.contractedHoursRepo.findByStaff(staff.id);
+          contractedHoursByStaffId.set(staff.id, contractedHours);
+        }
+
+        // Check if they have contracted hours for this day of week
+        const targetDayOfWeek = new Date(targetDate + 'T00:00:00Z').getUTCDay();
+        const hasHoursToday = contractedHours.some(ch => ch.dayOfWeek === targetDayOfWeek);
+
+        if (hasHoursToday && staff.shift?.type) {
+          onDuty = true;
+          shiftType = staff.shift.type; // Use shift assignment to determine day/night panel
+        }
+      } else {
+        // Pool staff using shift cycle: check if they're on duty based on cycle
+        const dutyCheck = this.isStaffOnDuty(staff, targetDate, appZeroDate);
+        onDuty = dutyCheck.onDuty;
+        shiftType = dutyCheck.shiftType;
+      }
+
+      if (onDuty && shiftType) {
+        // Use pre-fetched contracted hours (or fetch if not already loaded)
+        let contractedHours = contractedHoursByStaffId.get(staff.id);
+        if (!contractedHours) {
+          contractedHours = await this.contractedHoursRepo.findByStaff(staff.id);
+          contractedHoursByStaffId.set(staff.id, contractedHours);
+        }
+
+        const times = await this.getShiftTimesForStaff(staff, shiftType, targetDate, {
+          contractedHoursMap: contractedHoursByStaffId
+        });
+
+        // If times is null, staff has contracted hours but not for this day - skip them
+        if (!times) continue;
+
+        const shiftStart = formatLocalTime(times.start);
+        const shiftEnd = formatLocalTime(times.end);
+
+        const shiftAssignment: ShiftAssignment = {
+          staff,
+          shiftType,
+          shiftStart,
+          shiftEnd,
+          isManualAssignment: false,
+          isFixedSchedule: false,
+          assignmentDate: targetDate,
+          status: this.calculateShiftStatus(targetDate, shiftStart, shiftEnd, shiftType),
+        };
+
+        if (shiftType === 'day') {
+          dayShifts.push(shiftAssignment);
+        } else {
+          nightShifts.push(shiftAssignment);
+        }
+      }
+    }
+
     // Fetch absence information for all staff in the shifts
     const allStaffIds = [
       ...dayShifts.map(s => s.staff.id),

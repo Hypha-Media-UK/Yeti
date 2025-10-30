@@ -20,8 +20,10 @@ CREATE TABLE IF NOT EXISTS config (
 CREATE INDEX idx_config_key ON config(key);
 
 -- Insert initial config
-INSERT INTO config (key, value) VALUES 
-    ('app_zero_date', '2024-01-01'),
+-- Note: app_zero_date changed from 2024-01-01 to 2025-10-26 on 2025-10-30
+-- Supervisor shift offsets were increased by 8 to compensate for the 664-day difference
+INSERT INTO config (key, value) VALUES
+    ('app_zero_date', '2025-10-26'),
     ('time_zone', 'Europe/London')
 ON CONFLICT (key) DO NOTHING;
 
@@ -112,14 +114,23 @@ CREATE TABLE IF NOT EXISTS staff (
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     status staff_status NOT NULL,
+    shift_id INTEGER REFERENCES shifts(id) ON DELETE SET NULL,
     cycle_type VARCHAR(50),
     days_offset INTEGER DEFAULT 0,
+    custom_shift_start TIME,
+    custom_shift_end TIME,
+    use_cycle_for_permanent BOOLEAN DEFAULT FALSE,
+    reference_shift_id INTEGER REFERENCES shifts(id) ON DELETE SET NULL,
+    use_contracted_hours_for_shift BOOLEAN DEFAULT FALSE,
+    is_pool_staff BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_staff_status ON staff(status);
+CREATE INDEX idx_staff_shift_id ON staff(shift_id);
+CREATE INDEX idx_staff_is_pool ON staff(is_pool_staff);
 CREATE INDEX idx_staff_is_active ON staff(is_active);
 
 -- ============================================================================

@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
 import { StaffRepository } from '../repositories/staff.repository';
 import { ScheduleRepository } from '../repositories/schedule.repository';
-import { validateStaffStatus } from '../utils/validation.utils';
+import { validateStaffStatus, parseId } from '../utils/validation.utils';
+import { isForeignKeyError } from '../utils/error.utils';
 
 export class StaffController {
   private staffRepo: StaffRepository;
@@ -14,11 +15,12 @@ export class StaffController {
 
   getAllStaff = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { status, includeInactive } = req.query;
+      const { status, includeInactive, isPoolStaff } = req.query;
 
       const filters: any = {};
       if (status) filters.status = status as string;
       if (includeInactive === 'true') filters.includeInactive = true;
+      if (isPoolStaff !== undefined) filters.isPoolStaff = isPoolStaff === 'true';
 
       const staff = await this.staffRepo.findAll(filters);
 
@@ -31,12 +33,7 @@ export class StaffController {
 
   getStaffById = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
-
-      if (isNaN(id)) {
-        res.status(400).json({ error: 'Invalid staff ID' });
-        return;
-      }
+      const id = parseId(req.params.id, 'Staff ID');
 
       const staff = await this.staffRepo.findById(id);
 
@@ -54,7 +51,20 @@ export class StaffController {
 
   createStaff = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { firstName, lastName, status, shiftId, cycleType, daysOffset, customShiftStart, customShiftEnd } = req.body;
+      const {
+        firstName,
+        lastName,
+        status,
+        shiftId,
+        cycleType,
+        daysOffset,
+        customShiftStart,
+        customShiftEnd,
+        useCycleForPermanent,
+        referenceShiftId,
+        useContractedHoursForShift,
+        isPoolStaff
+      } = req.body;
 
       if (!firstName || !lastName || !status) {
         res.status(400).json({ error: 'First name, last name, and status are required' });
@@ -76,6 +86,10 @@ export class StaffController {
         daysOffset: daysOffset || 0,
         customShiftStart: customShiftStart || null,
         customShiftEnd: customShiftEnd || null,
+        useCycleForPermanent: useCycleForPermanent || false,
+        referenceShiftId: referenceShiftId || null,
+        useContractedHoursForShift: useContractedHoursForShift || false,
+        isPoolStaff: isPoolStaff || false,
         isActive: true,
       });
 
@@ -88,12 +102,7 @@ export class StaffController {
 
   updateStaff = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
-
-      if (isNaN(id)) {
-        res.status(400).json({ error: 'Invalid staff ID' });
-        return;
-      }
+      const id = parseId(req.params.id, 'Staff ID');
 
       const updates = req.body;
 
@@ -121,13 +130,8 @@ export class StaffController {
 
   deleteStaff = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseId(req.params.id, 'Staff ID');
       const hardDelete = req.query.hard === 'true';
-
-      if (isNaN(id)) {
-        res.status(400).json({ error: 'Invalid staff ID' });
-        return;
-      }
 
       const success = hardDelete
         ? await this.staffRepo.hardDelete(id)
@@ -139,20 +143,21 @@ export class StaffController {
       }
 
       res.json({ success: true });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting staff:', error);
+
+      if (isForeignKeyError(error)) {
+        res.status(409).json({ error: 'Cannot delete staff member because they have related records' });
+        return;
+      }
+
       res.status(500).json({ error: 'Failed to delete staff member' });
     }
   };
 
   getStaffSchedules = async (req: Request, res: Response): Promise<void> => {
     try {
-      const staffId = parseInt(req.params.staffId);
-
-      if (isNaN(staffId)) {
-        res.status(400).json({ error: 'Invalid staff ID' });
-        return;
-      }
+      const staffId = parseId(req.params.staffId, 'Staff ID');
 
       const schedules = await this.scheduleRepo.findByStaffId(staffId);
 
@@ -165,12 +170,7 @@ export class StaffController {
 
   createStaffSchedule = async (req: Request, res: Response): Promise<void> => {
     try {
-      const staffId = parseInt(req.params.staffId);
-
-      if (isNaN(staffId)) {
-        res.status(400).json({ error: 'Invalid staff ID' });
-        return;
-      }
+      const staffId = parseId(req.params.staffId, 'Staff ID');
 
       const { dayOfWeek, shiftStart, shiftEnd, effectiveFrom, effectiveTo } = req.body;
 
@@ -197,12 +197,7 @@ export class StaffController {
 
   deleteSchedule = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
-
-      if (isNaN(id)) {
-        res.status(400).json({ error: 'Invalid schedule ID' });
-        return;
-      }
+      const id = parseId(req.params.id, 'Schedule ID');
 
       const success = await this.scheduleRepo.delete(id);
 
