@@ -446,6 +446,9 @@ export class RotaService {
       const hasPermanentAssignment = allocationsByStaffId.get(staff.id) || false;
       if (hasPermanentAssignment) continue;
 
+      // CRITICAL: Skip pool staff - they are processed separately below
+      if (staff.isPoolStaff) continue;
+
       // Check for fixed schedule (pre-fetched)
       const fixedSchedule = fixedSchedulesByStaffId.get(staff.id);
       if (fixedSchedule) {
