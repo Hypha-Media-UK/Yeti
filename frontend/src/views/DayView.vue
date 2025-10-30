@@ -450,7 +450,7 @@ async function handleCreateTemporaryAssignment(data: CreateTemporaryAssignmentDt
     selectedStaffForAssignment.value = null;
 
     // Clear cache and reload using day store
-    dayStore.clearCache([selectedDate.value]);
+    dayStore.clearRotaCache([selectedDate.value]);
     await loadDay();
   } catch (err: any) {
     console.error('Error creating temporary assignment:', err);
