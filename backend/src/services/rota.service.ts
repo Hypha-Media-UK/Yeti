@@ -10,6 +10,7 @@ import { StaffContractedHoursRepository } from '../repositories/staff-contracted
 import { AbsenceRepository } from '../repositories/absence.repository';
 import { ShiftRepository } from '../repositories/shift.repository';
 import { daysBetween, formatLocalDate, formatLocalTime, addDaysLocal, parseLocalDate } from '../utils/date.utils';
+import { isShiftActiveOnDate, calculateCycleStatus } from '../utils/cycle.utils';
 import { SHIFT_TIMES, CYCLE_LENGTHS } from '../config/constants';
 
 export class RotaService {
@@ -43,25 +44,9 @@ export class RotaService {
     const activeShifts: Shift[] = [];
 
     for (const shift of allShifts) {
-      // Skip shifts without cycle information (relief, fixed schedules)
-      if (!shift.cycleType || !shift.cycleLength) {
-        continue;
-      }
-
-      const adjustedDays = daysSinceZero - shift.daysOffset;
-      const cyclePosition = ((adjustedDays % shift.cycleLength) + shift.cycleLength) % shift.cycleLength;
-
-      if (shift.cycleType === '4-on-4-off') {
-        // Regular 8-day cycle: 4 on, 4 off
-        if (cyclePosition < 4) {
-          activeShifts.push(shift);
-        }
-      } else if (shift.cycleType === '16-day-supervisor') {
-        // Supervisor 16-day cycle: 4 day, 4 off, 4 night, 4 off
-        // Days 0-3: day shift, Days 8-11: night shift
-        if (cyclePosition < 4 || (cyclePosition >= 8 && cyclePosition < 12)) {
-          activeShifts.push(shift);
-        }
+      // Use centralized cycle utility to check if shift is active
+      if (isShiftActiveOnDate(shift.cycleType, shift.cycleLength, daysSinceZero, shift.daysOffset)) {
+        activeShifts.push(shift);
       }
     }
 
@@ -86,41 +71,26 @@ export class RotaService {
 
     const daysSinceZero = daysBetween(appZeroDate, targetDate);
 
-    // Use personal offset if set, otherwise use shift's offset
-    const effectiveOffset = (staff.daysOffset !== null && staff.daysOffset !== undefined)
+    // Use personal offset if set AND non-zero, otherwise use shift's offset
+    // A personal offset of 0 means "use the shift offset", not "override with 0"
+    const effectiveOffset = (staff.daysOffset !== null && staff.daysOffset !== undefined && staff.daysOffset !== 0)
       ? staff.daysOffset
       : (staff.shift?.daysOffset || 0);
 
-    const adjustedDays = daysSinceZero - effectiveOffset;
-
+    // Use centralized cycle utility for Supervisor
     if (staff.status === 'Supervisor') {
-      // Supervisor pattern: 4 days / 4 off / 4 nights / 4 off (16-day cycle)
-      const cyclePosition = ((adjustedDays % CYCLE_LENGTHS.SUPERVISOR) + CYCLE_LENGTHS.SUPERVISOR) % CYCLE_LENGTHS.SUPERVISOR;
-
-      if (cyclePosition < 4) {
-        // Days 0-3: Day shift
-        return { onDuty: true, shiftType: 'day' };
-      } else if (cyclePosition >= 8 && cyclePosition < 12) {
-        // Days 8-11: Night shift
-        return { onDuty: true, shiftType: 'night' };
-      } else {
-        // Days 4-7 and 12-15: Off
-        return { onDuty: false, shiftType: null };
-      }
+      return calculateCycleStatus('16-day-supervisor', daysSinceZero, effectiveOffset);
     }
 
-    if (staff.status === 'Regular' && staff.cycleType === '4-on-4-off') {
-      // Regular pattern: 4 on / 4 off (8-day cycle)
-      const cyclePosition = ((adjustedDays % CYCLE_LENGTHS.REGULAR) + CYCLE_LENGTHS.REGULAR) % CYCLE_LENGTHS.REGULAR;
-
-      if (cyclePosition < 4) {
-        // Days 0-3: On duty
-        const shiftType = staff.shift?.type || null;
-        return { onDuty: true, shiftType };
-      } else {
-        // Days 4-7: Off
-        return { onDuty: false, shiftType: null };
+    // Use centralized cycle utility for Regular staff
+    // Use shift's cycle type instead of deprecated staff.cycleType
+    if (staff.status === 'Regular' && staff.shift?.cycleType === '4-on-4-off') {
+      const result = calculateCycleStatus('4-on-4-off', daysSinceZero, effectiveOffset);
+      // For regular staff, use shift type from their assigned shift if available
+      if (result.onDuty && staff.shift?.type) {
+        return { onDuty: true, shiftType: staff.shift.type };
       }
+      return result;
     }
 
     return { onDuty: false, shiftType: null };
@@ -659,27 +629,9 @@ export class RotaService {
         const adjustedDays = daysSinceZero - effectiveOffset;
 
         // Use the reference shift's cycle type
-        if (referenceShift.cycleType === '4-on-4-off') {
-          // Regular 4-on-4-off pattern (8-day cycle)
-          const cyclePosition = adjustedDays % CYCLE_LENGTHS.REGULAR;
-          return cyclePosition < 4;
-        } else if (referenceShift.cycleType === '16-day-supervisor') {
-          // Supervisor 16-day cycle: 4 day / 4 off / 4 night / 4 off
-          const cyclePosition = adjustedDays % CYCLE_LENGTHS.SUPERVISOR;
-          return cyclePosition < 4 || (cyclePosition >= 8 && cyclePosition < 12);
-        } else if (referenceShift.cycleType === 'relief') {
-          // Relief staff have no cycle pattern - they work based on manual assignments only
-          // If we're checking cycle-based work, they're not working (manual assignments are checked earlier)
-          return false;
-        } else if (referenceShift.cycleType === 'fixed') {
-          // Fixed schedule staff should use fixed_schedules table, not cycle patterns
-          // For now, return false (fixed schedules are handled separately)
-          return false;
-        } else {
-          // Unknown cycle type for reference shift - log warning and return false
-          console.warn(`Unknown cycle type '${referenceShift.cycleType}' for reference shift ${referenceShift.id} (${referenceShift.name})`);
-          return false;
-        }
+        // Use centralized cycle utility to check if staff is working
+        const { onDuty } = calculateCycleStatus(referenceShift.cycleType, daysSinceZero, effectiveOffset);
+        return onDuty;
       }
 
       // Fall back to contracted hours for permanent staff without reference shift
@@ -741,16 +693,14 @@ export class RotaService {
       ? staff.daysOffset
       : (staff.shift?.daysOffset || 0);
 
-    const adjustedDays = daysSinceZero - effectiveOffset;
-
+    // Use centralized cycle utility
     if (staff.status === 'Supervisor') {
-      // 16-day cycle: 4 day / 4 off / 4 night / 4 off
-      const cyclePosition = adjustedDays % CYCLE_LENGTHS.SUPERVISOR;
-      return cyclePosition < 4 || (cyclePosition >= 8 && cyclePosition < 12);
+      const { onDuty } = calculateCycleStatus('16-day-supervisor', daysSinceZero, effectiveOffset);
+      return onDuty;
     } else {
       // Regular staff: 4-on-4-off (8-day cycle)
-      const cyclePosition = adjustedDays % CYCLE_LENGTHS.REGULAR;
-      return cyclePosition < 4;
+      const { onDuty } = calculateCycleStatus('4-on-4-off', daysSinceZero, effectiveOffset);
+      return onDuty;
     }
   }
 
