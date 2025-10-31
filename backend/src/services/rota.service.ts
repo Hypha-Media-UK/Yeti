@@ -241,8 +241,7 @@ export class RotaService {
    * Get manual assignments for a specific date
    */
   async getManualAssignmentsForDate(date: string): Promise<ManualAssignment[]> {
-    const { currentDay } = await this.manualAssignmentService.getManualAssignmentsForDate(date);
-    return currentDay;
+    return await this.manualAssignmentService.getManualAssignmentsForDate(date);
   }
 
   /**
