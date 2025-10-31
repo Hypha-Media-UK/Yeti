@@ -1,5 +1,5 @@
-import { supabase } from '../config/database';
 import { Shift, CreateShiftDto, UpdateShiftDto } from '../../shared/types/shift';
+import { BaseRepository } from './base.repository';
 
 interface ShiftRow {
   id: number;
@@ -15,8 +15,15 @@ interface ShiftRow {
   updated_at: string;
 }
 
-export class ShiftRepository {
-  private mapRowToShift(row: ShiftRow): Shift {
+export class ShiftRepository extends BaseRepository<
+  Shift,
+  ShiftRow,
+  CreateShiftDto,
+  UpdateShiftDto
+> {
+  protected readonly tableName = 'shifts';
+
+  protected mapRowToEntity(row: ShiftRow): Shift {
     return {
       id: row.id,
       name: row.name,
@@ -32,47 +39,81 @@ export class ShiftRepository {
     };
   }
 
-  async findAll(includeInactive = false): Promise<Shift[]> {
-    let query = supabase
-      .from('shifts')
+  protected mapEntityToInsertRow(input: CreateShiftDto): Partial<ShiftRow> {
+    return {
+      name: input.name,
+      type: input.type,
+      color: input.color || '#3B82F6',
+      description: input.description || null,
+      cycle_type: input.cycleType || null,
+      cycle_length: input.cycleLength || null,
+      days_offset: input.daysOffset || 0,
+      is_active: true,
+    };
+  }
+
+  protected mapEntityToUpdateRow(input: UpdateShiftDto): Partial<ShiftRow> {
+    const updateData: Partial<ShiftRow> = {};
+
+    if (input.name !== undefined) {
+      updateData.name = input.name;
+    }
+    if (input.type !== undefined) {
+      updateData.type = input.type;
+    }
+    if (input.color !== undefined) {
+      updateData.color = input.color;
+    }
+    if (input.description !== undefined) {
+      updateData.description = input.description;
+    }
+    if (input.cycleType !== undefined) {
+      updateData.cycle_type = input.cycleType;
+    }
+    if (input.cycleLength !== undefined) {
+      updateData.cycle_length = input.cycleLength;
+    }
+    if (input.daysOffset !== undefined) {
+      updateData.days_offset = input.daysOffset;
+    }
+    if (input.isActive !== undefined) {
+      updateData.is_active = input.isActive;
+    }
+
+    return updateData;
+  }
+
+  /**
+   * Override findAll to add custom ordering
+   */
+  async findAll(filters?: { includeInactive?: boolean }): Promise<Shift[]> {
+    let query = this.client
+      .from(this.tableName)
       .select('*');
 
-    if (!includeInactive) {
+    // Apply is_active filter by default
+    if (filters?.includeInactive !== true) {
       query = query.eq('is_active', true);
     }
 
+    // Add custom ordering
     query = query.order('name');
 
     const { data, error } = await query;
 
     if (error) {
-      throw new Error(`Failed to find shifts: ${error.message}`);
+      throw new Error(`Failed to find ${this.tableName}: ${error.message}`);
     }
 
-    return (data || []).map(row => this.mapRowToShift(row));
+    return (data || []).map(row => this.mapRowToEntity(row as ShiftRow));
   }
 
-  async findById(id: number): Promise<Shift | null> {
-    const { data, error } = await supabase
-      .from('shifts')
-      .select('*')
-      .eq('id', id)
-      .eq('is_active', true)
-      .single();
-
-    if (error) {
-      if (error.code === 'PGRST116') {
-        return null;
-      }
-      throw new Error(`Failed to find shift: ${error.message}`);
-    }
-
-    return data ? this.mapRowToShift(data) : null;
-  }
-
+  /**
+   * Custom method: Find shifts by type
+   */
   async findByType(type: 'day' | 'night'): Promise<Shift[]> {
-    const { data, error } = await supabase
-      .from('shifts')
+    const { data, error } = await this.client
+      .from(this.tableName)
       .select('*')
       .eq('type', type)
       .eq('is_active', true)
@@ -82,16 +123,19 @@ export class ShiftRepository {
       throw new Error(`Failed to find shifts by type: ${error.message}`);
     }
 
-    return (data || []).map(row => this.mapRowToShift(row));
+    return (data || []).map(row => this.mapRowToEntity(row as ShiftRow));
   }
 
+  /**
+   * Custom method: Find shifts by IDs
+   */
   async findByIds(ids: number[]): Promise<Shift[]> {
     if (ids.length === 0) {
       return [];
     }
 
-    const { data, error } = await supabase
-      .from('shifts')
+    const { data, error } = await this.client
+      .from(this.tableName)
       .select('*')
       .in('id', ids)
       .eq('is_active', true);
@@ -100,97 +144,15 @@ export class ShiftRepository {
       throw new Error(`Failed to find shifts by IDs: ${error.message}`);
     }
 
-    return (data || []).map(row => this.mapRowToShift(row));
-  }
-
-  async create(data: CreateShiftDto): Promise<Shift> {
-    const { data: result, error } = await supabase
-      .from('shifts')
-      .insert({
-        name: data.name,
-        type: data.type,
-        color: data.color || '#3B82F6',
-        description: data.description || null,
-        cycle_type: data.cycleType || null,
-        cycle_length: data.cycleLength || null,
-        days_offset: data.daysOffset || 0,
-        is_active: true
-      })
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error(`Failed to create shift: ${error.message}`);
-    }
-
-    return this.mapRowToShift(result);
-  }
-
-  async update(id: number, updates: UpdateShiftDto): Promise<Shift | null> {
-    const updateData: any = {};
-
-    if (updates.name !== undefined) {
-      updateData.name = updates.name;
-    }
-    if (updates.type !== undefined) {
-      updateData.type = updates.type;
-    }
-    if (updates.color !== undefined) {
-      updateData.color = updates.color;
-    }
-    if (updates.description !== undefined) {
-      updateData.description = updates.description;
-    }
-    if (updates.cycleType !== undefined) {
-      updateData.cycle_type = updates.cycleType;
-    }
-    if (updates.cycleLength !== undefined) {
-      updateData.cycle_length = updates.cycleLength;
-    }
-    if (updates.daysOffset !== undefined) {
-      updateData.days_offset = updates.daysOffset;
-    }
-    if (updates.isActive !== undefined) {
-      updateData.is_active = updates.isActive;
-    }
-
-    if (Object.keys(updateData).length === 0) {
-      return this.findById(id);
-    }
-
-    const { data, error } = await supabase
-      .from('shifts')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error(`Failed to update shift: ${error.message}`);
-    }
-
-    return data ? this.mapRowToShift(data) : null;
-  }
-
-  async delete(id: number): Promise<boolean> {
-    const { error } = await supabase
-      .from('shifts')
-      .update({ is_active: false })
-      .eq('id', id);
-
-    if (error) {
-      throw new Error(`Failed to delete shift: ${error.message}`);
-    }
-
-    return true;
+    return (data || []).map(row => this.mapRowToEntity(row as ShiftRow));
   }
 
   /**
-   * Check if a shift name already exists (case-insensitive)
+   * Custom method: Check if a shift name already exists (case-insensitive)
    */
   async existsByName(name: string, excludeId?: number): Promise<boolean> {
-    let query = supabase
-      .from('shifts')
+    let query = this.client
+      .from(this.tableName)
       .select('id', { count: 'exact', head: true })
       .ilike('name', name)
       .eq('is_active', true);
@@ -209,10 +171,10 @@ export class ShiftRepository {
   }
 
   /**
-   * Get count of staff members assigned to this shift
+   * Custom method: Get count of staff members assigned to this shift
    */
   async getStaffCount(shiftId: number): Promise<number> {
-    const { count, error } = await supabase
+    const { count, error } = await this.client
       .from('staff')
       .select('id', { count: 'exact', head: true })
       .eq('shift_id', shiftId)
@@ -226,11 +188,11 @@ export class ShiftRepository {
   }
 
   /**
-   * Unassign all staff from a shift (set shift_id to NULL)
+   * Custom method: Unassign all staff from a shift (set shift_id to NULL)
    * Used when deleting a shift to set staff to "No Shift"
    */
   async unassignStaffFromShift(shiftId: number): Promise<void> {
-    const { error } = await supabase
+    const { error } = await this.client
       .from('staff')
       .update({ shift_id: null })
       .eq('shift_id', shiftId)
