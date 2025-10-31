@@ -2,7 +2,8 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { api } from '@/services/api';
 import { LRUCache } from '@/utils/lru-cache';
-import type { DayRota, ShiftAssignment, ManualAssignment } from '@shared/types/shift';
+import { retry, formatErrorMessage } from '@/utils/retry';
+import type { DayRota, ManualAssignment } from '@shared/types/shift';
 
 // Cache configuration
 const CACHE_SIZE_LIMIT = 7; // Keep last 7 days in cache
@@ -11,13 +12,6 @@ const DEBUG = import.meta.env.DEV;
 // Debug logging helper
 function debug(message: string, ...args: any[]) {
   if (DEBUG) console.log(message, ...args);
-}
-
-// Helper: Get day of week (ISO 8601: Monday=1, Sunday=7)
-function getDayOfWeek(dateStr: string): number {
-  const date = new Date(dateStr + 'T00:00:00');
-  const jsDay = date.getDay(); // JavaScript: Sunday=0, Monday=1, ..., Saturday=6
-  return jsDay === 0 ? 7 : jsDay; // Convert to ISO 8601: Monday=1, Sunday=7
 }
 
 // Helper: Add days to a date string
@@ -31,11 +25,10 @@ export const useDayStore = defineStore('day', () => {
   // State
   const selectedDate = ref<string>('');
   const currentRota = ref<DayRota | null>(null);
-  const currentAreas = ref<any[]>([]);
   const isLoading = ref(false);
   const error = ref<string | null>(null);
 
-  // Cache: LRU cache of date string -> DayRota (only rota, not area staff)
+  // Cache: LRU cache of date string -> DayRota
   const rotaCache = new LRUCache<string, DayRota>(CACHE_SIZE_LIMIT);
 
   // Track ongoing prefetch operations to avoid duplicates
@@ -44,7 +37,6 @@ export const useDayStore = defineStore('day', () => {
   // Computed properties
   const dayShifts = computed(() => currentRota.value?.dayShifts || []);
   const nightShifts = computed(() => currentRota.value?.nightShifts || []);
-  const areas = computed(() => currentAreas.value || []);
   
   const allShiftsForDate = computed(() => {
     if (!currentRota.value) return [];
@@ -102,11 +94,16 @@ export const useDayStore = defineStore('day', () => {
   }
 
   /**
-   * Fetch rota from API (cached)
+   * Fetch rota from API with retry logic
    */
   async function fetchRota(date: string): Promise<DayRota> {
     debug(`[API] Fetching rota for ${date}`);
-    const rota = await api.getRotaForDay(date);
+
+    const rota = await retry(
+      () => api.getRotaForDay(date),
+      { maxAttempts: 3, delayMs: 1000 }
+    );
+
     debug(`[API] Fetched rota for ${date}:`, {
       dayShifts: rota.dayShifts.length,
       nightShifts: rota.nightShifts.length
@@ -114,45 +111,16 @@ export const useDayStore = defineStore('day', () => {
     return rota;
   }
 
-  /**
-   * Fetch areas and their staff from API (always fresh, never cached)
-   */
-  async function fetchAreasWithStaff(date: string): Promise<any[]> {
-    debug(`[API] Fetching areas and staff for ${date}`);
 
-    const dayOfWeek = getDayOfWeek(date);
-
-    // Fetch areas list
-    const areasResponse = await api.getMainRotaAreasForDay(dayOfWeek, date, false);
-
-    // Load staff for each area in parallel (always fresh)
-    const areasWithStaff = await Promise.all(
-      areasResponse.areas.map(async (area: any) => {
-        try {
-          const staffResponse = await api.getAreaStaff(area.type, area.id, date);
-          return { ...area, staff: staffResponse.staff };
-        } catch (err) {
-          console.error(`Error loading staff for ${area.name}:`, err);
-          return { ...area, staff: [] };
-        }
-      })
-    );
-
-    debug(`[API] Fetched areas for ${date}:`, {
-      areas: areasWithStaff.length
-    });
-
-    return areasWithStaff;
-  }
 
   // ============================================================================
   // ORCHESTRATION (With side effects - state updates, caching)
   // ============================================================================
 
   /**
-   * Load a day's data (rota cached, areas always fresh)
+   * Load rota for a specific date (with caching)
    */
-  async function loadDay(date: string, options: { skipCache?: boolean; silent?: boolean } = {}) {
+  async function loadRota(date: string, options: { skipCache?: boolean; silent?: boolean } = {}) {
     const { skipCache = false, silent = false } = options;
 
     // Update loading state (unless silent)
@@ -175,16 +143,12 @@ export const useDayStore = defineStore('day', () => {
         setCachedRota(date, rota);
       }
 
-      // Always fetch areas fresh (no caching)
-      const areas = await fetchAreasWithStaff(date);
-
       // Update state
       currentRota.value = rota;
-      currentAreas.value = areas;
 
     } catch (err: any) {
-      error.value = err.message || 'Failed to load day data';
-      console.error('Error loading day:', err);
+      error.value = formatErrorMessage(err, 'Failed to load rota');
+      console.error('[DAY STORE] Error loading rota:', err);
       throw err;
     } finally {
       if (!silent) {
@@ -194,7 +158,7 @@ export const useDayStore = defineStore('day', () => {
   }
 
   /**
-   * Prefetch adjacent days' rota in the background (areas not prefetched)
+   * Prefetch adjacent days' rota in the background
    */
   async function prefetchAdjacentDays(date: string): Promise<void> {
     const previousDate = addDays(date, -1);
@@ -206,7 +170,7 @@ export const useDayStore = defineStore('day', () => {
     // Filter out dates that are already cached or being prefetched
     const datesToFetch = datesToPrefetch.filter(d => {
       if (isRotaCached(d)) {
-        debug(`[PREFETCH] Skipping ${d} (rota already cached)`);
+        debug(`[PREFETCH] Skipping ${d} (already cached)`);
         return false;
       }
       if (prefetchInProgress.value.has(d)) {
@@ -224,7 +188,7 @@ export const useDayStore = defineStore('day', () => {
     // Mark as in progress
     datesToFetch.forEach(d => prefetchInProgress.value.add(d));
 
-    // Prefetch rota only (silent mode - no loading indicators)
+    // Prefetch rota (silent mode - no loading indicators)
     await Promise.all(
       datesToFetch.map(async (d) => {
         try {
@@ -251,9 +215,9 @@ export const useDayStore = defineStore('day', () => {
     // Invalidate rota cache for the affected date
     clearRotaCache([assignment.assignmentDate]);
 
-    // Reload current day if it's the affected date (will fetch fresh areas)
+    // Reload current day if it's the affected date
     if (selectedDate.value === assignment.assignmentDate) {
-      await loadDay(assignment.assignmentDate, { skipCache: true });
+      await loadRota(assignment.assignmentDate, { skipCache: true });
     }
 
     return result;
@@ -268,9 +232,9 @@ export const useDayStore = defineStore('day', () => {
     // Invalidate rota cache for the affected date
     clearRotaCache([affectedDate]);
 
-    // Reload current day if it's the affected date (will fetch fresh areas)
+    // Reload current day if it's the affected date
     if (selectedDate.value === affectedDate) {
-      await loadDay(affectedDate, { skipCache: true });
+      await loadRota(affectedDate, { skipCache: true });
     }
   }
 
@@ -285,18 +249,16 @@ export const useDayStore = defineStore('day', () => {
     // State
     selectedDate,
     currentRota,
-    currentAreas,
     isLoading,
     error,
 
     // Computed
     dayShifts,
     nightShifts,
-    areas,
     allShiftsForDate,
 
     // Actions
-    loadDay,
+    loadRota,
     prefetchAdjacentDays,
     createAssignment,
     deleteAssignment,

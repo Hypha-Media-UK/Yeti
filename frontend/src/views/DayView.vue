@@ -183,6 +183,7 @@
 import { ref, watch, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useDayStore } from '@/stores/day';
+import { useAreaStore } from '@/stores/area';
 import { useStaffStore } from '@/stores/staff';
 import { useConfigStore } from '@/stores/config';
 import { useTimeZone } from '@/composables/useTimeZone';
@@ -201,17 +202,18 @@ import type { CreateAbsenceRequest } from '@shared/types/absence';
 const route = useRoute();
 const router = useRouter();
 const dayStore = useDayStore();
+const areaStore = useAreaStore();
 const staffStore = useStaffStore();
 const configStore = useConfigStore();
 const { getTodayString } = useTimeZone();
 const { isAbsenceActive, formatAbsencePeriod, formatAbsenceDisplay } = useAbsence();
 
 const selectedDate = ref<string>(getTodayString());
-const isLoading = computed(() => dayStore.isLoading);
-const error = computed(() => dayStore.error);
+const isLoading = computed(() => dayStore.isLoading || areaStore.isLoading);
+const error = computed(() => dayStore.error || areaStore.error);
 const dayShifts = computed(() => dayStore.dayShifts);
 const nightShifts = computed(() => dayStore.nightShifts);
-const areas = computed(() => dayStore.areas);
+const areas = computed(() => areaStore.areas);
 
 // Temporary assignment modal state
 const showTemporaryAssignmentModal = ref(false);
@@ -400,7 +402,12 @@ watch(
 
 // Load day data (rota + areas) and prefetch adjacent days
 async function loadDay() {
-  await dayStore.loadDay(selectedDate.value);
+  // Load rota and areas in parallel
+  await Promise.all([
+    dayStore.loadRota(selectedDate.value),
+    areaStore.loadAreas(selectedDate.value)
+  ]);
+
   // Prefetch adjacent days in background (non-blocking)
   dayStore.prefetchAdjacentDays(selectedDate.value);
 }
@@ -449,7 +456,7 @@ async function handleCreateTemporaryAssignment(data: CreateTemporaryAssignmentDt
     showTemporaryAssignmentModal.value = false;
     selectedStaffForAssignment.value = null;
 
-    // Clear cache and reload using day store
+    // Clear cache and reload both rota and areas
     dayStore.clearRotaCache([selectedDate.value]);
     await loadDay();
   } catch (err: any) {
@@ -465,8 +472,8 @@ async function handleCreateQuickAbsence(data: CreateAbsenceRequest) {
     showQuickAbsenceModal.value = false;
     selectedStaffForAbsence.value = null;
 
-    // Clear cache and reload
-    dayStore.clearCache([selectedDate.value]);
+    // Clear cache and reload both rota and areas
+    dayStore.clearRotaCache([selectedDate.value]);
     await loadDay();
   } catch (err: any) {
     console.error('Error creating absence:', err);
