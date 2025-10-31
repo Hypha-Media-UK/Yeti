@@ -70,30 +70,45 @@ describe('RotaService', () => {
       mockShifts.push({
         id: 1,
         name: 'Day Shift A',
+        type: 'day',
         cycleType: '4-on-4-off',
+        cycleLength: 8,
         daysOffset: overrides.daysOffset || 0,
-        group: 'Day',
+        color: '#3B82F6',
+        description: null,
         isActive: true,
+        createdAt: '2025-10-26T00:00:00Z',
+        updatedAt: '2025-10-26T00:00:00Z',
       });
     } else if (overrides.group === 'Night') {
       shiftId = 2;
       mockShifts.push({
         id: 2,
         name: 'Night Shift A',
+        type: 'night',
         cycleType: '4-on-4-off',
+        cycleLength: 8,
         daysOffset: overrides.daysOffset || 0,
-        group: 'Night',
+        color: '#8B5CF6',
+        description: null,
         isActive: true,
+        createdAt: '2025-10-26T00:00:00Z',
+        updatedAt: '2025-10-26T00:00:00Z',
       });
     } else if (overrides.cycleType === 'supervisor' || overrides.cycleType === '16-day-supervisor') {
       shiftId = 3;
       mockShifts.push({
         id: 3,
         name: 'Supervisor Shift',
+        type: 'day',
         cycleType: '16-day-supervisor',
+        cycleLength: 16,
         daysOffset: overrides.daysOffset || 0,
-        group: null,
+        color: '#10B981',
+        description: null,
         isActive: true,
+        createdAt: '2025-10-26T00:00:00Z',
+        updatedAt: '2025-10-26T00:00:00Z',
       });
     }
 
