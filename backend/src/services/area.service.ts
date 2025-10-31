@@ -7,6 +7,7 @@ import { OverrideRepository } from '../repositories/override.repository';
 import { StaffRepository } from '../repositories/staff.repository';
 import { AbsenceRepository } from '../repositories/absence.repository';
 import { RotaService } from './rota.service';
+import { ShiftTimeService } from './rota/shift-time.service';
 import type { Department } from '../../shared/types/department';
 import type { Service } from '../../shared/types/service';
 import type { AreaOperationalHours, StaffContractedHours } from '../../shared/types/operational-hours';
@@ -20,6 +21,8 @@ export interface StaffAssignmentForArea {
   lastName: string;
   status: string;
   shiftType: ShiftType;
+  shiftStart: string;
+  shiftEnd: string;
   contractedHours: StaffContractedHours[];
   currentAbsence?: Absence | null;
 }
@@ -43,6 +46,7 @@ export class AreaService {
   private staffRepo: StaffRepository;
   private absenceRepo: AbsenceRepository;
   private rotaService: RotaService;
+  private shiftTimeService: ShiftTimeService;
 
   constructor() {
     this.departmentRepo = new DepartmentRepository();
@@ -54,6 +58,7 @@ export class AreaService {
     this.staffRepo = new StaffRepository();
     this.absenceRepo = new AbsenceRepository();
     this.rotaService = new RotaService();
+    this.shiftTimeService = new ShiftTimeService();
   }
 
   /**
@@ -289,12 +294,26 @@ export class AreaService {
           shiftType = staff.shift.type;
         }
 
+        // Get shift times for this staff member
+        const times = await this.shiftTimeService.getShiftTimesForStaff(
+          staff,
+          shiftType,
+          date,
+          { contractedHoursMap: allContractedHoursMap }
+        );
+
+        // Default times if none found
+        const shiftStart = times?.start || (shiftType === 'day' ? '08:00:00' : '20:00:00');
+        const shiftEnd = times?.end || (shiftType === 'day' ? '20:00:00' : '08:00:00');
+
         staffAssignments.push({
           id: staff.id,
           firstName: staff.firstName,
           lastName: staff.lastName,
           status: staff.status,
           shiftType,
+          shiftStart,
+          shiftEnd,
           contractedHours,
         });
       }
@@ -318,12 +337,26 @@ export class AreaService {
       // OPTIMIZED: Get contracted hours from pre-fetched map instead of querying database
       const contractedHours = allContractedHoursMap.get(assignment.staffId) || [];
 
+      // Get shift times for this staff member
+      const times = await this.shiftTimeService.getShiftTimesForStaff(
+        staff,
+        assignment.shiftType,
+        date,
+        { contractedHoursMap: allContractedHoursMap }
+      );
+
+      // Default times if none found
+      const shiftStart = times?.start || (assignment.shiftType === 'day' ? '08:00:00' : '20:00:00');
+      const shiftEnd = times?.end || (assignment.shiftType === 'day' ? '20:00:00' : '08:00:00');
+
       staffAssignments.push({
         id: staff.id,
         firstName: staff.firstName,
         lastName: staff.lastName,
         status: staff.status,
         shiftType: assignment.shiftType,
+        shiftStart,
+        shiftEnd,
         contractedHours,
       });
     }
@@ -336,7 +369,7 @@ export class AreaService {
       }
     });
 
-    // Sort by: 1) shift type (day first, then night), 2) absence status (present first, absent last), 3) name
+    // Sort by: 1) shift type (day first, then night), 2) absence status (present first, absent last), 3) start time, 4) name
     staffAssignments.sort((a, b) => {
       // First, sort by shift type
       if (a.shiftType !== b.shiftType) {
@@ -348,6 +381,11 @@ export class AreaService {
       const bIsAbsent = !!b.currentAbsence;
       if (aIsAbsent !== bIsAbsent) {
         return aIsAbsent ? 1 : -1; // Absent staff go to the bottom
+      }
+
+      // Third, sort by start time (earlier shifts first)
+      if (a.shiftStart !== b.shiftStart) {
+        return a.shiftStart.localeCompare(b.shiftStart);
       }
 
       // Finally, sort by name
