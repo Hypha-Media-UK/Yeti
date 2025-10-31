@@ -383,30 +383,18 @@ export class AreaService {
       const absence = allAbsencesMap.get(staff.id);
       if (absence) {
         staff.currentAbsence = absence;
-        console.log(`[DEBUG] Staff ${staff.firstName} ${staff.lastName} has absence:`, {
-          type: absence.absenceType,
-          start: absence.startDatetime,
-          end: absence.endDatetime
-        });
       }
     });
 
-    // Sort by: 1) shift type (day first, then night), 2) absence status (present first, absent last), 3) start time, 4) name
+    // Sort by: 1) shift type (day first, then night), 2) start time, 3) name
+    // Note: Absent staff are separated in the frontend and displayed at the bottom
     staffAssignments.sort((a, b) => {
       // First, sort by shift type
       if (a.shiftType !== b.shiftType) {
         return a.shiftType === 'day' ? -1 : 1;
       }
 
-      // Second, sort by absence status (present staff before absent staff)
-      const aIsAbsent = !!a.currentAbsence;
-      const bIsAbsent = !!b.currentAbsence;
-      if (aIsAbsent !== bIsAbsent) {
-        console.log(`[DEBUG] Sorting by absence: ${a.firstName} ${a.lastName} (absent=${aIsAbsent}) vs ${b.firstName} ${b.lastName} (absent=${bIsAbsent})`);
-        return aIsAbsent ? 1 : -1; // Absent staff go to the bottom
-      }
-
-      // Third, sort by start time (earlier shifts first)
+      // Second, sort by start time (earlier shifts first)
       if (a.shiftStart !== b.shiftStart) {
         return a.shiftStart.localeCompare(b.shiftStart);
       }

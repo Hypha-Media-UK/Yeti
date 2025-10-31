@@ -68,8 +68,9 @@
                 <span>Loading staff...</span>
               </div>
               <div v-else-if="area.staff && area.staff.length > 0" class="area-staff">
+                <!-- Present staff -->
                 <div
-                  v-for="staff in area.staff"
+                  v-for="staff in getPresentStaff(area.staff)"
                   :key="staff.id"
                   class="staff-item"
                   :class="getStaffItemClass(staff)"
@@ -78,11 +79,28 @@
                 >
                   <span class="staff-name">
                     {{ staff.firstName }} {{ staff.lastName }}
-                    <span v-if="isStaffAbsent(staff)" class="absence-badge" :title="formatAbsenceDisplay(staff.currentAbsence!)">
-                      {{ formatAbsencePeriod(staff.currentAbsence!) }}
-                    </span>
                   </span>
                   <span class="staff-hours">{{ getContractedHoursForToday(staff.contractedHours) }}</span>
+                </div>
+
+                <!-- Absent staff (separate container at bottom) -->
+                <div v-if="getAbsentStaff(area.staff).length > 0" class="absent-staff-container">
+                  <div
+                    v-for="staff in getAbsentStaff(area.staff)"
+                    :key="staff.id"
+                    class="staff-item"
+                    :class="getStaffItemClass(staff)"
+                    @click="handleAreaStaffClick(staff)"
+                    :title="getStaffItemTitle(staff)"
+                  >
+                    <span class="staff-name">
+                      {{ staff.firstName }} {{ staff.lastName }}
+                      <span class="absence-badge" :title="formatAbsenceDisplay(staff.currentAbsence!)">
+                        {{ formatAbsencePeriod(staff.currentAbsence!) }}
+                      </span>
+                    </span>
+                    <span class="staff-hours">{{ getContractedHoursForToday(staff.contractedHours) }}</span>
+                  </div>
                 </div>
               </div>
               <div v-else class="area-no-staff">No staff assigned</div>
@@ -119,8 +137,9 @@
                 <span>Loading staff...</span>
               </div>
               <div v-else-if="area.staff && area.staff.length > 0" class="area-staff">
+                <!-- Present staff -->
                 <div
-                  v-for="staff in area.staff"
+                  v-for="staff in getPresentStaff(area.staff)"
                   :key="staff.id"
                   class="staff-item"
                   :class="getStaffItemClass(staff)"
@@ -129,11 +148,28 @@
                 >
                   <span class="staff-name">
                     {{ staff.firstName }} {{ staff.lastName }}
-                    <span v-if="isStaffAbsent(staff)" class="absence-badge" :title="formatAbsenceDisplay(staff.currentAbsence!)">
-                      {{ formatAbsencePeriod(staff.currentAbsence!) }}
-                    </span>
                   </span>
                   <span class="staff-hours">{{ getContractedHoursForToday(staff.contractedHours) }}</span>
+                </div>
+
+                <!-- Absent staff (separate container at bottom) -->
+                <div v-if="getAbsentStaff(area.staff).length > 0" class="absent-staff-container">
+                  <div
+                    v-for="staff in getAbsentStaff(area.staff)"
+                    :key="staff.id"
+                    class="staff-item"
+                    :class="getStaffItemClass(staff)"
+                    @click="handleAreaStaffClick(staff)"
+                    :title="getStaffItemTitle(staff)"
+                  >
+                    <span class="staff-name">
+                      {{ staff.firstName }} {{ staff.lastName }}
+                      <span class="absence-badge" :title="formatAbsenceDisplay(staff.currentAbsence!)">
+                        {{ formatAbsencePeriod(staff.currentAbsence!) }}
+                      </span>
+                    </span>
+                    <span class="staff-hours">{{ getContractedHoursForToday(staff.contractedHours) }}</span>
+                  </div>
                 </div>
               </div>
               <div v-else class="area-no-staff">No staff assigned</div>
@@ -298,6 +334,16 @@ function getContractedHoursForToday(contractedHours: any[]): string {
 // Check if staff is currently absent
 function isStaffAbsent(staff: any): boolean {
   return isAbsenceActive(staff.currentAbsence);
+}
+
+// Get present staff (not absent)
+function getPresentStaff(staffList: any[]): any[] {
+  return staffList.filter(staff => !isStaffAbsent(staff));
+}
+
+// Get absent staff
+function getAbsentStaff(staffList: any[]): any[] {
+  return staffList.filter(staff => isStaffAbsent(staff));
 }
 
 // Get combined class for staff item (status + absence)
