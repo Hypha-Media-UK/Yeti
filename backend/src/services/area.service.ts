@@ -336,11 +336,21 @@ export class AreaService {
       }
     });
 
-    // Sort by shift type (day first, then night), then by name
+    // Sort by: 1) shift type (day first, then night), 2) absence status (present first, absent last), 3) name
     staffAssignments.sort((a, b) => {
+      // First, sort by shift type
       if (a.shiftType !== b.shiftType) {
         return a.shiftType === 'day' ? -1 : 1;
       }
+
+      // Second, sort by absence status (present staff before absent staff)
+      const aIsAbsent = !!a.currentAbsence;
+      const bIsAbsent = !!b.currentAbsence;
+      if (aIsAbsent !== bIsAbsent) {
+        return aIsAbsent ? 1 : -1; // Absent staff go to the bottom
+      }
+
+      // Finally, sort by name
       return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
     });
 
