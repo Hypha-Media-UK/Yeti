@@ -87,14 +87,12 @@ export class RotaService {
     const staffInActiveShifts = await this.staffRepo.findByShiftIds(activeShiftIds);
     console.log(`[ROTA] Found ${staffInActiveShifts.length} staff in active shifts`);
 
-    // Get manual assignments for current and previous day
-    const { currentDay: manualAssignments, previousDay: previousDayAssignments } = 
-      await this.manualAssignmentService.getManualAssignmentsForDate(targetDate);
+    // Get manual assignments for current day only
+    const manualAssignments = await this.manualAssignmentService.getManualAssignmentsForDate(targetDate);
 
     // Fetch staff for manual assignments (they might not be in active shifts)
     const manualStaffMap = await this.fetchManualAssignmentStaff(
       manualAssignments,
-      previousDayAssignments,
       staffInActiveShifts
     );
 
@@ -109,27 +107,15 @@ export class RotaService {
     const nightShifts: ShiftAssignment[] = [];
     const manuallyAssignedStaffIds = new Set<number>();
 
-    // 1. Process manual assignments for current day
-    const currentDayAssignments = await this.manualAssignmentService.processManualAssignments(
+    // 1. Process manual assignments
+    const manualAssignmentResults = await this.manualAssignmentService.processManualAssignments(
       manualAssignments,
       manualStaffMap,
       targetDate,
       contractedHoursMap,
-      manuallyAssignedStaffIds,
-      false
+      manuallyAssignedStaffIds
     );
-    this.categorizeShifts(currentDayAssignments, dayShifts, nightShifts);
-
-    // 2. Process manual assignments from previous day (night shifts only)
-    const previousNightAssignments = await this.manualAssignmentService.processManualAssignments(
-      previousDayAssignments,
-      manualStaffMap,
-      targetDate,
-      contractedHoursMap,
-      manuallyAssignedStaffIds,
-      true
-    );
-    this.categorizeShifts(previousNightAssignments, dayShifts, nightShifts);
+    this.categorizeShifts(manualAssignmentResults, dayShifts, nightShifts);
 
     // 3. Process cycle-based staff (excluding pool staff and manually assigned)
     const cycleBasedAssignments = await this.processCycleBasedStaff(
@@ -140,18 +126,6 @@ export class RotaService {
       manuallyAssignedStaffIds
     );
     this.categorizeShifts(cycleBasedAssignments, dayShifts, nightShifts);
-
-    // 3b. Process cycle-based staff from previous day (night shift overlaps)
-    const previousDate = formatLocalDate(addDaysLocal(targetDate, -1));
-    const previousDayOverlaps = await this.processPreviousDayNightShifts(
-      staffInActiveShifts,
-      previousDate,
-      targetDate,
-      appZeroDate,
-      contractedHoursMap,
-      manuallyAssignedStaffIds
-    );
-    this.categorizeShifts(previousDayOverlaps, dayShifts, nightShifts);
 
     // 4. Process pool staff
     const poolStaffAssignments = await this.poolStaffService.processPoolStaff(
@@ -285,13 +259,9 @@ export class RotaService {
    */
   private async fetchManualAssignmentStaff(
     manualAssignments: ManualAssignment[],
-    previousDayAssignments: ManualAssignment[],
     staffInActiveShifts: StaffMemberWithShift[]
   ): Promise<Map<number, StaffMemberWithShift>> {
-    const manualAssignmentStaffIds = [
-      ...manualAssignments.map(a => a.staffId),
-      ...previousDayAssignments.filter(a => a.shiftType === 'night').map(a => a.staffId)
-    ];
+    const manualAssignmentStaffIds = manualAssignments.map(a => a.staffId);
     const uniqueManualStaffIds = [...new Set(manualAssignmentStaffIds)];
 
     const manualStaffMap = new Map<number, StaffMemberWithShift>();
@@ -363,46 +333,7 @@ export class RotaService {
     return assignments;
   }
 
-  /**
-   * Process night shifts from previous day that overlap into current day
-   * Night shifts (20:00-08:00) span two calendar days, so we need to show them on both days
-   */
-  private async processPreviousDayNightShifts(
-    allStaff: StaffMemberWithShift[],
-    previousDate: string,
-    targetDate: string,
-    appZeroDate: string,
-    contractedHoursMap: Map<number, StaffContractedHours[]>,
-    manuallyAssignedStaffIds: Set<number>
-  ): Promise<ShiftAssignment[]> {
-    const assignments: ShiftAssignment[] = [];
 
-    for (const staff of allStaff) {
-      // Skip if already manually assigned
-      if (manuallyAssignedStaffIds.has(staff.id)) continue;
-
-      // Skip pool staff (they're processed separately)
-      if (staff.isPoolStaff) continue;
-
-      // Check if this staff member was on a NIGHT shift on the previous day
-      const dutyCheck = this.cycleService.isStaffOnDuty(staff, previousDate, appZeroDate);
-      if (dutyCheck.onDuty && dutyCheck.shiftType === 'night') {
-        const times = await this.shiftTimeService.getShiftTimesForStaff(
-          staff,
-          'night',
-          targetDate,
-          { contractedHoursMap }
-        );
-
-        if (times) {
-          // Create assignment with previousDate as assignmentDate (to show it started yesterday)
-          assignments.push(this.createShiftAssignment(staff, 'night', times, previousDate, false));
-        }
-      }
-    }
-
-    return assignments;
-  }
 
   /**
    * Create a shift assignment object

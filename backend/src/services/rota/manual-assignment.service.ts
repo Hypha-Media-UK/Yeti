@@ -3,16 +3,15 @@ import { ShiftAssignment, ShiftStatus, ManualAssignment } from '../../../shared/
 import { StaffContractedHours } from '../../../shared/types/operational-hours';
 import { OverrideRepository } from '../../repositories/override.repository';
 import { ShiftTimeService } from './shift-time.service';
-import { formatLocalTime, formatLocalDate, addDaysLocal } from '../../utils/date.utils';
+import { formatLocalTime } from '../../utils/date.utils';
 
 /**
  * ManualAssignmentService
- * 
+ *
  * Responsible for processing manual assignments:
  * - Manual assignments override cycle-based schedules
  * - Handles both shift pool assignments and temporary area assignments
- * - Processes current day and previous day (for night shifts)
- * 
+ *
  * Manual assignments can be:
  * 1. Shift pool assignments (no areaType/areaId) - appear in shift panels
  * 2. Temporary area assignments (with areaType/areaId) - appear only in area cards
@@ -28,34 +27,22 @@ export class ManualAssignmentService {
 
   /**
    * Get manual assignments for a specific date
-   * Includes assignments from the target date and previous day (for night shifts)
-   * 
+   *
    * @param targetDate - The date to get assignments for (YYYY-MM-DD format)
-   * @returns Object with current and previous day assignments
+   * @returns Array of manual assignments for the target date
    */
-  async getManualAssignmentsForDate(targetDate: string): Promise<{
-    currentDay: ManualAssignment[];
-    previousDay: ManualAssignment[];
-  }> {
-    // Get manual assignments for the target date
-    const currentDay = await this.overrideRepo.findByDate(targetDate);
-
-    // Get manual assignments for the previous day (for night shifts that started yesterday)
-    const previousDate = formatLocalDate(addDaysLocal(targetDate, -1));
-    const previousDay = await this.overrideRepo.findByDate(previousDate);
-
-    return { currentDay, previousDay };
+  async getManualAssignmentsForDate(targetDate: string): Promise<ManualAssignment[]> {
+    return await this.overrideRepo.findByDate(targetDate);
   }
 
   /**
    * Process manual assignments into shift assignments
-   * 
+   *
    * @param assignments - Manual assignments to process
    * @param staffMap - Map of staff ID to staff member (with shift info)
    * @param targetDate - The date being processed (YYYY-MM-DD format)
    * @param contractedHoursMap - Pre-fetched contracted hours
    * @param manuallyAssignedStaffIds - Set to track which staff have been manually assigned
-   * @param isFromPreviousDay - Whether these assignments are from the previous day
    * @returns Array of shift assignments
    */
   async processManualAssignments(
@@ -63,8 +50,7 @@ export class ManualAssignmentService {
     staffMap: Map<number, StaffMemberWithShift>,
     targetDate: string,
     contractedHoursMap: Map<number, StaffContractedHours[]>,
-    manuallyAssignedStaffIds: Set<number>,
-    isFromPreviousDay: boolean = false
+    manuallyAssignedStaffIds: Set<number>
   ): Promise<ShiftAssignment[]> {
     const shiftAssignments: ShiftAssignment[] = [];
 
@@ -79,11 +65,6 @@ export class ManualAssignmentService {
         // This is a temporary area assignment, not a shift pool assignment
         // Mark as manually assigned so they don't get cycle-based shifts
         manuallyAssignedStaffIds.add(staff.id);
-        continue;
-      }
-
-      // If from previous day, only include night shifts
-      if (isFromPreviousDay && assignment.shiftType !== 'night') {
         continue;
       }
 
