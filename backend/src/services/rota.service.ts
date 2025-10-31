@@ -58,7 +58,7 @@ export class RotaService {
     // Initialize specialized services
     this.cycleService = new CycleCalculationService();
     this.shiftTimeService = new ShiftTimeService();
-    this.poolStaffService = new PoolStaffService(this.cycleService, this.shiftTimeService);
+    this.poolStaffService = new PoolStaffService(this.staffRepo, this.cycleService, this.shiftTimeService);
     this.manualAssignmentService = new ManualAssignmentService(this.shiftTimeService);
   }
 

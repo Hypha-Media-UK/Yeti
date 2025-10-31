@@ -98,8 +98,19 @@ describe('RotaService', () => {
     }
 
     const staff = createMockStaff({ ...overrides, shiftId });
+    const staffWithShift = { ...staff, shift: mockShifts[0] || null };
+
     mockStaffRepo.findAll.mockResolvedValue([staff]);
-    mockStaffRepo.findByShiftIds.mockResolvedValue([{ ...staff, shift: mockShifts[0] || null }]);
+    // Mock findAllWithShifts to filter by isPoolStaff
+    mockStaffRepo.findAllWithShifts.mockImplementation((filters?: any) => {
+      if (filters?.isPoolStaff === true) {
+        // Return pool staff only if the staff is marked as pool staff
+        return Promise.resolve(staff.isPoolStaff ? [staffWithShift] : []);
+      }
+      // Otherwise return the staff
+      return Promise.resolve([staffWithShift]);
+    });
+    mockStaffRepo.findByShiftIds.mockResolvedValue([staffWithShift]);
     mockShiftRepo.findAll.mockResolvedValue(mockShifts);
 
     return staff;
@@ -115,6 +126,7 @@ describe('RotaService', () => {
     mockContractedHoursRepo = (rotaService as any).shiftTimeService?.contractedHoursRepo;
     mockAbsenceRepo = (rotaService as any).absenceRepo;
     mockManualAssignmentService = (rotaService as any).manualAssignmentService;
+    mockOverrideRepo = (rotaService as any).manualAssignmentService?.overrideRepo;
 
     // Default mocks - ensure all methods exist
     mockConfigRepo.getByKey = vi.fn().mockResolvedValue(APP_ZERO_DATE);
@@ -126,6 +138,7 @@ describe('RotaService', () => {
     mockShiftRepo.findById = vi.fn().mockResolvedValue(null);
 
     mockStaffRepo.findAll = vi.fn().mockResolvedValue([]);
+    mockStaffRepo.findAllWithShifts = vi.fn().mockResolvedValue([]);
     mockStaffRepo.findByShiftIds = vi.fn().mockResolvedValue([]);
     mockStaffRepo.findById = vi.fn().mockResolvedValue(null);
 
@@ -143,6 +156,12 @@ describe('RotaService', () => {
     mockAbsenceRepo.findByStaffIds = vi.fn().mockResolvedValue(new Map());
     mockAbsenceRepo.findAbsenceForDate = vi.fn().mockResolvedValue(null);
     mockAbsenceRepo.findAbsencesForDate = vi.fn().mockResolvedValue(new Map());
+
+    // Mock override repository (used by manual assignment service)
+    if (mockOverrideRepo) {
+      mockOverrideRepo.findByDate = vi.fn().mockResolvedValue([]);
+      mockOverrideRepo.findByDateRange = vi.fn().mockResolvedValue([]);
+    }
 
     // The specialized services will use real logic with mocked repositories
     // No need to mock them - they'll work correctly with the repository mocks

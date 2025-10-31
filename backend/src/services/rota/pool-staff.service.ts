@@ -25,10 +25,11 @@ export class PoolStaffService {
   private shiftTimeService: ShiftTimeService;
 
   constructor(
+    staffRepo: StaffRepository,
     cycleService: CycleCalculationService,
     shiftTimeService: ShiftTimeService
   ) {
-    this.staffRepo = new StaffRepository();
+    this.staffRepo = staffRepo;
     this.cycleService = cycleService;
     this.shiftTimeService = shiftTimeService;
   }
