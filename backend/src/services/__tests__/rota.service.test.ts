@@ -247,7 +247,7 @@ describe('RotaService', () => {
 
   describe('Supervisor - Cycle State (Pure Logic, No Overlaps)', () => {
     it('should follow 16-day cycle pattern (golden table)', async () => {
-      const staff = setupStaff({ status: 'Supervisor', group: null, cycleType: 'supervisor', daysOffset: 8 });
+      const staff = setupStaff({ status: 'Supervisor', group: null, cycleType: 'supervisor', daysOffset: 0 });
       const appZeroDate = APP_ZERO_DATE;
 
       // Golden table: Supervisor 16-day wheel (CYCLE STATE ONLY - tests isStaffOnDuty directly)
@@ -283,7 +283,7 @@ describe('RotaService', () => {
     });
 
     it('should repeat pattern after 16 days', async () => {
-      const staff = setupStaff({ status: 'Supervisor', group: null, cycleType: 'supervisor', daysOffset: 8 });
+      const staff = setupStaff({ status: 'Supervisor', group: null, cycleType: 'supervisor', daysOffset: 0 });
       const appZeroDate = APP_ZERO_DATE;
 
       const phase0 = rotaService.isStaffOnDuty(staff, getDateAtPhase(0), appZeroDate);
@@ -316,7 +316,7 @@ describe('RotaService', () => {
 
   describe('Supervisor - Day View (With Night Shift Overlaps)', () => {
     it('should show night shift overlap on phase 12 from phase 11', async () => {
-      setupStaff({ status: 'Supervisor', group: null, cycleType: 'supervisor', daysOffset: 8 });
+      setupStaff({ status: 'Supervisor', group: null, cycleType: 'supervisor', daysOffset: 0 });
 
       // Phase 11: Last night shift day (cycle state = NIGHT)
       // Should show: today's shift + yesterday's overlap = 2 shifts
@@ -340,7 +340,7 @@ describe('RotaService', () => {
     });
 
     it('should show overlaps during night shift period (phases 8-11)', async () => {
-      setupStaff({ status: 'Supervisor', group: null, cycleType: 'supervisor', daysOffset: 8 });
+      setupStaff({ status: 'Supervisor', group: null, cycleType: 'supervisor', daysOffset: 0 });
 
       // Phase 8: First night, no overlap from previous day (phase 7 is OFF)
       const phase8 = await rotaService.getRotaForDate(getDateAtPhase(8));
@@ -411,9 +411,14 @@ describe('RotaService', () => {
             id: 1,
             staffId: 1,
             assignmentDate: getDateAtPhase(0),
-            shiftType: 'Night',
+            shiftType: 'night',
+            areaType: null,
+            areaId: null,
             shiftStart: null,
             shiftEnd: null,
+            startTime: null,
+            endTime: null,
+            endDate: null,
             notes: null,
             createdAt: '2024-01-01T00:00:00Z',
             updatedAt: '2024-01-01T00:00:00Z',
@@ -441,9 +446,14 @@ describe('RotaService', () => {
             id: 1,
             staffId: 1,
             assignmentDate: getDateAtPhase(0),
-            shiftType: 'Day',
+            shiftType: 'day',
+            areaType: null,
+            areaId: null,
             shiftStart: null,
             shiftEnd: null,
+            startTime: null,
+            endTime: null,
+            endDate: null,
             notes: 'Covering for sick leave',
             createdAt: '2024-01-01T00:00:00Z',
             updatedAt: '2024-01-01T00:00:00Z',

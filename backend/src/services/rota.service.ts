@@ -141,6 +141,18 @@ export class RotaService {
     );
     this.categorizeShifts(cycleBasedAssignments, dayShifts, nightShifts);
 
+    // 3b. Process cycle-based staff from previous day (night shift overlaps)
+    const previousDate = formatLocalDate(addDaysLocal(targetDate, -1));
+    const previousDayOverlaps = await this.processPreviousDayNightShifts(
+      staffInActiveShifts,
+      previousDate,
+      targetDate,
+      appZeroDate,
+      contractedHoursMap,
+      manuallyAssignedStaffIds
+    );
+    this.categorizeShifts(previousDayOverlaps, dayShifts, nightShifts);
+
     // 4. Process pool staff
     const poolStaffAssignments = await this.poolStaffService.processPoolStaff(
       targetDate,
@@ -344,6 +356,47 @@ export class RotaService {
 
         if (times) {
           assignments.push(this.createShiftAssignment(staff, dutyCheck.shiftType, times, targetDate, false));
+        }
+      }
+    }
+
+    return assignments;
+  }
+
+  /**
+   * Process night shifts from previous day that overlap into current day
+   * Night shifts (20:00-08:00) span two calendar days, so we need to show them on both days
+   */
+  private async processPreviousDayNightShifts(
+    allStaff: StaffMemberWithShift[],
+    previousDate: string,
+    targetDate: string,
+    appZeroDate: string,
+    contractedHoursMap: Map<number, StaffContractedHours[]>,
+    manuallyAssignedStaffIds: Set<number>
+  ): Promise<ShiftAssignment[]> {
+    const assignments: ShiftAssignment[] = [];
+
+    for (const staff of allStaff) {
+      // Skip if already manually assigned
+      if (manuallyAssignedStaffIds.has(staff.id)) continue;
+
+      // Skip pool staff (they're processed separately)
+      if (staff.isPoolStaff) continue;
+
+      // Check if this staff member was on a NIGHT shift on the previous day
+      const dutyCheck = this.cycleService.isStaffOnDuty(staff, previousDate, appZeroDate);
+      if (dutyCheck.onDuty && dutyCheck.shiftType === 'night') {
+        const times = await this.shiftTimeService.getShiftTimesForStaff(
+          staff,
+          'night',
+          targetDate,
+          { contractedHoursMap }
+        );
+
+        if (times) {
+          // Create assignment with previousDate as assignmentDate (to show it started yesterday)
+          assignments.push(this.createShiftAssignment(staff, 'night', times, previousDate, false));
         }
       }
     }
