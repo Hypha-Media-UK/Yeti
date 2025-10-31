@@ -20,6 +20,9 @@ vi.mock('../../repositories/allocation.repository');
 vi.mock('../../repositories/staff-contracted-hours.repository');
 vi.mock('../../repositories/absence.repository');
 
+// Don't mock the specialized services - let them run with real logic
+// They will use the mocked repositories
+
 describe('RotaService', () => {
   let rotaService: RotaService;
   let mockStaffRepo: any;
@@ -30,6 +33,7 @@ describe('RotaService', () => {
   let mockAllocationRepo: any;
   let mockContractedHoursRepo: any;
   let mockAbsenceRepo: any;
+  let mockManualAssignmentService: any;
 
   const APP_ZERO_DATE = '2025-10-26'; // Sunday (updated from 2024-01-01 on 2025-10-30)
 
@@ -57,9 +61,47 @@ describe('RotaService', () => {
 
   // Helper: Setup single staff member for testing
   const setupStaff = (overrides: Partial<StaffMember> = {}) => {
-    const staff = createMockStaff(overrides);
+    // Setup mock shifts based on staff type
+    let shiftId = null;
+    const mockShifts = [];
+
+    if (overrides.group === 'Day') {
+      shiftId = 1;
+      mockShifts.push({
+        id: 1,
+        name: 'Day Shift A',
+        cycleType: '4-on-4-off',
+        daysOffset: overrides.daysOffset || 0,
+        group: 'Day',
+        isActive: true,
+      });
+    } else if (overrides.group === 'Night') {
+      shiftId = 2;
+      mockShifts.push({
+        id: 2,
+        name: 'Night Shift A',
+        cycleType: '4-on-4-off',
+        daysOffset: overrides.daysOffset || 0,
+        group: 'Night',
+        isActive: true,
+      });
+    } else if (overrides.cycleType === 'supervisor' || overrides.cycleType === '16-day-supervisor') {
+      shiftId = 3;
+      mockShifts.push({
+        id: 3,
+        name: 'Supervisor Shift',
+        cycleType: '16-day-supervisor',
+        daysOffset: overrides.daysOffset || 0,
+        group: null,
+        isActive: true,
+      });
+    }
+
+    const staff = createMockStaff({ ...overrides, shiftId });
     mockStaffRepo.findAll.mockResolvedValue([staff]);
-    mockStaffRepo.findByShiftIds.mockResolvedValue([{ ...staff, shift: null }]);
+    mockStaffRepo.findByShiftIds.mockResolvedValue([{ ...staff, shift: mockShifts[0] || null }]);
+    mockShiftRepo.findAll.mockResolvedValue(mockShifts);
+
     return staff;
   };
 
@@ -67,17 +109,15 @@ describe('RotaService', () => {
     rotaService = new RotaService();
     mockStaffRepo = (rotaService as any).staffRepo;
     mockConfigRepo = (rotaService as any).configRepo;
-    mockOverrideRepo = (rotaService as any).overrideRepo;
     mockScheduleRepo = (rotaService as any).scheduleRepo;
     mockShiftRepo = (rotaService as any).shiftRepo;
     mockAllocationRepo = (rotaService as any).allocationRepo;
-    mockContractedHoursRepo = (rotaService as any).contractedHoursRepo;
+    mockContractedHoursRepo = (rotaService as any).shiftTimeService?.contractedHoursRepo;
     mockAbsenceRepo = (rotaService as any).absenceRepo;
+    mockManualAssignmentService = (rotaService as any).manualAssignmentService;
 
     // Default mocks - ensure all methods exist
     mockConfigRepo.getByKey = vi.fn().mockResolvedValue(APP_ZERO_DATE);
-
-    mockOverrideRepo.findByDate = vi.fn().mockResolvedValue([]);
 
     mockScheduleRepo.findByStaffIdAndDate = vi.fn().mockResolvedValue(null);
     mockScheduleRepo.findByDate = vi.fn().mockResolvedValue([]);
@@ -93,14 +133,19 @@ describe('RotaService', () => {
     mockAllocationRepo.findAll = vi.fn().mockResolvedValue([]);
     mockAllocationRepo.findByArea = vi.fn().mockResolvedValue([]);
 
-    mockContractedHoursRepo.findByStaff = vi.fn().mockResolvedValue([]);
-    mockContractedHoursRepo.findByStaffIds = vi.fn().mockResolvedValue([]);
-    mockContractedHoursRepo.findAll = vi.fn().mockResolvedValue([]);
+    if (mockContractedHoursRepo) {
+      mockContractedHoursRepo.findByStaff = vi.fn().mockResolvedValue([]);
+      mockContractedHoursRepo.findByStaffIds = vi.fn().mockResolvedValue([]);
+      mockContractedHoursRepo.findAll = vi.fn().mockResolvedValue([]);
+    }
 
     mockAbsenceRepo.findByStaffId = vi.fn().mockResolvedValue([]);
     mockAbsenceRepo.findByStaffIds = vi.fn().mockResolvedValue(new Map());
     mockAbsenceRepo.findAbsenceForDate = vi.fn().mockResolvedValue(null);
     mockAbsenceRepo.findAbsencesForDate = vi.fn().mockResolvedValue(new Map());
+
+    // The specialized services will use real logic with mocked repositories
+    // No need to mock them - they'll work correctly with the repository mocks
   });
 
   describe('Regular Staff - 4-on-4-off Cycle State', () => {
@@ -322,20 +367,26 @@ describe('RotaService', () => {
 
   describe('Manual Assignments - Override Behavior', () => {
     it('should override calculated schedule with manual assignment', async () => {
-      setupStaff({ group: 'Day', daysOffset: 0 });
+      const staff = setupStaff({ group: 'Day', daysOffset: 0 });
 
-      // Mock manual assignment for Night shift (overriding Day shift)
-      mockOverrideRepo.findByDate.mockResolvedValue([{
-        id: 1,
-        staffId: 1,
-        assignmentDate: getDateAtPhase(0),
-        shiftType: 'Night',
-        shiftStart: null,
-        shiftEnd: null,
-        notes: null,
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-01T00:00:00Z',
-      }]);
+      // Mock the override repository to return a manual assignment
+      const mockOverrideRepo = (rotaService as any).manualAssignmentService.overrideRepo;
+      mockOverrideRepo.findByDate = vi.fn().mockImplementation((date: string) => {
+        if (date === getDateAtPhase(0)) {
+          return Promise.resolve([{
+            id: 1,
+            staffId: 1,
+            assignmentDate: getDateAtPhase(0),
+            shiftType: 'Night',
+            shiftStart: null,
+            shiftEnd: null,
+            notes: null,
+            createdAt: '2024-01-01T00:00:00Z',
+            updatedAt: '2024-01-01T00:00:00Z',
+          }]);
+        }
+        return Promise.resolve([]);
+      });
 
       const rota = await rotaService.getRotaForDate(getDateAtPhase(0));
 
@@ -346,19 +397,26 @@ describe('RotaService', () => {
     });
 
     it('should allow Relief staff to be manually assigned', async () => {
-      setupStaff({ status: 'Relief', group: null, cycleType: null });
+      const staff = setupStaff({ status: 'Relief', group: null, cycleType: null });
 
-      mockOverrideRepo.findByDate.mockResolvedValue([{
-        id: 1,
-        staffId: 1,
-        assignmentDate: getDateAtPhase(0),
-        shiftType: 'Day',
-        shiftStart: null,
-        shiftEnd: null,
-        notes: 'Covering for sick leave',
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-01T00:00:00Z',
-      }]);
+      // Mock the override repository to return a manual assignment
+      const mockOverrideRepo = (rotaService as any).manualAssignmentService.overrideRepo;
+      mockOverrideRepo.findByDate = vi.fn().mockImplementation((date: string) => {
+        if (date === getDateAtPhase(0)) {
+          return Promise.resolve([{
+            id: 1,
+            staffId: 1,
+            assignmentDate: getDateAtPhase(0),
+            shiftType: 'Day',
+            shiftStart: null,
+            shiftEnd: null,
+            notes: 'Covering for sick leave',
+            createdAt: '2024-01-01T00:00:00Z',
+            updatedAt: '2024-01-01T00:00:00Z',
+          }]);
+        }
+        return Promise.resolve([]);
+      });
 
       const rota = await rotaService.getRotaForDate(getDateAtPhase(0));
 

@@ -184,6 +184,15 @@ export class RotaService {
   }
 
   /**
+   * Check if a staff member is on duty based on their cycle
+   * This is a wrapper around CycleCalculationService.isStaffOnDuty for backward compatibility
+   * @deprecated Use cycleService.isStaffOnDuty directly or isStaffWorkingOnDate for full logic
+   */
+  isStaffOnDuty(staff: StaffMemberWithShift, targetDate: string, appZeroDate: string) {
+    return this.cycleService.isStaffOnDuty(staff, targetDate, appZeroDate);
+  }
+
+  /**
    * Check if a staff member is working on a specific date
    * Used for permanent staff allocation checks
    */
