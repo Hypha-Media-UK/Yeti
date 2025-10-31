@@ -228,8 +228,25 @@ export class AreaService {
       }
     }
 
-    // Sort by name
-    areas.sort((a, b) => a.name.localeCompare(b.name));
+    // Sort by: 1) earliest operational hours start time, 2) name
+    areas.sort((a, b) => {
+      // Get earliest start time for each area
+      const aStartTime = a.operationalHours.length > 0
+        ? a.operationalHours.reduce((earliest, h) => h.startTime < earliest ? h.startTime : earliest, a.operationalHours[0].startTime)
+        : '00:00:00'; // 24/7 areas default to midnight
+
+      const bStartTime = b.operationalHours.length > 0
+        ? b.operationalHours.reduce((earliest, h) => h.startTime < earliest ? h.startTime : earliest, b.operationalHours[0].startTime)
+        : '00:00:00'; // 24/7 areas default to midnight
+
+      // First, sort by start time
+      if (aStartTime !== bStartTime) {
+        return aStartTime.localeCompare(bStartTime);
+      }
+
+      // Then, sort by name
+      return a.name.localeCompare(b.name);
+    });
 
     const totalTime = Date.now() - startTime;
     console.log(`[PERF] getAreasForDay completed in ${totalTime}ms (${areas.length} areas, ${areas.reduce((sum, a) => sum + (a.staff?.length || 0), 0)} total staff)`);
@@ -366,6 +383,11 @@ export class AreaService {
       const absence = allAbsencesMap.get(staff.id);
       if (absence) {
         staff.currentAbsence = absence;
+        console.log(`[DEBUG] Staff ${staff.firstName} ${staff.lastName} has absence:`, {
+          type: absence.absenceType,
+          start: absence.startDatetime,
+          end: absence.endDatetime
+        });
       }
     });
 
@@ -380,6 +402,7 @@ export class AreaService {
       const aIsAbsent = !!a.currentAbsence;
       const bIsAbsent = !!b.currentAbsence;
       if (aIsAbsent !== bIsAbsent) {
+        console.log(`[DEBUG] Sorting by absence: ${a.firstName} ${a.lastName} (absent=${aIsAbsent}) vs ${b.firstName} ${b.lastName} (absent=${bIsAbsent})`);
         return aIsAbsent ? 1 : -1; // Absent staff go to the bottom
       }
 
