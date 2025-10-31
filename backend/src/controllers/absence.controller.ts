@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { AbsenceRepository } from '../repositories/absence.repository';
 import type { CreateAbsenceRequest, UpdateAbsenceRequest } from '../../shared/types/absence';
+import { parseId } from '../utils/validation.utils';
 
 export class AbsenceController {
   private absenceRepo: AbsenceRepository;
@@ -15,12 +16,7 @@ export class AbsenceController {
    */
   getAbsencesByStaffId = async (req: Request, res: Response): Promise<void> => {
     try {
-      const staffId = parseInt(req.params.staffId);
-      
-      if (isNaN(staffId)) {
-        res.status(400).json({ error: 'Invalid staff ID' });
-        return;
-      }
+      const staffId = parseId(req.params.staffId, 'Staff ID');
 
       const absences = await this.absenceRepo.findByStaffId(staffId);
       res.json(absences);
@@ -36,13 +32,8 @@ export class AbsenceController {
    */
   getAbsencesByStaffIdAndDateRange = async (req: Request, res: Response): Promise<void> => {
     try {
-      const staffId = parseInt(req.params.staffId);
+      const staffId = parseId(req.params.staffId, 'Staff ID');
       const { startDate, endDate } = req.query;
-
-      if (isNaN(staffId)) {
-        res.status(400).json({ error: 'Invalid staff ID' });
-        return;
-      }
 
       if (!startDate || !endDate) {
         res.status(400).json({ error: 'Start date and end date are required' });
@@ -67,17 +58,12 @@ export class AbsenceController {
    */
   getActiveAbsence = async (req: Request, res: Response): Promise<void> => {
     try {
-      const staffId = parseInt(req.params.staffId);
+      const staffId = parseId(req.params.staffId, 'Staff ID');
       const { datetime } = req.query;
-
-      if (isNaN(staffId)) {
-        res.status(400).json({ error: 'Invalid staff ID' });
-        return;
-      }
 
       const checkDatetime = datetime ? datetime as string : new Date().toISOString();
       const absence = await this.absenceRepo.findActiveAbsence(staffId, checkDatetime);
-      
+
       res.json(absence || null);
     } catch (error) {
       console.error('Error fetching active absence:', error);
@@ -128,13 +114,8 @@ export class AbsenceController {
    */
   updateAbsence = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseId(req.params.id, 'Absence ID');
       const data: UpdateAbsenceRequest = req.body;
-
-      if (isNaN(id)) {
-        res.status(400).json({ error: 'Invalid absence ID' });
-        return;
-      }
 
       // Validate absence type if provided
       if (data.absenceType) {
@@ -156,7 +137,7 @@ export class AbsenceController {
       }
 
       const absence = await this.absenceRepo.update(id, data);
-      
+
       if (!absence) {
         res.status(404).json({ error: 'Absence not found' });
         return;
@@ -175,12 +156,7 @@ export class AbsenceController {
    */
   deleteAbsence = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
-
-      if (isNaN(id)) {
-        res.status(400).json({ error: 'Invalid absence ID' });
-        return;
-      }
+      const id = parseId(req.params.id, 'Absence ID');
 
       const success = await this.absenceRepo.delete(id);
 

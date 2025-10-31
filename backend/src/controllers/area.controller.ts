@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { AreaService } from '../services/area.service';
+import { parseId } from '../utils/validation.utils';
 
 export class AreaController {
   private areaService: AreaService;
@@ -67,11 +68,7 @@ export class AreaController {
         return;
       }
 
-      const areaIdNum = parseInt(areaId);
-      if (isNaN(areaIdNum)) {
-        res.status(400).json({ error: 'Invalid area ID. Must be a number' });
-        return;
-      }
+      const areaIdNum = parseId(areaId, 'Area ID');
 
       if (!date) {
         res.status(400).json({ error: 'Date parameter is required' });

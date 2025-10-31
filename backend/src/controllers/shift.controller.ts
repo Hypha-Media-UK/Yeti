@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 import { ShiftRepository } from '../repositories/shift.repository';
+import { parseId } from '../utils/validation.utils';
+import { isDuplicateError, isForeignKeyError } from '../utils/error.utils';
 
 export class ShiftController {
   private shiftRepo: ShiftRepository;
@@ -23,12 +25,7 @@ export class ShiftController {
   // GET /api/shifts/:id
   getShiftById = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
-
-      if (isNaN(id)) {
-        res.status(400).json({ error: 'Invalid shift ID' });
-        return;
-      }
+      const id = parseId(req.params.id, 'Shift ID');
 
       const shift = await this.shiftRepo.findById(id);
 
@@ -132,7 +129,7 @@ export class ShiftController {
     } catch (error: any) {
       console.error('Error creating shift:', error);
 
-      if (error.code === 'ER_DUP_ENTRY') {
+      if (isDuplicateError(error)) {
         res.status(409).json({ error: 'A shift with this name already exists' });
         return;
       }
@@ -144,12 +141,7 @@ export class ShiftController {
   // PUT /api/shifts/:id
   updateShift = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
-
-      if (isNaN(id)) {
-        res.status(400).json({ error: 'Invalid shift ID' });
-        return;
-      }
+      const id = parseId(req.params.id, 'Shift ID');
 
       const updates = req.body;
 
@@ -240,7 +232,7 @@ export class ShiftController {
     } catch (error: any) {
       console.error('Error updating shift:', error);
 
-      if (error.code === 'ER_DUP_ENTRY') {
+      if (isDuplicateError(error)) {
         res.status(409).json({ error: 'A shift with this name already exists' });
         return;
       }
@@ -252,12 +244,7 @@ export class ShiftController {
   // DELETE /api/shifts/:id
   deleteShift = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
-
-      if (isNaN(id)) {
-        res.status(400).json({ error: 'Invalid shift ID' });
-        return;
-      }
+      const id = parseId(req.params.id, 'Shift ID');
 
       // Get count of staff assigned to this shift
       const staffCount = await this.shiftRepo.getStaffCount(id);
@@ -288,12 +275,7 @@ export class ShiftController {
   // GET /api/shifts/:id/staff-count
   getShiftStaffCount = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
-
-      if (isNaN(id)) {
-        res.status(400).json({ error: 'Invalid shift ID' });
-        return;
-      }
+      const id = parseId(req.params.id, 'Shift ID');
 
       const count = await this.shiftRepo.getStaffCount(id);
       res.json({ shiftId: id, staffCount: count });

@@ -121,12 +121,7 @@ export class AllocationController {
   // Delete a single allocation
   deleteAllocation = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
-
-      if (isNaN(id)) {
-        res.status(400).json({ error: 'Invalid allocation ID' });
-        return;
-      }
+      const id = parseId(req.params.id, 'Allocation ID');
 
       const success = await this.allocationRepo.delete(id);
       if (!success) {

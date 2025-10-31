@@ -4,6 +4,10 @@ import { StaffRepository } from '../../repositories/staff.repository';
 import { ConfigRepository } from '../../repositories/config.repository';
 import { OverrideRepository } from '../../repositories/override.repository';
 import { ScheduleRepository } from '../../repositories/schedule.repository';
+import { ShiftRepository } from '../../repositories/shift.repository';
+import { AllocationRepository } from '../../repositories/allocation.repository';
+import { StaffContractedHoursRepository } from '../../repositories/staff-contracted-hours.repository';
+import { AbsenceRepository } from '../../repositories/absence.repository';
 import type { StaffMember } from '../../../shared/types/staff';
 
 // Mock the repositories
@@ -11,6 +15,10 @@ vi.mock('../../repositories/staff.repository');
 vi.mock('../../repositories/config.repository');
 vi.mock('../../repositories/override.repository');
 vi.mock('../../repositories/schedule.repository');
+vi.mock('../../repositories/shift.repository');
+vi.mock('../../repositories/allocation.repository');
+vi.mock('../../repositories/staff-contracted-hours.repository');
+vi.mock('../../repositories/absence.repository');
 
 describe('RotaService', () => {
   let rotaService: RotaService;
@@ -18,8 +26,12 @@ describe('RotaService', () => {
   let mockConfigRepo: any;
   let mockOverrideRepo: any;
   let mockScheduleRepo: any;
+  let mockShiftRepo: any;
+  let mockAllocationRepo: any;
+  let mockContractedHoursRepo: any;
+  let mockAbsenceRepo: any;
 
-  const APP_ZERO_DATE = '2024-01-01'; // Monday
+  const APP_ZERO_DATE = '2025-10-26'; // Sunday (updated from 2024-01-01 on 2025-10-30)
 
   // Helper: Build date string by adding days to zero date (no string concatenation!)
   const getDateAtPhase = (phase: number): string => {
@@ -47,6 +59,7 @@ describe('RotaService', () => {
   const setupStaff = (overrides: Partial<StaffMember> = {}) => {
     const staff = createMockStaff(overrides);
     mockStaffRepo.findAll.mockResolvedValue([staff]);
+    mockStaffRepo.findByShiftIds.mockResolvedValue([{ ...staff, shift: null }]);
     return staff;
   };
 
@@ -56,11 +69,38 @@ describe('RotaService', () => {
     mockConfigRepo = (rotaService as any).configRepo;
     mockOverrideRepo = (rotaService as any).overrideRepo;
     mockScheduleRepo = (rotaService as any).scheduleRepo;
+    mockShiftRepo = (rotaService as any).shiftRepo;
+    mockAllocationRepo = (rotaService as any).allocationRepo;
+    mockContractedHoursRepo = (rotaService as any).contractedHoursRepo;
+    mockAbsenceRepo = (rotaService as any).absenceRepo;
 
-    // Default mocks
-    mockConfigRepo.getByKey.mockResolvedValue(APP_ZERO_DATE);
-    mockOverrideRepo.findByDate.mockResolvedValue([]);
-    mockScheduleRepo.findByStaffIdAndDate.mockResolvedValue(null);
+    // Default mocks - ensure all methods exist
+    mockConfigRepo.getByKey = vi.fn().mockResolvedValue(APP_ZERO_DATE);
+
+    mockOverrideRepo.findByDate = vi.fn().mockResolvedValue([]);
+
+    mockScheduleRepo.findByStaffIdAndDate = vi.fn().mockResolvedValue(null);
+    mockScheduleRepo.findByDate = vi.fn().mockResolvedValue([]);
+
+    mockShiftRepo.findAll = vi.fn().mockResolvedValue([]);
+    mockShiftRepo.findById = vi.fn().mockResolvedValue(null);
+
+    mockStaffRepo.findAll = vi.fn().mockResolvedValue([]);
+    mockStaffRepo.findByShiftIds = vi.fn().mockResolvedValue([]);
+    mockStaffRepo.findById = vi.fn().mockResolvedValue(null);
+
+    mockAllocationRepo.findByStaffId = vi.fn().mockResolvedValue([]);
+    mockAllocationRepo.findAll = vi.fn().mockResolvedValue([]);
+    mockAllocationRepo.findByArea = vi.fn().mockResolvedValue([]);
+
+    mockContractedHoursRepo.findByStaff = vi.fn().mockResolvedValue([]);
+    mockContractedHoursRepo.findByStaffIds = vi.fn().mockResolvedValue([]);
+    mockContractedHoursRepo.findAll = vi.fn().mockResolvedValue([]);
+
+    mockAbsenceRepo.findByStaffId = vi.fn().mockResolvedValue([]);
+    mockAbsenceRepo.findByStaffIds = vi.fn().mockResolvedValue(new Map());
+    mockAbsenceRepo.findAbsenceForDate = vi.fn().mockResolvedValue(null);
+    mockAbsenceRepo.findAbsencesForDate = vi.fn().mockResolvedValue(new Map());
   });
 
   describe('Regular Staff - 4-on-4-off Cycle State', () => {
@@ -128,27 +168,27 @@ describe('RotaService', () => {
 
   describe('Supervisor - Cycle State (Pure Logic, No Overlaps)', () => {
     it('should follow 16-day cycle pattern (golden table)', async () => {
-      const staff = setupStaff({ status: 'Supervisor', group: null, cycleType: 'supervisor', daysOffset: 0 });
-      const appZeroDate = '2024-01-01';
+      const staff = setupStaff({ status: 'Supervisor', group: null, cycleType: 'supervisor', daysOffset: 8 });
+      const appZeroDate = APP_ZERO_DATE;
 
       // Golden table: Supervisor 16-day wheel (CYCLE STATE ONLY - tests isStaffOnDuty directly)
       // 0-3: DAY | 4-7: OFF | 8-11: NIGHT | 12-15: OFF
       const goldenPattern = [
         // Days 0-3: DAY shift
-        { phase: 0, onDuty: true, shiftType: 'Day' },
-        { phase: 1, onDuty: true, shiftType: 'Day' },
-        { phase: 2, onDuty: true, shiftType: 'Day' },
-        { phase: 3, onDuty: true, shiftType: 'Day' },
+        { phase: 0, onDuty: true, shiftType: 'day' },
+        { phase: 1, onDuty: true, shiftType: 'day' },
+        { phase: 2, onDuty: true, shiftType: 'day' },
+        { phase: 3, onDuty: true, shiftType: 'day' },
         // Days 4-7: OFF
         { phase: 4, onDuty: false, shiftType: null },
         { phase: 5, onDuty: false, shiftType: null },
         { phase: 6, onDuty: false, shiftType: null },
         { phase: 7, onDuty: false, shiftType: null },
         // Days 8-11: NIGHT shift
-        { phase: 8, onDuty: true, shiftType: 'Night' },
-        { phase: 9, onDuty: true, shiftType: 'Night' },
-        { phase: 10, onDuty: true, shiftType: 'Night' },
-        { phase: 11, onDuty: true, shiftType: 'Night' },
+        { phase: 8, onDuty: true, shiftType: 'night' },
+        { phase: 9, onDuty: true, shiftType: 'night' },
+        { phase: 10, onDuty: true, shiftType: 'night' },
+        { phase: 11, onDuty: true, shiftType: 'night' },
         // Days 12-15: OFF
         { phase: 12, onDuty: false, shiftType: null },
         { phase: 13, onDuty: false, shiftType: null },
@@ -164,40 +204,40 @@ describe('RotaService', () => {
     });
 
     it('should repeat pattern after 16 days', async () => {
-      const staff = setupStaff({ status: 'Supervisor', group: null, cycleType: 'supervisor', daysOffset: 0 });
-      const appZeroDate = '2024-01-01';
+      const staff = setupStaff({ status: 'Supervisor', group: null, cycleType: 'supervisor', daysOffset: 8 });
+      const appZeroDate = APP_ZERO_DATE;
 
       const phase0 = rotaService.isStaffOnDuty(staff, getDateAtPhase(0), appZeroDate);
       const phase16 = rotaService.isStaffOnDuty(staff, getDateAtPhase(16), appZeroDate);
       const phase32 = rotaService.isStaffOnDuty(staff, getDateAtPhase(32), appZeroDate);
 
       expect(phase0.onDuty).toBe(true);
-      expect(phase0.shiftType).toBe('Day');
+      expect(phase0.shiftType).toBe('day');
       expect(phase16.onDuty).toBe(true);
-      expect(phase16.shiftType).toBe('Day');
+      expect(phase16.shiftType).toBe('day');
       expect(phase32.onDuty).toBe(true);
-      expect(phase32.shiftType).toBe('Day');
+      expect(phase32.shiftType).toBe('day');
     });
 
     it('should handle offset correctly', async () => {
-      const staff = setupStaff({ status: 'Supervisor', group: null, cycleType: 'supervisor', daysOffset: 4 });
-      const appZeroDate = '2024-01-01';
+      const staff = setupStaff({ status: 'Supervisor', group: null, cycleType: 'supervisor', daysOffset: 12 });
+      const appZeroDate = APP_ZERO_DATE;
 
-      // Offset 4: phase 0 -> cycle position -4 (wraps to 12) -> OFF
+      // Offset 12: phase 0 -> cycle position -12 (wraps to 4) -> OFF
       const phase0 = rotaService.isStaffOnDuty(staff, getDateAtPhase(0), appZeroDate);
       expect(phase0.onDuty).toBe(false);
       expect(phase0.shiftType).toBe(null);
 
-      // Phase 4 -> cycle position 0 -> DAY
-      const phase4 = rotaService.isStaffOnDuty(staff, getDateAtPhase(4), appZeroDate);
-      expect(phase4.onDuty).toBe(true);
-      expect(phase4.shiftType).toBe('Day');
+      // Phase 12 -> cycle position 0 -> DAY
+      const phase12 = rotaService.isStaffOnDuty(staff, getDateAtPhase(12), appZeroDate);
+      expect(phase12.onDuty).toBe(true);
+      expect(phase12.shiftType).toBe('day');
     });
   });
 
   describe('Supervisor - Day View (With Night Shift Overlaps)', () => {
     it('should show night shift overlap on phase 12 from phase 11', async () => {
-      setupStaff({ status: 'Supervisor', group: null, cycleType: 'supervisor', daysOffset: 0 });
+      setupStaff({ status: 'Supervisor', group: null, cycleType: 'supervisor', daysOffset: 8 });
 
       // Phase 11: Last night shift day (cycle state = NIGHT)
       // Should show: today's shift + yesterday's overlap = 2 shifts
@@ -221,7 +261,7 @@ describe('RotaService', () => {
     });
 
     it('should show overlaps during night shift period (phases 8-11)', async () => {
-      setupStaff({ status: 'Supervisor', group: null, cycleType: 'supervisor', daysOffset: 0 });
+      setupStaff({ status: 'Supervisor', group: null, cycleType: 'supervisor', daysOffset: 8 });
 
       // Phase 8: First night, no overlap from previous day (phase 7 is OFF)
       const phase8 = await rotaService.getRotaForDate(getDateAtPhase(8));

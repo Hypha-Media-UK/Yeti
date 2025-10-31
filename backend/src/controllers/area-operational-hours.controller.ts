@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { AreaOperationalHoursRepository } from '../repositories/area-operational-hours.repository';
 import { AreaType, validateOperationalHours } from '../../shared/types/operational-hours';
 import { validateAreaType, parseId } from '../utils/validation.utils';
+import { isDuplicateError } from '../utils/error.utils';
 
 export class AreaOperationalHoursController {
   private repo: AreaOperationalHoursRepository;
@@ -85,12 +86,12 @@ export class AreaOperationalHoursController {
       res.status(201).json({ operationalHours: hours });
     } catch (error: any) {
       console.error('Error creating operational hours:', error);
-      
-      if (error.code === 'ER_DUP_ENTRY') {
+
+      if (isDuplicateError(error)) {
         res.status(409).json({ error: 'This operational hours entry already exists' });
         return;
       }
-      
+
       res.status(500).json({ error: 'Failed to create operational hours' });
     }
   };
@@ -98,12 +99,7 @@ export class AreaOperationalHoursController {
   // PUT /api/operational-hours/:id
   update = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
-
-      if (isNaN(id)) {
-        res.status(400).json({ error: 'Invalid ID' });
-        return;
-      }
+      const id = parseId(req.params.id, 'Operational hours ID');
 
       const { dayOfWeek, startTime, endTime } = req.body;
 
@@ -130,12 +126,12 @@ export class AreaOperationalHoursController {
       res.json({ operationalHours: hours });
     } catch (error: any) {
       console.error('Error updating operational hours:', error);
-      
-      if (error.code === 'ER_DUP_ENTRY') {
+
+      if (isDuplicateError(error)) {
         res.status(409).json({ error: 'This operational hours entry already exists' });
         return;
       }
-      
+
       res.status(500).json({ error: 'Failed to update operational hours' });
     }
   };
@@ -143,12 +139,7 @@ export class AreaOperationalHoursController {
   // DELETE /api/operational-hours/:id
   delete = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
-
-      if (isNaN(id)) {
-        res.status(400).json({ error: 'Invalid ID' });
-        return;
-      }
+      const id = parseId(req.params.id, 'Operational hours ID');
 
       const success = await this.repo.delete(id);
 
@@ -199,12 +190,12 @@ export class AreaOperationalHoursController {
       res.json({ operationalHours: result });
     } catch (error: any) {
       console.error('Error setting operational hours:', error);
-      
-      if (error.code === 'ER_DUP_ENTRY') {
+
+      if (isDuplicateError(error)) {
         res.status(409).json({ error: 'Duplicate operational hours entries detected' });
         return;
       }
-      
+
       res.status(500).json({ error: 'Failed to set operational hours' });
     }
   };

@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 import { BuildingRepository } from '../repositories/building.repository';
+import { parseId } from '../utils/validation.utils';
+import { isDuplicateError, isForeignKeyError } from '../utils/error.utils';
 
 export class BuildingController {
   private buildingRepo: BuildingRepository;
@@ -20,12 +22,7 @@ export class BuildingController {
 
   getBuildingById = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
-
-      if (isNaN(id)) {
-        res.status(400).json({ error: 'Invalid building ID' });
-        return;
-      }
+      const id = parseId(req.params.id, 'Building ID');
 
       const building = await this.buildingRepo.findById(id);
 
@@ -58,24 +55,19 @@ export class BuildingController {
       res.status(201).json({ building });
     } catch (error: any) {
       console.error('Error creating building:', error);
-      
-      if (error.code === 'ER_DUP_ENTRY') {
+
+      if (isDuplicateError(error)) {
         res.status(409).json({ error: 'A building with this name already exists' });
         return;
       }
-      
+
       res.status(500).json({ error: 'Failed to create building' });
     }
   };
 
   updateBuilding = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
-
-      if (isNaN(id)) {
-        res.status(400).json({ error: 'Invalid building ID' });
-        return;
-      }
+      const id = parseId(req.params.id, 'Building ID');
 
       const updates = req.body;
 
@@ -94,24 +86,19 @@ export class BuildingController {
       res.json({ building });
     } catch (error: any) {
       console.error('Error updating building:', error);
-      
-      if (error.code === 'ER_DUP_ENTRY') {
+
+      if (isDuplicateError(error)) {
         res.status(409).json({ error: 'A building with this name already exists' });
         return;
       }
-      
+
       res.status(500).json({ error: 'Failed to update building' });
     }
   };
 
   deleteBuilding = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
-
-      if (isNaN(id)) {
-        res.status(400).json({ error: 'Invalid building ID' });
-        return;
-      }
+      const id = parseId(req.params.id, 'Building ID');
 
       const success = await this.buildingRepo.delete(id);
 
@@ -121,8 +108,14 @@ export class BuildingController {
       }
 
       res.json({ success: true });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting building:', error);
+
+      if (isForeignKeyError(error)) {
+        res.status(409).json({ error: 'Cannot delete building because it has departments' });
+        return;
+      }
+
       res.status(500).json({ error: 'Failed to delete building' });
     }
   };

@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 import { DepartmentRepository } from '../repositories/department.repository';
+import { parseId } from '../utils/validation.utils';
+import { isDuplicateError, isForeignKeyError } from '../utils/error.utils';
 
 export class DepartmentController {
   private departmentRepo: DepartmentRepository;
@@ -25,12 +27,7 @@ export class DepartmentController {
 
   getDepartmentById = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
-
-      if (isNaN(id)) {
-        res.status(400).json({ error: 'Invalid department ID' });
-        return;
-      }
+      const id = parseId(req.params.id, 'Department ID');
 
       const department = await this.departmentRepo.findById(id);
 
@@ -67,7 +64,7 @@ export class DepartmentController {
     } catch (error: any) {
       console.error('Error creating department:', error);
 
-      if (error.code === 'ER_DUP_ENTRY') {
+      if (isDuplicateError(error)) {
         res.status(409).json({ error: 'A department with this name already exists in this building' });
         return;
       }
@@ -78,12 +75,7 @@ export class DepartmentController {
 
   updateDepartment = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
-
-      if (isNaN(id)) {
-        res.status(400).json({ error: 'Invalid department ID' });
-        return;
-      }
+      const id = parseId(req.params.id, 'Department ID');
 
       const updates = req.body;
 
@@ -103,7 +95,7 @@ export class DepartmentController {
     } catch (error: any) {
       console.error('Error updating department:', error);
 
-      if (error.code === 'ER_DUP_ENTRY') {
+      if (isDuplicateError(error)) {
         res.status(409).json({ error: 'A department with this name already exists in this building' });
         return;
       }
@@ -114,12 +106,7 @@ export class DepartmentController {
 
   deleteDepartment = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
-
-      if (isNaN(id)) {
-        res.status(400).json({ error: 'Invalid department ID' });
-        return;
-      }
+      const id = parseId(req.params.id, 'Department ID');
 
       const success = await this.departmentRepo.delete(id);
 
@@ -129,8 +116,14 @@ export class DepartmentController {
       }
 
       res.json({ success: true });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting department:', error);
+
+      if (isForeignKeyError(error)) {
+        res.status(409).json({ error: 'Cannot delete department because it has staff allocations' });
+        return;
+      }
+
       res.status(500).json({ error: 'Failed to delete department' });
     }
   };

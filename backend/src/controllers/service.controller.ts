@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 import { ServiceRepository } from '../repositories/service.repository';
+import { parseId } from '../utils/validation.utils';
+import { isDuplicateError, isForeignKeyError } from '../utils/error.utils';
 
 export class ServiceController {
   private serviceRepo: ServiceRepository;
@@ -20,12 +22,7 @@ export class ServiceController {
 
   getServiceById = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
-
-      if (isNaN(id)) {
-        res.status(400).json({ error: 'Invalid service ID' });
-        return;
-      }
+      const id = parseId(req.params.id, 'Service ID');
 
       const service = await this.serviceRepo.findById(id);
 
@@ -62,7 +59,7 @@ export class ServiceController {
     } catch (error: any) {
       console.error('Error creating service:', error);
 
-      if (error.code === 'ER_DUP_ENTRY') {
+      if (isDuplicateError(error)) {
         res.status(409).json({ error: 'A service with this name already exists' });
         return;
       }
@@ -73,12 +70,7 @@ export class ServiceController {
 
   updateService = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
-
-      if (isNaN(id)) {
-        res.status(400).json({ error: 'Invalid service ID' });
-        return;
-      }
+      const id = parseId(req.params.id, 'Service ID');
 
       const updates = req.body;
       const service = await this.serviceRepo.update(id, updates);
@@ -91,24 +83,19 @@ export class ServiceController {
       res.json({ service });
     } catch (error: any) {
       console.error('Error updating service:', error);
-      
-      if (error.code === 'ER_DUP_ENTRY') {
+
+      if (isDuplicateError(error)) {
         res.status(409).json({ error: 'A service with this name already exists' });
         return;
       }
-      
+
       res.status(500).json({ error: 'Failed to update service' });
     }
   };
 
   deleteService = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
-
-      if (isNaN(id)) {
-        res.status(400).json({ error: 'Invalid service ID' });
-        return;
-      }
+      const id = parseId(req.params.id, 'Service ID');
 
       const success = await this.serviceRepo.delete(id);
 
@@ -118,8 +105,14 @@ export class ServiceController {
       }
 
       res.json({ message: 'Service deleted successfully' });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting service:', error);
+
+      if (isForeignKeyError(error)) {
+        res.status(409).json({ error: 'Cannot delete service because it has staff allocations' });
+        return;
+      }
+
       res.status(500).json({ error: 'Failed to delete service' });
     }
   };

@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { StaffContractedHoursRepository } from '../repositories/staff-contracted-hours.repository';
 import { validateOperationalHours } from '../../shared/types/operational-hours';
+import { parseId } from '../utils/validation.utils';
+import { isDuplicateError } from '../utils/error.utils';
 
 export class StaffContractedHoursController {
   private repo: StaffContractedHoursRepository;
@@ -12,12 +14,7 @@ export class StaffContractedHoursController {
   // GET /api/contracted-hours/staff/:staffId
   getByStaff = async (req: Request, res: Response): Promise<void> => {
     try {
-      const staffId = parseInt(req.params.staffId);
-
-      if (isNaN(staffId)) {
-        res.status(400).json({ error: 'Invalid staff ID' });
-        return;
-      }
+      const staffId = parseId(req.params.staffId, 'Staff ID');
 
       const hours = await this.repo.findByStaff(staffId);
       res.json({ contractedHours: hours });
@@ -72,12 +69,12 @@ export class StaffContractedHoursController {
       res.status(201).json({ contractedHours: hours });
     } catch (error: any) {
       console.error('Error creating contracted hours:', error);
-      
-      if (error.code === 'ER_DUP_ENTRY') {
+
+      if (isDuplicateError(error)) {
         res.status(409).json({ error: 'This contracted hours entry already exists' });
         return;
       }
-      
+
       res.status(500).json({ error: 'Failed to create contracted hours' });
     }
   };
@@ -85,12 +82,7 @@ export class StaffContractedHoursController {
   // PUT /api/contracted-hours/:id
   update = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
-
-      if (isNaN(id)) {
-        res.status(400).json({ error: 'Invalid ID' });
-        return;
-      }
+      const id = parseId(req.params.id, 'Contracted hours ID');
 
       const { dayOfWeek, startTime, endTime } = req.body;
 
@@ -117,12 +109,12 @@ export class StaffContractedHoursController {
       res.json({ contractedHours: hours });
     } catch (error: any) {
       console.error('Error updating contracted hours:', error);
-      
-      if (error.code === 'ER_DUP_ENTRY') {
+
+      if (isDuplicateError(error)) {
         res.status(409).json({ error: 'This contracted hours entry already exists' });
         return;
       }
-      
+
       res.status(500).json({ error: 'Failed to update contracted hours' });
     }
   };
@@ -130,12 +122,7 @@ export class StaffContractedHoursController {
   // DELETE /api/contracted-hours/:id
   delete = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = parseInt(req.params.id);
-
-      if (isNaN(id)) {
-        res.status(400).json({ error: 'Invalid ID' });
-        return;
-      }
+      const id = parseId(req.params.id, 'Contracted hours ID');
 
       const success = await this.repo.delete(id);
 
@@ -154,13 +141,8 @@ export class StaffContractedHoursController {
   // PUT /api/contracted-hours/staff/:staffId
   setForStaff = async (req: Request, res: Response): Promise<void> => {
     try {
-      const staffId = parseInt(req.params.staffId);
+      const staffId = parseId(req.params.staffId, 'Staff ID');
       const { hours } = req.body;
-
-      if (isNaN(staffId)) {
-        res.status(400).json({ error: 'Invalid staff ID' });
-        return;
-      }
 
       if (!Array.isArray(hours)) {
         res.status(400).json({ error: 'Hours must be an array' });
@@ -180,12 +162,12 @@ export class StaffContractedHoursController {
       res.json({ contractedHours: result });
     } catch (error: any) {
       console.error('Error setting contracted hours:', error);
-      
-      if (error.code === 'ER_DUP_ENTRY') {
+
+      if (isDuplicateError(error)) {
         res.status(409).json({ error: 'Duplicate contracted hours entries detected' });
         return;
       }
-      
+
       res.status(500).json({ error: 'Failed to set contracted hours' });
     }
   };
