@@ -1,5 +1,5 @@
-import { supabase } from '../config/database';
 import { Service } from '../../shared/types/service';
+import { BaseRepository } from './base.repository';
 
 interface ServiceRow {
   id: number;
@@ -12,8 +12,18 @@ interface ServiceRow {
   updated_at: string;
 }
 
-export class ServiceRepository {
-  private mapRowToService(row: ServiceRow): Service {
+type ServiceCreateInput = Omit<Service, 'id' | 'createdAt' | 'updatedAt'>;
+type ServiceUpdateInput = Partial<Service>;
+
+export class ServiceRepository extends BaseRepository<
+  Service,
+  ServiceRow,
+  ServiceCreateInput,
+  ServiceUpdateInput
+> {
+  protected readonly tableName = 'services';
+
+  protected mapRowToEntity(row: ServiceRow): Service {
     return {
       id: row.id,
       name: row.name,
@@ -26,106 +36,61 @@ export class ServiceRepository {
     };
   }
 
-  async findAll(): Promise<Service[]> {
-    const { data, error } = await supabase
-      .from('services')
-      .select('*')
-      .eq('is_active', true)
-      .order('name');
-
-    if (error) {
-      throw new Error(`Failed to find services: ${error.message}`);
-    }
-
-    return (data || []).map(row => this.mapRowToService(row));
+  protected mapEntityToInsertRow(input: ServiceCreateInput): Partial<ServiceRow> {
+    return {
+      name: input.name,
+      description: input.description,
+      include_in_main_rota: input.includeInMainRota,
+      is_24_7: input.is24_7,
+      is_active: input.isActive,
+    };
   }
 
-  async findById(id: number): Promise<Service | null> {
-    const { data, error } = await supabase
-      .from('services')
-      .select('*')
-      .eq('id', id)
-      .eq('is_active', true)
-      .single();
+  protected mapEntityToUpdateRow(input: ServiceUpdateInput): Partial<ServiceRow> {
+    const updateData: Partial<ServiceRow> = {};
 
-    if (error) {
-      if (error.code === 'PGRST116') {
-        return null;
-      }
-      throw new Error(`Failed to find service: ${error.message}`);
+    if (input.name !== undefined) {
+      updateData.name = input.name;
+    }
+    if (input.description !== undefined) {
+      updateData.description = input.description;
+    }
+    if (input.includeInMainRota !== undefined) {
+      updateData.include_in_main_rota = input.includeInMainRota;
+    }
+    if (input.is24_7 !== undefined) {
+      updateData.is_24_7 = input.is24_7;
+    }
+    if (input.isActive !== undefined) {
+      updateData.is_active = input.isActive;
     }
 
-    return data ? this.mapRowToService(data) : null;
+    return updateData;
   }
 
-  async create(service: Omit<Service, 'id' | 'createdAt' | 'updatedAt'>): Promise<Service> {
-    const { data, error } = await supabase
-      .from('services')
-      .insert({
-        name: service.name,
-        description: service.description,
-        include_in_main_rota: service.includeInMainRota,
-        is_24_7: service.is24_7,
-        is_active: service.isActive
-      })
-      .select()
-      .single();
+  /**
+   * Override findAll to add custom ordering
+   */
+  async findAll(filters?: Record<string, any>): Promise<Service[]> {
+    let query = this.client
+      .from(this.tableName)
+      .select('*');
+
+    // Apply is_active filter by default
+    if (filters?.includeInactive !== true) {
+      query = query.eq('is_active', true);
+    }
+
+    // Add custom ordering
+    query = query.order('name');
+
+    const { data, error } = await query;
 
     if (error) {
-      throw new Error(`Failed to create service: ${error.message}`);
+      throw new Error(`Failed to find ${this.tableName}: ${error.message}`);
     }
 
-    return this.mapRowToService(data);
-  }
-
-  async update(id: number, updates: Partial<Service>): Promise<Service | null> {
-    const updateData: any = {};
-
-    if (updates.name !== undefined) {
-      updateData.name = updates.name;
-    }
-    if (updates.description !== undefined) {
-      updateData.description = updates.description;
-    }
-    if (updates.includeInMainRota !== undefined) {
-      updateData.include_in_main_rota = updates.includeInMainRota;
-    }
-    if (updates.is24_7 !== undefined) {
-      updateData.is_24_7 = updates.is24_7;
-    }
-    if (updates.isActive !== undefined) {
-      updateData.is_active = updates.isActive;
-    }
-
-    if (Object.keys(updateData).length === 0) {
-      return this.findById(id);
-    }
-
-    const { data, error } = await supabase
-      .from('services')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error(`Failed to update service: ${error.message}`);
-    }
-
-    return data ? this.mapRowToService(data) : null;
-  }
-
-  async delete(id: number): Promise<boolean> {
-    const { error } = await supabase
-      .from('services')
-      .update({ is_active: false })
-      .eq('id', id);
-
-    if (error) {
-      throw new Error(`Failed to delete service: ${error.message}`);
-    }
-
-    return true;
+    return (data || []).map(row => this.mapRowToEntity(row as ServiceRow));
   }
 }
 

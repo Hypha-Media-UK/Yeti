@@ -1,5 +1,5 @@
-import { supabase } from '../config/database';
 import { Building } from '../../shared/types/building';
+import { BaseRepository } from './base.repository';
 
 interface BuildingRow {
   id: number;
@@ -10,8 +10,26 @@ interface BuildingRow {
   updated_at: string;
 }
 
-export class BuildingRepository {
-  private mapRowToBuilding(row: BuildingRow): Building {
+type BuildingCreateInput = {
+  name: string;
+  description?: string | null;
+};
+
+type BuildingUpdateInput = {
+  name?: string;
+  description?: string | null;
+  isActive?: boolean;
+};
+
+export class BuildingRepository extends BaseRepository<
+  Building,
+  BuildingRow,
+  BuildingCreateInput,
+  BuildingUpdateInput
+> {
+  protected readonly tableName = 'buildings';
+
+  protected mapRowToEntity(row: BuildingRow): Building {
     return {
       id: row.id,
       name: row.name,
@@ -22,100 +40,55 @@ export class BuildingRepository {
     };
   }
 
-  async findAll(): Promise<Building[]> {
-    const { data, error } = await supabase
-      .from('buildings')
-      .select('*')
-      .eq('is_active', true)
-      .order('name');
-
-    if (error) {
-      throw new Error(`Failed to find buildings: ${error.message}`);
-    }
-
-    return (data || []).map(row => this.mapRowToBuilding(row));
+  protected mapEntityToInsertRow(input: BuildingCreateInput): Partial<BuildingRow> {
+    return {
+      name: input.name,
+      description: input.description || null,
+      is_active: true,
+    };
   }
 
-  async findById(id: number): Promise<Building | null> {
-    const { data, error } = await supabase
-      .from('buildings')
-      .select('*')
-      .eq('id', id)
-      .eq('is_active', true)
-      .single();
+  protected mapEntityToUpdateRow(input: BuildingUpdateInput): Partial<BuildingRow> {
+    const updateData: Partial<BuildingRow> = {};
 
-    if (error) {
-      if (error.code === 'PGRST116') {
-        return null;
-      }
-      throw new Error(`Failed to find building: ${error.message}`);
+    if (input.name !== undefined) {
+      updateData.name = input.name;
     }
 
-    return data ? this.mapRowToBuilding(data) : null;
+    if (input.description !== undefined) {
+      updateData.description = input.description;
+    }
+
+    if (input.isActive !== undefined) {
+      updateData.is_active = input.isActive;
+    }
+
+    return updateData;
   }
 
-  async create(building: { name: string; description?: string | null }): Promise<Building> {
-    const { data, error } = await supabase
-      .from('buildings')
-      .insert({
-        name: building.name,
-        description: building.description || null,
-        is_active: true
-      })
-      .select()
-      .single();
+  /**
+   * Override findAll to add custom ordering
+   */
+  async findAll(filters?: Record<string, any>): Promise<Building[]> {
+    let query = this.client
+      .from(this.tableName)
+      .select('*');
+
+    // Apply is_active filter by default
+    if (filters?.includeInactive !== true) {
+      query = query.eq('is_active', true);
+    }
+
+    // Add custom ordering
+    query = query.order('name');
+
+    const { data, error } = await query;
 
     if (error) {
-      throw new Error(`Failed to create building: ${error.message}`);
+      throw new Error(`Failed to find ${this.tableName}: ${error.message}`);
     }
 
-    return this.mapRowToBuilding(data);
-  }
-
-  async update(id: number, updates: { name?: string; description?: string | null; isActive?: boolean }): Promise<Building | null> {
-    const updateData: any = {};
-
-    if (updates.name !== undefined) {
-      updateData.name = updates.name;
-    }
-
-    if (updates.description !== undefined) {
-      updateData.description = updates.description;
-    }
-
-    if (updates.isActive !== undefined) {
-      updateData.is_active = updates.isActive;
-    }
-
-    if (Object.keys(updateData).length === 0) {
-      return this.findById(id);
-    }
-
-    const { data, error } = await supabase
-      .from('buildings')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error(`Failed to update building: ${error.message}`);
-    }
-
-    return data ? this.mapRowToBuilding(data) : null;
-  }
-
-  async delete(id: number): Promise<boolean> {
-    const { error } = await supabase
-      .from('buildings')
-      .update({ is_active: false })
-      .eq('id', id);
-
-    if (error) {
-      throw new Error(`Failed to delete building: ${error.message}`);
-    }
-
-    return true;
+    return (data || []).map(row => this.mapRowToEntity(row as BuildingRow));
   }
 }
 
