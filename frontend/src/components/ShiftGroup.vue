@@ -13,16 +13,29 @@
     <div v-if="assignments.length === 0" class="empty-state">
       No staff scheduled for this shift
     </div>
-    
+
     <div v-else class="shift-list">
+      <!-- Present staff -->
       <StaffCard
-        v-for="assignment in assignments"
+        v-for="assignment in getPresentStaff(assignments)"
         :key="`${assignment.staff.id}-${assignment.assignmentDate}`"
         :assignment="assignment"
         :clickable="true"
         @assignment="$emit('staffAssignment', assignment)"
         @absence="$emit('staffAbsence', assignment)"
       />
+
+      <!-- Absent staff (separate container at bottom) -->
+      <div v-if="getAbsentStaff(assignments).length > 0" class="absent-staff-container">
+        <StaffCard
+          v-for="assignment in getAbsentStaff(assignments)"
+          :key="`${assignment.staff.id}-${assignment.assignmentDate}`"
+          :assignment="assignment"
+          :clickable="true"
+          @assignment="$emit('staffAssignment', assignment)"
+          @absence="$emit('staffAbsence', assignment)"
+        />
+      </div>
     </div>
   </section>
 </template>
@@ -31,6 +44,7 @@
 import { computed } from 'vue';
 import type { ShiftAssignment } from '@shared/types/shift';
 import StaffCard from './StaffCard.vue';
+import { useAbsence } from '@/composables/useAbsence';
 
 const props = defineProps<{
   shiftType: 'Day' | 'Night';
@@ -41,6 +55,23 @@ const emit = defineEmits<{
   staffAssignment: [assignment: ShiftAssignment];
   staffAbsence: [assignment: ShiftAssignment];
 }>();
+
+const { isAbsenceActive } = useAbsence();
+
+// Check if staff is currently absent
+function isStaffAbsent(assignment: ShiftAssignment): boolean {
+  return isAbsenceActive(assignment.staff.currentAbsence);
+}
+
+// Get present staff (not absent)
+function getPresentStaff(assignments: ShiftAssignment[]): ShiftAssignment[] {
+  return assignments.filter(assignment => !isStaffAbsent(assignment));
+}
+
+// Get absent staff
+function getAbsentStaff(assignments: ShiftAssignment[]): ShiftAssignment[] {
+  return assignments.filter(assignment => isStaffAbsent(assignment));
+}
 
 const shiftTime = computed(() => {
   return props.shiftType === 'Day' ? '08:00 - 20:00' : '20:00 - 08:00';
@@ -113,6 +144,11 @@ const groupClass = computed(() => ({
 }
 
 .shift-list {
+  display: grid;
+  gap: var(--spacing-2);
+}
+
+.absent-staff-container {
   display: grid;
   gap: var(--spacing-2);
 }
