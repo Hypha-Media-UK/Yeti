@@ -35,12 +35,12 @@ describe('Rota API Integration Tests', () => {
       expect(response.body.staff.every((s: any) => s.status === 'Regular')).toBe(true);
     });
 
-    it('should filter staff by group', async () => {
+    it('should filter staff by pool status', async () => {
       const response = await request(app)
-        .get('/api/staff?group=Day')
+        .get('/api/staff?isPoolStaff=true')
         .expect(200);
 
-      expect(response.body.staff.every((s: any) => s.group === 'Day')).toBe(true);
+      expect(response.body.staff.every((s: any) => s.isPoolStaff === true)).toBe(true);
     });
   });
 
@@ -112,7 +112,7 @@ describe('Rota API Integration Tests', () => {
         .send({
           staffId: 1,
           assignmentDate: '2024-06-01',
-          shiftType: 'Day',
+          shiftType: 'day',
           notes: 'Test assignment',
         })
         .expect(201);
@@ -137,7 +137,7 @@ describe('Rota API Integration Tests', () => {
         .send({
           staffId: 1,
           assignmentDate: '2024-06-01',
-          shiftType: 'Day',
+          shiftType: 'day',
         })
         .expect(409);
     });
@@ -159,7 +159,7 @@ describe('Rota API Integration Tests', () => {
         .send({
           staffId: 1,
           assignmentDate: '2024-07-01',
-          shiftType: 'Night',
+          shiftType: 'night',
         });
 
       const assignmentId = createResponse.body.assignment.id;

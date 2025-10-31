@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { RotaService } from '../services/rota.service';
 import { OverrideRepository } from '../repositories/override.repository';
 import { validateDateString, validateShiftType } from '../utils/validation.utils';
+import { isDuplicateError } from '../utils/error.utils';
 
 export class RotaController {
   private rotaService: RotaService;
@@ -135,7 +136,7 @@ export class RotaController {
       console.error('Error creating assignment:', error);
 
       // Handle duplicate key error
-      if (error.code === 'ER_DUP_ENTRY') {
+      if (isDuplicateError(error)) {
         res.status(409).json({ error: 'Assignment already exists for this staff member, date, and shift type' });
         return;
       }
@@ -210,7 +211,7 @@ export class RotaController {
     } catch (error: any) {
       console.error('Error creating temporary assignment:', error);
 
-      if (error.code === 'ER_DUP_ENTRY') {
+      if (isDuplicateError(error)) {
         res.status(409).json({ error: 'Assignment already exists for this staff member, date, and shift type' });
         return;
       }

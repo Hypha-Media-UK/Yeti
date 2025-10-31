@@ -107,7 +107,8 @@ export class OverrideRepository {
       .single();
 
     if (error) {
-      throw new Error(`Failed to create manual assignment: ${error.message}`);
+      // Throw the original error to preserve error codes (e.g., 23505 for unique constraint violations)
+      throw error;
     }
 
     return this.mapRowToManualAssignment(data);
@@ -181,6 +182,17 @@ export class OverrideRepository {
   }
 
   async delete(id: number): Promise<boolean> {
+    // First check if the assignment exists
+    const { data: existing } = await supabase
+      .from('manual_assignments')
+      .select('id')
+      .eq('id', id)
+      .single();
+
+    if (!existing) {
+      return false;
+    }
+
     const { error } = await supabase
       .from('manual_assignments')
       .delete()
