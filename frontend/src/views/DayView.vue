@@ -212,7 +212,7 @@
       :current-date="selectedDate"
       :departments="allDepartments"
       :services="allServices"
-      @deleted="loadDay"
+      @deleted="handleAssignmentDeleted"
     />
 
     <!-- Quick Absence Modal -->
@@ -542,6 +542,13 @@ async function handleCreateQuickAbsence(data: CreateAbsenceRequest) {
     console.error('Error creating absence:', err);
     alert(err.message || 'Failed to create absence');
   }
+}
+
+// Handle assignment deletion from ManageAssignmentsModal
+async function handleAssignmentDeleted() {
+  // Clear cache and reload both rota and areas to reflect the deletion
+  dayStore.clearRotaCache([selectedDate.value]);
+  await loadDay();
 }
 
 onMounted(async () => {

@@ -138,12 +138,22 @@ const handleDelete = async (assignmentId: number) => {
 
   try {
     await api.deleteAssignment(assignmentId);
-    // Remove from local list
+
+    // Remove from local list immediately for responsive UI
+    const wasLastAssignment = assignments.value.length === 1;
     assignments.value = assignments.value.filter(a => a.id !== assignmentId);
-    // Notify parent to refresh
+
+    // Notify parent to refresh the main view
     emit('deleted');
-    // Reload assignments to ensure we have the latest data
-    await loadAssignments();
+
+    // If this was the last assignment, close the modal after a brief delay
+    // to allow the parent to refresh and show the updated state
+    if (wasLastAssignment) {
+      // Small delay to ensure parent has time to process the deletion
+      setTimeout(() => {
+        emit('update:modelValue', false);
+      }, 300);
+    }
   } catch (err) {
     console.error('Error deleting assignment:', err);
     alert('Failed to delete assignment');
