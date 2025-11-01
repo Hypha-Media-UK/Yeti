@@ -410,7 +410,7 @@ export class RotaService {
   }
 
   /**
-   * Sort shifts by status and name
+   * Sort shifts by status, staff type (supervisors first), and name
    */
   private sortShifts(shifts: ShiftAssignment[]): void {
     const statusOrder: Record<ShiftStatus, number> = {
@@ -420,9 +420,17 @@ export class RotaService {
     };
 
     shifts.sort((a, b) => {
+      // 1. Sort by status (active, pending, expired)
       const statusDiff = statusOrder[a.status] - statusOrder[b.status];
       if (statusDiff !== 0) return statusDiff;
 
+      // 2. Sort by staff type - Supervisors first, then others
+      const aIsSupervisor = a.staff.status === 'Supervisor';
+      const bIsSupervisor = b.staff.status === 'Supervisor';
+      if (aIsSupervisor && !bIsSupervisor) return -1;
+      if (!aIsSupervisor && bIsSupervisor) return 1;
+
+      // 3. Sort by name (alphabetically)
       const nameA = `${a.staff.lastName} ${a.staff.firstName}`;
       const nameB = `${b.staff.lastName} ${b.staff.firstName}`;
       return nameA.localeCompare(nameB);

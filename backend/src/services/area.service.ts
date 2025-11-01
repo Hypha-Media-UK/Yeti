@@ -455,20 +455,26 @@ export class AreaService {
       }
     });
 
-    // Sort by: 1) shift type (day first, then night), 2) start time, 3) name
+    // Sort by: 1) shift type (day first, then night), 2) staff type (supervisors first), 3) start time, 4) name
     // Note: Absent staff are separated in the frontend and displayed at the bottom
     staffAssignments.sort((a, b) => {
-      // First, sort by shift type
+      // 1. Sort by shift type
       if (a.shiftType !== b.shiftType) {
         return a.shiftType === 'day' ? -1 : 1;
       }
 
-      // Second, sort by start time (earlier shifts first)
+      // 2. Sort by staff type - Supervisors first, then others
+      const aIsSupervisor = a.status === 'Supervisor';
+      const bIsSupervisor = b.status === 'Supervisor';
+      if (aIsSupervisor && !bIsSupervisor) return -1;
+      if (!aIsSupervisor && bIsSupervisor) return 1;
+
+      // 3. Sort by start time (earlier shifts first)
       if (a.shiftStart !== b.shiftStart) {
         return a.shiftStart.localeCompare(b.shiftStart);
       }
 
-      // Finally, sort by name
+      // 4. Sort by name
       return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
     });
 
