@@ -480,6 +480,14 @@ const handleSubmit = () => {
       shiftId = null;
       referenceShiftId = null;
     }
+  } else if (formData.status === 'Supervisor') {
+    // Supervisors can be assigned to a shift for default times and offset
+    shiftId = formData.shiftId;
+    referenceShiftId = null;
+  } else if (formData.status === 'Relief') {
+    // Relief staff don't have shift assignments
+    shiftId = null;
+    referenceShiftId = null;
   }
 
   // Determine cycle type based on status (DEPRECATED - kept for backward compatibility)
