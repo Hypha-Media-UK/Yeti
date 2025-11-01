@@ -457,6 +457,7 @@ export class AreaService {
 
     // Sort by: 1) shift type (day first, then night), 2) staff type (supervisors first), 3) start time, 4) name
     // Note: Absent staff are separated in the frontend and displayed at the bottom
+    // Note: We don't sort by offset here because area assignments don't have the full shift information
     staffAssignments.sort((a, b) => {
       // 1. Sort by shift type
       if (a.shiftType !== b.shiftType) {

@@ -600,7 +600,7 @@ export class RotaService {
       }
     }
 
-    // Sort shifts by status (active, pending, expired), staff type (supervisors first), then by staff name
+    // Sort shifts by status (active, pending, expired), offset (to group supervisors with their shift), staff type (supervisors first within offset), then by staff name
     const statusOrder: Record<ShiftStatus, number> = {
       'active': 1,
       'pending': 2,
@@ -612,13 +612,24 @@ export class RotaService {
       const statusDiff = statusOrder[a.status] - statusOrder[b.status];
       if (statusDiff !== 0) return statusDiff;
 
-      // 2. Sort by staff type - Supervisors first, then others
+      // 2. Sort by offset - this groups supervisors with regular staff on the same rotation
+      // Use personal offset if set AND non-zero, otherwise use shift's offset
+      const aOffset = (a.staff.daysOffset !== null && a.staff.daysOffset !== undefined && a.staff.daysOffset !== 0)
+        ? a.staff.daysOffset
+        : (a.staff.shift?.daysOffset || 0);
+      const bOffset = (b.staff.daysOffset !== null && b.staff.daysOffset !== undefined && b.staff.daysOffset !== 0)
+        ? b.staff.daysOffset
+        : (b.staff.shift?.daysOffset || 0);
+
+      if (aOffset !== bOffset) return aOffset - bOffset;
+
+      // 3. Sort by staff type - Supervisors first within the same offset group
       const aIsSupervisor = a.staff.status === 'Supervisor';
       const bIsSupervisor = b.staff.status === 'Supervisor';
       if (aIsSupervisor && !bIsSupervisor) return -1;
       if (!aIsSupervisor && bIsSupervisor) return 1;
 
-      // 3. Sort by name within same status
+      // 4. Sort by name within same status
       const nameA = `${a.staff.lastName} ${a.staff.firstName}`;
       const nameB = `${b.staff.lastName} ${b.staff.firstName}`;
       return nameA.localeCompare(nameB);
