@@ -16,6 +16,7 @@ interface StaffRow {
   reference_shift_id: number | null;
   use_contracted_hours_for_shift: boolean;
   is_pool_staff: boolean;
+  early_finish_day: number | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -47,6 +48,7 @@ export class StaffRepository extends BaseRepository<
       referenceShiftId: row.reference_shift_id || null,
       useContractedHoursForShift: row.use_contracted_hours_for_shift || false,
       isPoolStaff: row.is_pool_staff || false,
+      earlyFinishDay: row.early_finish_day || null,
       isActive: row.is_active,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -67,6 +69,7 @@ export class StaffRepository extends BaseRepository<
       reference_shift_id: input.referenceShiftId || null,
       use_contracted_hours_for_shift: input.useContractedHoursForShift || false,
       is_pool_staff: input.isPoolStaff || false,
+      early_finish_day: input.earlyFinishDay || null,
       is_active: input.isActive,
     };
   }
@@ -109,6 +112,9 @@ export class StaffRepository extends BaseRepository<
     }
     if (input.isPoolStaff !== undefined) {
       updateData.is_pool_staff = input.isPoolStaff;
+    }
+    if (input.earlyFinishDay !== undefined) {
+      updateData.early_finish_day = input.earlyFinishDay;
     }
     if (input.isActive !== undefined) {
       updateData.is_active = input.isActive;

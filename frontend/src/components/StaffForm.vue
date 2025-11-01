@@ -215,6 +215,35 @@
       </p>
     </div>
 
+    <!-- Early Finish Day (only show for shift-based staff without contracted hours) -->
+    <div v-if="showEarlyFinishDay" class="form-group">
+      <label class="form-label">Early Finish Day (Optional)</label>
+      <p class="form-hint">
+        Select which day of the 4-day cycle this staff member finishes early.
+        Day shifts finish at 19:00 instead of 20:00. Night shifts finish at 07:00 instead of 08:00.
+      </p>
+      <div class="early-finish-options">
+        <label v-for="day in [1, 2, 3, 4]" :key="day" class="radio-label">
+          <input
+            type="radio"
+            :value="day"
+            v-model="formData.earlyFinishDay"
+            name="earlyFinishDay"
+          />
+          <span>Day {{ day }}</span>
+        </label>
+        <label class="radio-label">
+          <input
+            type="radio"
+            :value="null"
+            v-model="formData.earlyFinishDay"
+            name="earlyFinishDay"
+          />
+          <span>None</span>
+        </label>
+      </div>
+    </div>
+
     <!-- Contracted Hours (only show for permanent assignments, relief, or supervisor) -->
     <div v-if="showContractedHours" class="form-group">
       <OperationalHoursEditor
@@ -300,6 +329,7 @@ const formData = reactive({
   daysOffset: props.staff?.daysOffset || 0,
   customShiftStart: props.staff?.customShiftStart?.substring(0, 5) || '',  // Convert "HH:mm:ss" to "HH:mm"
   customShiftEnd: props.staff?.customShiftEnd?.substring(0, 5) || '',      // Convert "HH:mm:ss" to "HH:mm"
+  earlyFinishDay: props.staff?.earlyFinishDay || null as number | null,
   contractedHours: [] as HoursEntry[],
 });
 
@@ -329,6 +359,11 @@ const showCustomShiftTimes = computed(() => {
 const showDaysOffset = computed(() => {
   // Show days offset only when shift is selected
   return formData.status === 'Regular' && formData.shiftId !== null;
+});
+
+const showEarlyFinishDay = computed(() => {
+  // Show early finish day only when shift is selected and NOT using contracted hours
+  return formData.shiftId !== null && !formData.useContractedHours && !formData.adjustShiftTimes;
 });
 
 const showContractedHours = computed(() => {
@@ -458,6 +493,7 @@ const handleSubmit = () => {
     daysOffset: formData.daysOffset,
     customShiftStart,
     customShiftEnd,
+    earlyFinishDay: formData.earlyFinishDay,
     useCycleForPermanent: false,  // DEPRECATED
     referenceShiftId,
     useContractedHoursForShift,
@@ -730,6 +766,38 @@ watch(() => formData.shiftId, (newShiftId) => {
   font-size: var(--font-size-body-xs);
   font-weight: var(--font-weight-medium);
   color: var(--color-text-secondary);
+}
+
+.early-finish-options {
+  display: flex;
+  gap: var(--spacing-2);
+  flex-wrap: wrap;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  cursor: pointer;
+  padding: var(--spacing-1) var(--spacing-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-button);
+  transition: background-color var(--transition-enter), border-color var(--transition-enter);
+}
+
+.radio-label:hover {
+  background-color: var(--color-bg);
+  border-color: var(--color-primary);
+}
+
+.radio-label input[type="radio"] {
+  margin: 0;
+  cursor: pointer;
+}
+
+.radio-label input[type="radio"]:checked + span {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-primary);
 }
 </style>
 

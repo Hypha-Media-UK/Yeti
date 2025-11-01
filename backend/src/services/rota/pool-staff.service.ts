@@ -75,7 +75,7 @@ export class PoolStaffService {
           staff,
           dutyInfo.shiftType,
           targetDate,
-          { contractedHoursMap }
+          { contractedHoursMap, appZeroDate }
         );
 
         if (times) {

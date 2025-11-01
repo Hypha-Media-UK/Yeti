@@ -69,6 +69,14 @@ export interface StaffMember {
    */
   isPoolStaff: boolean;
 
+  /**
+   * Which day of the staff member's 4-day cycle they finish early (1-4).
+   * NULL if no early finish.
+   * - Day shifts: finish at 19:00 instead of 20:00
+   * - Night shifts: finish at 07:00 instead of 08:00
+   */
+  earlyFinishDay: number | null;
+
   /** Whether this staff member is active (soft delete flag) */
   isActive: boolean;
 

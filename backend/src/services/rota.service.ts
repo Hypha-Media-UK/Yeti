@@ -113,7 +113,8 @@ export class RotaService {
       manualStaffMap,
       targetDate,
       contractedHoursMap,
-      manuallyAssignedStaffIds
+      manuallyAssignedStaffIds,
+      appZeroDate
     );
     this.categorizeShifts(manualAssignmentResults, dayShifts, nightShifts);
 
@@ -320,7 +321,7 @@ export class RotaService {
           staff,
           dutyCheck.shiftType,
           targetDate,
-          { contractedHoursMap }
+          { contractedHoursMap, appZeroDate }
         );
 
         if (times) {

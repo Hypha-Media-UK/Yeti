@@ -2,8 +2,9 @@ import { StaffMemberWithShift } from '../../../shared/types/staff';
 import { ShiftType } from '../../../shared/types/shift';
 import { StaffContractedHours } from '../../../shared/types/operational-hours';
 import { StaffContractedHoursRepository } from '../../repositories/staff-contracted-hours.repository';
-import { parseLocalDate } from '../../utils/date.utils';
+import { parseLocalDate, daysBetween } from '../../utils/date.utils';
 import { SHIFT_TIMES } from '../../config/constants';
+import { calculateCyclePosition, CYCLE_LENGTHS } from '../../utils/cycle.utils';
 
 /**
  * ShiftTimeService
@@ -44,13 +45,57 @@ export class ShiftTimeService {
   }
 
   /**
+   * Calculate which day of the 4-day working cycle a staff member is on
+   *
+   * @param staff - Staff member with shift information
+   * @param targetDate - The date to check (YYYY-MM-DD format)
+   * @param appZeroDate - The app's zero date reference point
+   * @returns Day number (1-4) within the working portion of the cycle, or null if not working
+   */
+  calculateWorkingDayOfCycle(
+    staff: StaffMemberWithShift,
+    targetDate: string,
+    appZeroDate: string
+  ): number | null {
+    const daysSinceZero = daysBetween(appZeroDate, targetDate);
+
+    // Use personal offset if set AND non-zero, otherwise use shift's offset
+    const effectiveOffset = (staff.daysOffset !== null && staff.daysOffset !== undefined && staff.daysOffset !== 0)
+      ? staff.daysOffset
+      : (staff.shift?.daysOffset || 0);
+
+    // For 4-on-4-off cycle (8-day cycle total)
+    if (staff.status === 'Regular' && staff.shift?.cycleType === '4-on-4-off') {
+      const cyclePosition = calculateCyclePosition(daysSinceZero, effectiveOffset, CYCLE_LENGTHS.REGULAR);
+      // Days 0-3 are working days (1-4), days 4-7 are off
+      if (cyclePosition < 4) {
+        return cyclePosition + 1; // Convert 0-3 to 1-4
+      }
+    }
+
+    // For 16-day supervisor cycle
+    if (staff.status === 'Supervisor') {
+      const cyclePosition = calculateCyclePosition(daysSinceZero, effectiveOffset, CYCLE_LENGTHS.SUPERVISOR);
+      // Days 0-3: Day shift (working days 1-4)
+      // Days 8-11: Night shift (working days 1-4)
+      if (cyclePosition < 4) {
+        return cyclePosition + 1; // Day shift: convert 0-3 to 1-4
+      } else if (cyclePosition >= 8 && cyclePosition < 12) {
+        return (cyclePosition - 8) + 1; // Night shift: convert 8-11 to 1-4
+      }
+    }
+
+    return null; // Not working or not on a cycle
+  }
+
+  /**
    * Get shift times for a specific staff member on a specific date
-   * 
+   *
    * Priority:
    * 1. Custom shift times (staff.customShiftStart/End)
    * 2. Contracted hours for the day
-   * 3. Default shift times
-   * 
+   * 3. Default shift times (with early finish adjustment if applicable)
+   *
    * @param staff - Staff member with shift information
    * @param shiftType - 'day' or 'night'
    * @param targetDate - The date to check (YYYY-MM-DD format)
@@ -63,6 +108,7 @@ export class ShiftTimeService {
     targetDate: string,
     options?: {
       contractedHoursMap?: Map<number, StaffContractedHours[]>;
+      appZeroDate?: string;
     }
   ): Promise<{ start: string; end: string } | null> {
     // Priority 1: Check if staff has custom shift times
@@ -99,7 +145,23 @@ export class ShiftTimeService {
     }
 
     // Priority 3: Fall back to default shift times
-    return this.getDefaultShiftTimes(shiftType);
+    let times = this.getDefaultShiftTimes(shiftType);
+
+    // Check if this is an early finish day
+    if (times && staff.earlyFinishDay && options?.appZeroDate) {
+      const workingDay = this.calculateWorkingDayOfCycle(staff, targetDate, options.appZeroDate);
+
+      if (workingDay === staff.earlyFinishDay) {
+        // This is their early finish day - adjust end time
+        if (shiftType === 'day') {
+          times = { ...times, end: '19:00:00' }; // Finish at 19:00 instead of 20:00
+        } else if (shiftType === 'night') {
+          times = { ...times, end: '07:00:00' }; // Finish at 07:00 instead of 08:00
+        }
+      }
+    }
+
+    return times;
   }
 
   /**

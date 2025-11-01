@@ -43,6 +43,7 @@ export class ManualAssignmentService {
    * @param targetDate - The date being processed (YYYY-MM-DD format)
    * @param contractedHoursMap - Pre-fetched contracted hours
    * @param manuallyAssignedStaffIds - Set to track which staff have been manually assigned
+   * @param appZeroDate - The app's zero date reference point
    * @returns Array of shift assignments
    */
   async processManualAssignments(
@@ -50,7 +51,8 @@ export class ManualAssignmentService {
     staffMap: Map<number, StaffMemberWithShift>,
     targetDate: string,
     contractedHoursMap: Map<number, StaffContractedHours[]>,
-    manuallyAssignedStaffIds: Set<number>
+    manuallyAssignedStaffIds: Set<number>,
+    appZeroDate: string
   ): Promise<ShiftAssignment[]> {
     const shiftAssignments: ShiftAssignment[] = [];
 
@@ -74,7 +76,7 @@ export class ManualAssignmentService {
         staff,
         assignment.shiftType,
         targetDate,
-        { contractedHoursMap }
+        { contractedHoursMap, appZeroDate }
       );
 
       if (times) {

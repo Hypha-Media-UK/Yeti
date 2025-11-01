@@ -123,6 +123,7 @@ CREATE TABLE IF NOT EXISTS staff (
     reference_shift_id INTEGER REFERENCES shifts(id) ON DELETE SET NULL,
     use_contracted_hours_for_shift BOOLEAN DEFAULT FALSE,
     is_pool_staff BOOLEAN DEFAULT FALSE,
+    early_finish_day INTEGER CHECK (early_finish_day >= 1 AND early_finish_day <= 4),
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
@@ -131,6 +132,7 @@ CREATE TABLE IF NOT EXISTS staff (
 CREATE INDEX idx_staff_status ON staff(status);
 CREATE INDEX idx_staff_shift_id ON staff(shift_id);
 CREATE INDEX idx_staff_is_pool ON staff(is_pool_staff);
+CREATE INDEX idx_staff_early_finish_day ON staff(early_finish_day) WHERE early_finish_day IS NOT NULL;
 CREATE INDEX idx_staff_is_active ON staff(is_active);
 
 -- ============================================================================
