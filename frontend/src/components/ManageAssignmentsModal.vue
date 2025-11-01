@@ -79,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, onMounted } from 'vue';
 import BaseModal from './BaseModal.vue';
 import { api } from '@/services/api';
 import type { StaffMember } from '@shared/types/staff';
@@ -117,7 +117,9 @@ const loadAssignments = async () => {
   error.value = '';
 
   try {
+    console.log('[ManageAssignmentsModal] Loading assignments for staff:', props.staffMember.id, 'date:', props.currentDate);
     const response = await api.getTemporaryAssignments(props.staffMember.id, props.currentDate);
+    console.log('[ManageAssignmentsModal] Received assignments:', response.assignments);
     assignments.value = response.assignments;
   } catch (err) {
     console.error('Error loading assignments:', err);
@@ -164,6 +166,12 @@ const formatDate = (dateStr: string): string => {
   const date = new Date(dateStr + 'T00:00:00');
   return date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 };
+
+// Load assignments when component is mounted (since v-if recreates the component each time)
+onMounted(() => {
+  console.log('[ManageAssignmentsModal] Component mounted, loading assignments');
+  loadAssignments();
+});
 
 // Load assignments when modal opens
 watch(() => props.modelValue, async (isOpen) => {

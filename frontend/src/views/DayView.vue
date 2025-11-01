@@ -489,6 +489,9 @@ function handleAreaStaffClick(staff: any) {
     return;
   }
 
+  console.log('[DayView] Area staff clicked:', staff);
+  console.log('[DayView] Selected date:', selectedDate.value);
+
   // Convert the area staff object to a StaffMember
   const staffMember: StaffMember = {
     id: staff.id,
@@ -502,6 +505,8 @@ function handleAreaStaffClick(staff: any) {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
+
+  console.log('[DayView] Created staff member object:', staffMember);
 
   selectedStaffForManagement.value = staffMember;
   showManageAssignmentsModal.value = true;
