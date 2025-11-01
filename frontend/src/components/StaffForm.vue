@@ -101,9 +101,9 @@
     </div>
 
     <!-- SECTION 3: Shift Assignment -->
-    <div v-if="formData.status === 'Regular'" class="form-row">
+    <div v-if="formData.status === 'Regular' || formData.status === 'Supervisor'" class="form-row">
       <div class="form-group">
-        <label for="shift" class="form-label">Shift</label>
+        <label for="shift" class="form-label">Shift {{ formData.status === 'Supervisor' ? '(Day/Night)' : '' }}</label>
         <select
           id="shift"
           v-model="formData.shiftId"
@@ -130,13 +130,17 @@
             </option>
           </optgroup>
         </select>
-        <p class="form-hint">
+        <p v-if="formData.status === 'Regular'" class="form-hint">
           Select a shift to use its cycle pattern for determining working days.
           Leave as "No Shift" to use contracted hours instead.
         </p>
+        <p v-else-if="formData.status === 'Supervisor'" class="form-hint">
+          Select a day or night shift. Supervisors work both day and night shifts on a 16-day cycle,
+          but the shift selection determines default times and offset.
+        </p>
       </div>
 
-      <div class="form-group">
+      <div v-if="formData.status === 'Regular'" class="form-group">
         <label class="checkbox-label">
           <input
             type="checkbox"
@@ -208,7 +212,12 @@
         min="0"
         :max="formData.status === 'Supervisor' ? 15 : 7"
       />
-      <p class="form-hint">
+      <p v-if="formData.status === 'Supervisor'" class="form-hint">
+        Offset within the 16-day supervisor cycle (0-15).
+        {{ formData.shiftId ? `Shift default offset: ${selectedShiftDefaultOffset ?? 0}.` : '' }}
+        Set a personal offset if this supervisor works different days than others.
+      </p>
+      <p v-else class="form-hint">
         Shift default offset: {{ selectedShiftDefaultOffset ?? 0 }}.
         Leave blank or set to {{ selectedShiftDefaultOffset ?? 0 }} to use shift's default.
         Set a personal offset if this staff member works different days than the rest of their shift.
@@ -357,7 +366,10 @@ const showCustomShiftTimes = computed(() => {
 });
 
 const showDaysOffset = computed(() => {
-  // Show days offset only when shift is selected
+  // Show days offset for Regular staff when shift is selected, or for Supervisors (always)
+  if (formData.status === 'Supervisor') {
+    return true; // Supervisors always have offset (16-day cycle)
+  }
   return formData.status === 'Regular' && formData.shiftId !== null;
 });
 
