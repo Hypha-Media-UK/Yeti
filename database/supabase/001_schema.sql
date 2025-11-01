@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS departments (
     description TEXT,
     include_in_main_rota BOOLEAN DEFAULT FALSE,
     is_24_7 BOOLEAN DEFAULT FALSE,
+    requires_minimum_staffing BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
@@ -63,6 +64,7 @@ CREATE INDEX idx_departments_name ON departments(name);
 CREATE INDEX idx_departments_building_id ON departments(building_id);
 CREATE INDEX idx_departments_is_active ON departments(is_active);
 CREATE INDEX idx_departments_is_24_7 ON departments(is_24_7);
+CREATE INDEX idx_departments_requires_staffing ON departments(requires_minimum_staffing);
 
 -- ============================================================================
 -- TABLE: services
@@ -74,6 +76,7 @@ CREATE TABLE IF NOT EXISTS services (
     description TEXT,
     include_in_main_rota BOOLEAN DEFAULT FALSE,
     is_24_7 BOOLEAN DEFAULT FALSE,
+    requires_minimum_staffing BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
@@ -81,6 +84,7 @@ CREATE TABLE IF NOT EXISTS services (
 
 CREATE INDEX idx_services_is_active ON services(is_active);
 CREATE INDEX idx_services_is_24_7 ON services(is_24_7);
+CREATE INDEX idx_services_requires_staffing ON services(requires_minimum_staffing);
 
 -- ============================================================================
 -- TABLE: shifts
@@ -261,6 +265,29 @@ CREATE INDEX idx_area_operational_hours_day_lookup ON area_operational_hours(day
 CREATE INDEX idx_area_operational_hours_area_day ON area_operational_hours(area_type, area_id, day_of_week);
 
 -- ============================================================================
+-- TABLE: area_staffing_requirements
+-- Minimum staffing requirements for departments and services
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS area_staffing_requirements (
+    id SERIAL PRIMARY KEY,
+    area_type area_type NOT NULL,
+    area_id INTEGER NOT NULL,
+    day_of_week SMALLINT NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
+    time_start TIME NOT NULL,
+    time_end TIME NOT NULL,
+    required_staff INTEGER NOT NULL CHECK (required_staff > 0),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+
+    -- Ensure time_start is before time_end (or handle overnight shifts)
+    CONSTRAINT valid_time_range CHECK (time_start < time_end OR (time_start > time_end AND time_end < '12:00:00'))
+);
+
+CREATE INDEX idx_area_staffing_area ON area_staffing_requirements(area_type, area_id);
+CREATE INDEX idx_area_staffing_day ON area_staffing_requirements(day_of_week);
+CREATE INDEX idx_area_staffing_lookup ON area_staffing_requirements(area_type, area_id, day_of_week);
+
+-- ============================================================================
 -- FUNCTIONS: Auto-update updated_at timestamp
 -- ============================================================================
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -284,6 +311,7 @@ CREATE TRIGGER update_manual_assignments_updated_at BEFORE UPDATE ON manual_assi
 CREATE TRIGGER update_staff_absences_updated_at BEFORE UPDATE ON staff_absences FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_staff_contracted_hours_updated_at BEFORE UPDATE ON staff_contracted_hours FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_area_operational_hours_updated_at BEFORE UPDATE ON area_operational_hours FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_area_staffing_requirements_updated_at BEFORE UPDATE ON area_staffing_requirements FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================================================
 -- ROW LEVEL SECURITY (RLS)

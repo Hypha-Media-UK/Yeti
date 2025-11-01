@@ -54,6 +54,25 @@
         />
       </div>
 
+      <!-- Minimum Staffing Requirements -->
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input
+            type="checkbox"
+            v-model="formData.requiresMinimumStaffing"
+            class="checkbox-input"
+          />
+          <span>Requires Minimum Staffing</span>
+        </label>
+        <p class="form-hint">When enabled, this service will be flagged if understaffed</p>
+      </div>
+
+      <div v-if="formData.requiresMinimumStaffing" class="form-group">
+        <StaffingRequirementsEditor
+          v-model="formData.staffingRequirements"
+        />
+      </div>
+
       <div v-if="error" class="form-error">
         {{ error }}
       </div>
@@ -74,6 +93,7 @@
 import { ref, reactive, watch } from 'vue';
 import BaseModal from './BaseModal.vue';
 import OperationalHoursEditor from './OperationalHoursEditor.vue';
+import StaffingRequirementsEditor from './StaffingRequirementsEditor.vue';
 import { api } from '../services/api';
 import type { Service } from '@shared/types/service';
 
@@ -82,6 +102,13 @@ interface HoursEntry {
   dayOfWeek: number;
   startTime: string;
   endTime: string;
+}
+
+interface StaffingRequirement {
+  dayOfWeek: number;
+  timeStart: string;
+  timeEnd: string;
+  requiredStaff: number;
 }
 
 interface Props {
@@ -93,7 +120,15 @@ const props = defineProps<Props>();
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean];
-  submit: [data: { name: string; description: string | null; includeInMainRota: boolean; is24_7: boolean; operationalHours: HoursEntry[] }];
+  submit: [data: {
+    name: string;
+    description: string | null;
+    includeInMainRota: boolean;
+    is24_7: boolean;
+    operationalHours: HoursEntry[];
+    requiresMinimumStaffing: boolean;
+    staffingRequirements: StaffingRequirement[];
+  }];
 }>();
 
 const loading = ref(false);
@@ -105,6 +140,8 @@ const formData = reactive({
   includeInMainRota: Boolean(props.service?.includeInMainRota),
   is24_7: Boolean(props.service?.is24_7),
   operationalHours: [] as HoursEntry[],
+  requiresMinimumStaffing: Boolean(props.service?.requiresMinimumStaffing),
+  staffingRequirements: [] as StaffingRequirement[],
 });
 
 const handleSubmit = () => {
@@ -117,6 +154,8 @@ const handleSubmit = () => {
     includeInMainRota: formData.includeInMainRota,
     is24_7: formData.is24_7,
     operationalHours: formData.operationalHours,
+    requiresMinimumStaffing: formData.requiresMinimumStaffing,
+    staffingRequirements: formData.staffingRequirements,
   };
 
   emit('submit', data);
@@ -132,6 +171,7 @@ watch(() => props.service, async (newService) => {
     formData.description = newService.description || '';
     formData.includeInMainRota = Boolean(newService.includeInMainRota);
     formData.is24_7 = Boolean(newService.is24_7);
+    formData.requiresMinimumStaffing = Boolean(newService.requiresMinimumStaffing);
 
     // Load operational hours
     try {
@@ -146,12 +186,32 @@ watch(() => props.service, async (newService) => {
       console.error('Failed to load operational hours:', error);
       formData.operationalHours = [];
     }
+
+    // Load staffing requirements
+    if (newService.requiresMinimumStaffing) {
+      try {
+        const response = await api.getStaffingRequirements('service', newService.id);
+        formData.staffingRequirements = response.requirements.map((r: any) => ({
+          dayOfWeek: r.dayOfWeek,
+          timeStart: r.timeStart.substring(0, 5),
+          timeEnd: r.timeEnd.substring(0, 5),
+          requiredStaff: r.requiredStaff,
+        }));
+      } catch (error) {
+        console.error('Failed to load staffing requirements:', error);
+        formData.staffingRequirements = [];
+      }
+    } else {
+      formData.staffingRequirements = [];
+    }
   } else {
     formData.name = '';
     formData.description = '';
     formData.includeInMainRota = false;
     formData.is24_7 = false;
     formData.operationalHours = [];
+    formData.requiresMinimumStaffing = false;
+    formData.staffingRequirements = [];
   }
 }, { immediate: true });
 </script>

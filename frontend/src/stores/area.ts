@@ -51,31 +51,15 @@ export const useAreaStore = defineStore('area', () => {
     const dayOfWeek = getDayOfWeek(date);
 
     try {
-      // Fetch areas list with retry
+      // Fetch areas list with staff included (includeStaff=true)
+      // This ensures isUnderstaffed is calculated correctly by the backend
       const areasResponse = await retry(
-        () => api.getMainRotaAreasForDay(dayOfWeek, date, false),
+        () => api.getMainRotaAreasForDay(dayOfWeek, date, true),
         { maxAttempts: 3, delayMs: 1000 }
       );
 
-      // Load staff for each area in parallel with individual retry
-      const areasWithStaff = await Promise.all(
-        areasResponse.areas.map(async (area: any) => {
-          try {
-            const staffResponse = await retry(
-              () => api.getAreaStaff(area.type, area.id, date),
-              { maxAttempts: 2, delayMs: 500 }
-            );
-            return { ...area, staff: staffResponse.staff };
-          } catch (err) {
-            console.error(`Error loading staff for ${area.name}:`, err);
-            // Return area with empty staff on error (graceful degradation)
-            return { ...area, staff: [] };
-          }
-        })
-      );
-
-      debug(`[AREA API] Fetched ${areasWithStaff.length} areas for ${date}`);
-      return areasWithStaff;
+      debug(`[AREA API] Fetched ${areasResponse.areas.length} areas for ${date}`);
+      return areasResponse.areas;
     } catch (err) {
       console.error('[AREA API] Error fetching areas:', err);
       throw err;

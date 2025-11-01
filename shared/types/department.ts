@@ -7,6 +7,7 @@ export interface Department {
   description: string | null;
   includeInMainRota: boolean;
   is24_7: boolean;
+  requiresMinimumStaffing: boolean;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -28,6 +29,7 @@ export interface UpdateDepartmentDto {
   description?: string | null;
   includeInMainRota?: boolean;
   is24_7?: boolean;
+  requiresMinimumStaffing?: boolean;
   isActive?: boolean;
 }
 

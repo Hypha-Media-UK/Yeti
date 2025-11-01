@@ -114,6 +114,25 @@
               />
             </div>
 
+            <!-- Minimum Staffing Requirements -->
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input
+                  v-model="editingRequiresMinimumStaffing"
+                  type="checkbox"
+                  class="checkbox-input"
+                />
+                <span>Requires Minimum Staffing</span>
+              </label>
+              <p class="form-hint">When enabled, this department will be flagged if understaffed</p>
+            </div>
+
+            <div v-if="editingRequiresMinimumStaffing" class="form-group">
+              <StaffingRequirementsEditor
+                v-model="editingStaffingRequirements"
+              />
+            </div>
+
             <div class="form-actions">
               <button class="btn btn-sm btn-primary" @click="handleUpdateDepartment(dept.id)">
                 Save Changes
@@ -141,6 +160,7 @@
 import { ref, watch, nextTick } from 'vue';
 import BaseModal from './BaseModal.vue';
 import OperationalHoursEditor from './OperationalHoursEditor.vue';
+import StaffingRequirementsEditor from './StaffingRequirementsEditor.vue';
 import { api } from '../services/api';
 import type { Building } from '@shared/types/building';
 import type { Department } from '@shared/types/department';
@@ -150,6 +170,13 @@ interface HoursEntry {
   dayOfWeek: number;
   startTime: string;
   endTime: string;
+}
+
+interface StaffingRequirement {
+  dayOfWeek: number;
+  timeStart: string;
+  timeEnd: string;
+  requiredStaff: number;
 }
 
 interface Props {
@@ -164,7 +191,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean];
   'updateBuilding': [id: number, name: string];
   'addDepartment': [buildingId: number, name: string];
-  'updateDepartment': [id: number, name: string, includeInMainRota: boolean, is24_7: boolean, operationalHours: HoursEntry[]];
+  'updateDepartment': [id: number, name: string, includeInMainRota: boolean, is24_7: boolean, operationalHours: HoursEntry[], requiresMinimumStaffing: boolean, staffingRequirements: StaffingRequirement[]];
   'deleteDepartment': [department: Department];
 }>();
 
@@ -182,6 +209,8 @@ const editingDepartmentName = ref('');
 const editingIncludeInMainRota = ref(false);
 const editingIs24_7 = ref(false);
 const editingOperationalHours = ref<HoursEntry[]>([]);
+const editingRequiresMinimumStaffing = ref(false);
+const editingStaffingRequirements = ref<StaffingRequirement[]>([]);
 
 watch(() => props.modelValue, (value) => {
   isOpen.value = value;
@@ -231,6 +260,8 @@ const toggleDepartment = async (deptId: number) => {
     editingIncludeInMainRota.value = false;
     editingIs24_7.value = false;
     editingOperationalHours.value = [];
+    editingRequiresMinimumStaffing.value = false;
+    editingStaffingRequirements.value = [];
   } else {
     // Expand and load data
     expandedDepartmentId.value = deptId;
@@ -239,6 +270,7 @@ const toggleDepartment = async (deptId: number) => {
       editingDepartmentName.value = dept.name;
       editingIncludeInMainRota.value = Boolean(dept.includeInMainRota);
       editingIs24_7.value = Boolean(dept.is24_7);
+      editingRequiresMinimumStaffing.value = Boolean(dept.requiresMinimumStaffing);
 
       // Load operational hours
       try {
@@ -253,6 +285,24 @@ const toggleDepartment = async (deptId: number) => {
         console.error('Failed to load operational hours:', error);
         editingOperationalHours.value = [];
       }
+
+      // Load staffing requirements
+      if (dept.requiresMinimumStaffing) {
+        try {
+          const response = await api.getStaffingRequirements('department', deptId);
+          editingStaffingRequirements.value = response.requirements.map((r: any) => ({
+            dayOfWeek: r.dayOfWeek,
+            timeStart: r.timeStart.substring(0, 5),
+            timeEnd: r.timeEnd.substring(0, 5),
+            requiredStaff: r.requiredStaff,
+          }));
+        } catch (error) {
+          console.error('Failed to load staffing requirements:', error);
+          editingStaffingRequirements.value = [];
+        }
+      } else {
+        editingStaffingRequirements.value = [];
+      }
     }
   }
 };
@@ -263,16 +313,20 @@ const cancelEditingDepartment = () => {
   editingIncludeInMainRota.value = false;
   editingIs24_7.value = false;
   editingOperationalHours.value = [];
+  editingRequiresMinimumStaffing.value = false;
+  editingStaffingRequirements.value = [];
 };
 
 const handleUpdateDepartment = (id: number) => {
   if (editingDepartmentName.value.trim()) {
-    emit('updateDepartment', id, editingDepartmentName.value.trim(), editingIncludeInMainRota.value, editingIs24_7.value, editingOperationalHours.value);
+    emit('updateDepartment', id, editingDepartmentName.value.trim(), editingIncludeInMainRota.value, editingIs24_7.value, editingOperationalHours.value, editingRequiresMinimumStaffing.value, editingStaffingRequirements.value);
     expandedDepartmentId.value = null;
     editingDepartmentName.value = '';
     editingIncludeInMainRota.value = false;
     editingIs24_7.value = false;
     editingOperationalHours.value = [];
+    editingRequiresMinimumStaffing.value = false;
+    editingStaffingRequirements.value = [];
   }
 };
 

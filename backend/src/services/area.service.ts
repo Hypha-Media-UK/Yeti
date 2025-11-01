@@ -8,6 +8,7 @@ import { StaffRepository } from '../repositories/staff.repository';
 import { AbsenceRepository } from '../repositories/absence.repository';
 import { RotaService } from './rota.service';
 import { ShiftTimeService } from './rota/shift-time.service';
+import { StaffingLevelService } from './staffing-level.service';
 import type { Department } from '../../shared/types/department';
 import type { Service } from '../../shared/types/service';
 import type { AreaOperationalHours, StaffContractedHours } from '../../shared/types/operational-hours';
@@ -34,6 +35,7 @@ export interface AreaWithHours {
   buildingId?: number;
   operationalHours: AreaOperationalHours[];
   staff?: StaffAssignmentForArea[];
+  isUnderstaffed?: boolean;
 }
 
 export class AreaService {
@@ -47,6 +49,7 @@ export class AreaService {
   private absenceRepo: AbsenceRepository;
   private rotaService: RotaService;
   private shiftTimeService: ShiftTimeService;
+  private staffingLevelService: StaffingLevelService;
 
   constructor() {
     this.departmentRepo = new DepartmentRepository();
@@ -59,6 +62,7 @@ export class AreaService {
     this.absenceRepo = new AbsenceRepository();
     this.rotaService = new RotaService();
     this.shiftTimeService = new ShiftTimeService();
+    this.staffingLevelService = new StaffingLevelService();
   }
 
   /**
@@ -101,7 +105,14 @@ export class AreaService {
     let allAbsencesMap: Map<number, Absence | null> | null = null;
     let appZeroDate: string | null = null;
 
-    if (date && shouldIncludeStaff) {
+    // Check if any area requires minimum staffing
+    const anyAreaRequiresStaffing = date && (
+      mainRotaDepartments.some(d => d.requiresMinimumStaffing) ||
+      mainRotaServices.some(s => s.requiresMinimumStaffing)
+    );
+
+    // Fetch staff data if we need to include it OR if we need to check staffing levels
+    if (date && (shouldIncludeStaff || anyAreaRequiresStaffing)) {
       const fetchStart = Date.now();
 
       // Fetch all data in parallel
@@ -186,6 +197,34 @@ export class AreaService {
           appZeroDate!
         ) : [];
 
+        // Check staffing levels if department requires minimum staffing
+        let isUnderstaffed = false;
+        if (dept.requiresMinimumStaffing && date) {
+          // If we already have staff data, use it; otherwise fetch it just for counting
+          let staffForCounting = staff;
+          if (!shouldIncludeStaff) {
+            staffForCounting = await this.getStaffForArea(
+              'department',
+              dept.id,
+              dayRota,
+              allStaffMap!,
+              allContractedHoursMap!,
+              manualAssignmentsMap!,
+              temporaryAssignmentsByArea!,
+              allocationsByArea!,
+              allAbsencesMap!,
+              appZeroDate!
+            );
+          }
+          const staffingResult = await this.staffingLevelService.checkStaffingLevel(
+            'department',
+            dept.id,
+            dayOfWeek,
+            staffForCounting.filter(s => !s.currentAbsence).length // Count only present staff
+          );
+          isUnderstaffed = staffingResult.isUnderstaffed;
+        }
+
         areas.push({
           id: dept.id,
           name: dept.name,
@@ -193,6 +232,7 @@ export class AreaService {
           buildingId: dept.buildingId ?? undefined,
           operationalHours: dept.is24_7 ? [] : deptHours, // Empty hours for 24/7 areas
           staff: shouldIncludeStaff ? staff : undefined,
+          isUnderstaffed: dept.requiresMinimumStaffing ? isUnderstaffed : undefined,
         });
       }
     }
@@ -218,12 +258,41 @@ export class AreaService {
           appZeroDate!
         ) : [];
 
+        // Check staffing levels if service requires minimum staffing
+        let isUnderstaffed = false;
+        if (service.requiresMinimumStaffing && date) {
+          // If we already have staff data, use it; otherwise fetch it just for counting
+          let staffForCounting = staff;
+          if (!shouldIncludeStaff) {
+            staffForCounting = await this.getStaffForArea(
+              'service',
+              service.id,
+              dayRota,
+              allStaffMap!,
+              allContractedHoursMap!,
+              manualAssignmentsMap!,
+              temporaryAssignmentsByArea!,
+              allocationsByArea!,
+              allAbsencesMap!,
+              appZeroDate!
+            );
+          }
+          const staffingResult = await this.staffingLevelService.checkStaffingLevel(
+            'service',
+            service.id,
+            dayOfWeek,
+            staffForCounting.filter(s => !s.currentAbsence).length // Count only present staff
+          );
+          isUnderstaffed = staffingResult.isUnderstaffed;
+        }
+
         areas.push({
           id: service.id,
           name: service.name,
           type: 'service',
           operationalHours: service.is24_7 ? [] : serviceHours, // Empty hours for 24/7 areas
           staff: shouldIncludeStaff ? staff : undefined,
+          isUnderstaffed: service.requiresMinimumStaffing ? isUnderstaffed : undefined,
         });
       }
     }

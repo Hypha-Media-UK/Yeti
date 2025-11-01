@@ -10,5 +10,9 @@ router.post('/', serviceController.createService);
 router.put('/:id', serviceController.updateService);
 router.delete('/:id', serviceController.deleteService);
 
+// Staffing requirements
+router.get('/:id/staffing-requirements', serviceController.getStaffingRequirements);
+router.put('/:id/staffing-requirements', serviceController.setStaffingRequirements);
+
 export default router;
 

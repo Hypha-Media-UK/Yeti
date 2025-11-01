@@ -47,9 +47,15 @@
               v-for="area in allDepartments"
               :key="`dept-${area.id}`"
               class="area-card"
+              :class="{ 'understaffed': area.isUnderstaffed }"
             >
               <div class="area-header">
-                <div class="area-name">{{ area.name }}</div>
+                <div class="area-name">
+                  {{ area.name }}
+                  <span v-if="area.isUnderstaffed" class="understaffed-badge" title="This area is currently understaffed">
+                    ⚠️
+                  </span>
+                </div>
                 <div class="area-hours">
                   <span v-if="area.operationalHours.length === 0" class="hours-24-7">
                     24/7/365
@@ -116,9 +122,15 @@
               v-for="area in allServices"
               :key="`svc-${area.id}`"
               class="area-card"
+              :class="{ 'understaffed': area.isUnderstaffed }"
             >
               <div class="area-header">
-                <div class="area-name">{{ area.name }}</div>
+                <div class="area-name">
+                  {{ area.name }}
+                  <span v-if="area.isUnderstaffed" class="understaffed-badge" title="This area is currently understaffed">
+                    ⚠️
+                  </span>
+                </div>
                 <div class="area-hours">
                   <span v-if="area.operationalHours.length === 0" class="hours-24-7">
                     24/7/365
@@ -622,9 +634,18 @@ onMounted(async () => {
   transition: all 0.2s ease;
 }
 
+.area-card.understaffed {
+  border-color: var(--color-error);
+  border-width: 1px;
+}
+
 .area-card:hover {
   border-color: var(--color-primary);
   box-shadow: var(--shadow-small);
+}
+
+.area-card.understaffed:hover {
+  border-color: var(--color-error);
 }
 
 .area-header {
@@ -638,6 +659,14 @@ onMounted(async () => {
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-medium);
   color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+}
+
+.understaffed-badge {
+  font-size: 16px;
+  line-height: 1;
 }
 
 .area-hours {

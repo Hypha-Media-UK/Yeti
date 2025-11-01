@@ -667,11 +667,13 @@ const handleUpdateDepartment = async (
   name: string,
   includeInMainRota: boolean,
   is24_7: boolean,
-  operationalHours: Array<{ id?: number; dayOfWeek: number; startTime: string; endTime: string }>
+  operationalHours: Array<{ id?: number; dayOfWeek: number; startTime: string; endTime: string }>,
+  requiresMinimumStaffing: boolean,
+  staffingRequirements: Array<{ dayOfWeek: number; timeStart: string; timeEnd: string; requiredStaff: number }>
 ) => {
   try {
     // Update department basic info
-    await api.updateDepartment(id, { name, includeInMainRota, is24_7 });
+    await api.updateDepartment(id, { name, includeInMainRota, is24_7, requiresMinimumStaffing });
 
     // Update operational hours - deduplicate first (only if not 24/7)
     if (!is24_7) {
@@ -686,6 +688,20 @@ const handleUpdateDepartment = async (
     } else {
       // Clear operational hours for 24/7 departments
       await api.setOperationalHoursForArea('department', id, []);
+    }
+
+    // Update staffing requirements
+    if (requiresMinimumStaffing) {
+      const requirementsToSave = staffingRequirements.map(r => ({
+        dayOfWeek: r.dayOfWeek,
+        timeStart: r.timeStart,
+        timeEnd: r.timeEnd,
+        requiredStaff: r.requiredStaff,
+      }));
+      await api.setStaffingRequirements('department', id, requirementsToSave);
+    } else {
+      // Clear staffing requirements if not required
+      await api.setStaffingRequirements('department', id, []);
     }
 
     await loadDepartments();
@@ -719,6 +735,8 @@ const handleServiceSubmit = async (data: {
   includeInMainRota: boolean;
   is24_7: boolean;
   operationalHours: Array<{ id?: number; dayOfWeek: number; startTime: string; endTime: string }>;
+  requiresMinimumStaffing: boolean;
+  staffingRequirements: Array<{ dayOfWeek: number; timeStart: string; timeEnd: string; requiredStaff: number }>;
 }) => {
   try {
     let serviceId: number;
@@ -729,6 +747,7 @@ const handleServiceSubmit = async (data: {
         description: data.description,
         includeInMainRota: data.includeInMainRota,
         is24_7: data.is24_7,
+        requiresMinimumStaffing: data.requiresMinimumStaffing,
       });
       serviceId = editingService.value.id;
     } else {
@@ -737,6 +756,7 @@ const handleServiceSubmit = async (data: {
         description: data.description,
         includeInMainRota: data.includeInMainRota,
         is24_7: data.is24_7,
+        requiresMinimumStaffing: data.requiresMinimumStaffing,
       });
       serviceId = response.service.id;
     }
@@ -754,6 +774,20 @@ const handleServiceSubmit = async (data: {
     } else {
       // Clear operational hours for 24/7 services
       await api.setOperationalHoursForArea('service', serviceId, []);
+    }
+
+    // Update staffing requirements
+    if (data.requiresMinimumStaffing) {
+      const requirementsToSave = data.staffingRequirements.map(r => ({
+        dayOfWeek: r.dayOfWeek,
+        timeStart: r.timeStart,
+        timeEnd: r.timeEnd,
+        requiredStaff: r.requiredStaff,
+      }));
+      await api.setStaffingRequirements('service', serviceId, requirementsToSave);
+    } else {
+      // Clear staffing requirements if not required
+      await api.setStaffingRequirements('service', serviceId, []);
     }
 
     await loadServices();

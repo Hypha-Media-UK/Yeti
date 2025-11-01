@@ -324,6 +324,18 @@ export const api = {
     });
   },
 
+  // Staffing Requirements
+  async getStaffingRequirements(areaType: 'department' | 'service', areaId: number): Promise<{ requirements: any[] }> {
+    return fetchApi<{ requirements: any[] }>(`/${areaType}s/${areaId}/staffing-requirements`);
+  },
+
+  async setStaffingRequirements(areaType: 'department' | 'service', areaId: number, requirements: Array<{ dayOfWeek: number; startTime: string; endTime: string; minimumStaff: number }>): Promise<{ requirements: any[] }> {
+    return fetchApi<{ requirements: any[] }>(`/${areaType}s/${areaId}/staffing-requirements`, {
+      method: 'PUT',
+      body: JSON.stringify({ requirements }),
+    });
+  },
+
   async copyOperationalHours(fromAreaType: 'department' | 'service', fromAreaId: number, toAreaType: 'department' | 'service', toAreaId: number): Promise<{ operationalHours: any[]; copied: number }> {
     return fetchApi<{ operationalHours: any[]; copied: number }>('/operational-hours/copy', {
       method: 'POST',

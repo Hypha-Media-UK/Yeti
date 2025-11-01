@@ -8,6 +8,7 @@ interface DepartmentRow {
   description: string | null;
   include_in_main_rota: boolean;
   is_24_7: boolean;
+  requires_minimum_staffing: boolean;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -19,6 +20,7 @@ type DepartmentCreateInput = {
   description?: string | null;
   includeInMainRota?: boolean;
   is24_7?: boolean;
+  requiresMinimumStaffing?: boolean;
 };
 
 type DepartmentUpdateInput = {
@@ -27,6 +29,7 @@ type DepartmentUpdateInput = {
   description?: string | null;
   includeInMainRota?: boolean;
   is24_7?: boolean;
+  requiresMinimumStaffing?: boolean;
   isActive?: boolean;
 };
 
@@ -46,6 +49,7 @@ export class DepartmentRepository extends BaseRepository<
       description: row.description,
       includeInMainRota: row.include_in_main_rota,
       is24_7: row.is_24_7,
+      requiresMinimumStaffing: row.requires_minimum_staffing,
       isActive: row.is_active,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -59,6 +63,7 @@ export class DepartmentRepository extends BaseRepository<
       description: input.description || null,
       include_in_main_rota: input.includeInMainRota ?? false,
       is_24_7: input.is24_7 ?? false,
+      requires_minimum_staffing: input.requiresMinimumStaffing ?? false,
       is_active: true,
     };
   }
@@ -84,6 +89,10 @@ export class DepartmentRepository extends BaseRepository<
 
     if (input.is24_7 !== undefined) {
       updateData.is_24_7 = input.is24_7;
+    }
+
+    if (input.requiresMinimumStaffing !== undefined) {
+      updateData.requires_minimum_staffing = input.requiresMinimumStaffing;
     }
 
     if (input.isActive !== undefined) {
