@@ -62,6 +62,16 @@
         </div>
       </div>
 
+      <!-- Show duration and overnight indicator -->
+      <div v-if="formData.startTime && formData.endTime" class="time-info">
+        <span v-if="isOvernightShift" class="overnight-badge">
+          🌙 Overnight shift ({{ shiftDuration }})
+        </span>
+        <span v-else class="duration-info">
+          Duration: {{ shiftDuration }}
+        </span>
+      </div>
+
       <div class="form-group">
         <label class="form-label">Duration *</label>
         <div class="radio-group">
@@ -151,12 +161,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue';
+import { ref, reactive, watch, computed } from 'vue';
 import BaseModal from './BaseModal.vue';
 import type { StaffMember } from '@shared/types/staff';
 import type { Department } from '@shared/types/department';
 import type { Service } from '@shared/types/service';
 import type { ShiftType } from '@shared/types/shift';
+import { validateTimeRange, calculateDuration, formatDuration } from '@shared/utils/time-validation';
 
 interface AreaOption {
   type: 'department' | 'service';
@@ -203,6 +214,21 @@ const formData = reactive({
   notes: '',
 });
 
+// Computed properties for time range display
+const isOvernightShift = computed(() => {
+  if (!formData.startTime || !formData.endTime) return false;
+  const validation = validateTimeRange(formData.startTime, formData.endTime);
+  return validation.valid && validation.isOvernight;
+});
+
+const shiftDuration = computed(() => {
+  if (!formData.startTime || !formData.endTime) return '';
+  const validation = validateTimeRange(formData.startTime, formData.endTime);
+  if (!validation.valid) return '';
+  const duration = calculateDuration(formData.startTime, formData.endTime);
+  return formatDuration(duration);
+});
+
 const handleSubmit = () => {
   error.value = '';
 
@@ -217,9 +243,10 @@ const handleSubmit = () => {
     return;
   }
 
-  // Validate time range
-  if (formData.startTime >= formData.endTime) {
-    error.value = 'End time must be after start time';
+  // Validate time range (allows overnight shifts)
+  const timeValidation = validateTimeRange(formData.startTime, formData.endTime);
+  if (!timeValidation.valid) {
+    error.value = timeValidation.error || 'Invalid time range';
     return;
   }
 
@@ -318,6 +345,28 @@ watch(() => props.modelValue, (isOpen) => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--spacing-2);
+}
+
+.time-info {
+  margin-top: calc(-1 * var(--spacing-1));
+  margin-bottom: var(--spacing-2);
+  font-size: var(--font-size-body-sm);
+}
+
+.overnight-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  padding: var(--spacing-1) var(--spacing-2);
+  background-color: #FEF3C7;
+  color: #92400E;
+  border-radius: var(--radius-button);
+  font-weight: 500;
+}
+
+.duration-info {
+  color: var(--color-text-secondary);
+  font-style: italic;
 }
 
 .radio-group {

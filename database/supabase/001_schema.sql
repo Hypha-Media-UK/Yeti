@@ -279,8 +279,8 @@ CREATE TABLE IF NOT EXISTS area_staffing_requirements (
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
 
-    -- Ensure time_start is before time_end (or handle overnight shifts)
-    CONSTRAINT valid_time_range CHECK (time_start < time_end OR (time_start > time_end AND time_end < '12:00:00'))
+    -- Ensure time_start and time_end are different (allows overnight shifts)
+    CONSTRAINT valid_time_range CHECK (time_start != time_end)
 );
 
 CREATE INDEX idx_area_staffing_area ON area_staffing_requirements(area_type, area_id);

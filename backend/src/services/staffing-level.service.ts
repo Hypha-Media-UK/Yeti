@@ -1,5 +1,6 @@
 import { StaffingRequirementRepository } from '../repositories/staffing-requirement.repository';
 import { StaffingRequirement } from '../../shared/types/staffing-requirement';
+import { timeToMinutes, isTimeInRange as isTimeInRangeUtil } from '../../shared/utils/time-validation';
 
 /**
  * Time slot for checking staffing levels
@@ -129,28 +130,18 @@ export class StaffingLevelService {
 
   /**
    * Parse time string (HH:MM or HH:MM:SS) to minutes since midnight
+   * Uses shared utility for consistency
    */
   private parseTimeToMinutes(time: string): number {
-    const parts = time.split(':');
-    const hours = parseInt(parts[0], 10);
-    const minutes = parseInt(parts[1], 10);
-    return hours * 60 + minutes;
+    return timeToMinutes(time);
   }
 
   /**
    * Check if a specific time falls within a time range
+   * Uses shared utility for consistency - handles overnight shifts correctly
    */
   private isTimeInRange(time: string, start: string, end: string): boolean {
-    const timeMinutes = this.parseTimeToMinutes(time);
-    const startMinutes = this.parseTimeToMinutes(start);
-    const endMinutes = this.parseTimeToMinutes(end);
-
-    // Handle overnight shifts (e.g., 23:00 - 07:00)
-    if (endMinutes < startMinutes) {
-      return timeMinutes >= startMinutes || timeMinutes <= endMinutes;
-    }
-
-    return timeMinutes >= startMinutes && timeMinutes <= endMinutes;
+    return isTimeInRangeUtil(time, start, end);
   }
 }
 
