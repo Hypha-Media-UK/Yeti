@@ -224,6 +224,20 @@
       :current-date="selectedDate"
       @submit="handleCreateQuickAbsence"
     />
+
+    <!-- Task Modal -->
+    <TaskModal
+      v-model="showTaskModal"
+      @task-created="handleTaskCreated"
+    />
+
+    <!-- Floating Action Button -->
+    <button class="fab" @click="showTaskModal = true" title="Create Task">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+    </button>
   </div>
 </template>
 
@@ -242,6 +256,7 @@ import ShiftGroup from '@/components/ShiftGroup.vue';
 import TemporaryAssignmentModal from '@/components/TemporaryAssignmentModal.vue';
 import ManageAssignmentsModal from '@/components/ManageAssignmentsModal.vue';
 import QuickAbsenceModal from '@/components/QuickAbsenceModal.vue';
+import TaskModal from '@/components/TaskModal.vue';
 import type { ShiftAssignment } from '@shared/types/shift';
 import type { StaffMember } from '@shared/types/staff';
 import type { CreateTemporaryAssignmentDto } from '@shared/types/shift';
@@ -274,6 +289,9 @@ const selectedStaffForManagement = ref<StaffMember | null>(null);
 // Quick absence modal state
 const showQuickAbsenceModal = ref(false);
 const selectedStaffForAbsence = ref<ShiftAssignment | null>(null);
+
+// Task modal state
+const showTaskModal = ref(false);
 
 // Categorize areas by area type (all areas, regardless of shift)
 const allDepartments = computed(() =>
@@ -549,6 +567,12 @@ async function handleAssignmentDeleted() {
   // Clear cache and reload both rota and areas to reflect the deletion
   dayStore.clearRotaCache([selectedDate.value]);
   await loadDay();
+}
+
+// Handle task creation
+async function handleTaskCreated() {
+  // Task created successfully - could add notification or refresh task list here
+  console.log('Task created successfully');
 }
 
 onMounted(async () => {
@@ -854,6 +878,55 @@ onMounted(async () => {
 
   .date-section {
     padding: var(--spacing-2);
+  }
+}
+
+/* Floating Action Button */
+.fab {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 999;
+}
+
+.fab:hover {
+  background-color: var(--color-primary-dark);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2), 0 3px 6px rgba(0, 0, 0, 0.15);
+  transform: scale(1.05);
+}
+
+.fab:active {
+  transform: scale(0.95);
+}
+
+.fab svg {
+  width: 24px;
+  height: 24px;
+}
+
+@media (max-width: 600px) {
+  .fab {
+    bottom: 1rem;
+    right: 1rem;
+    width: 48px;
+    height: 48px;
+  }
+
+  .fab svg {
+    width: 20px;
+    height: 20px;
   }
 }
 </style>
