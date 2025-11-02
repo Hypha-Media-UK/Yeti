@@ -27,6 +27,17 @@ export interface StaffMember {
   /** Number of days offset from app_zero_date for this staff member's cycle */
   daysOffset: number;
 
+  /**
+   * For supervisors only: Position in the 16-day supervisor cycle (0, 4, 8, or 12).
+   * Determines which 4-day working block the supervisor is assigned to.
+   * - Offset 0: Works days 7-10 (positions in cycle), nights 15-2
+   * - Offset 4: Works days 11-14 (positions in cycle), nights 3-6
+   * - Offset 8: Works days 15-2 (positions in cycle), nights 7-10
+   * - Offset 12: Works days 3-6 (positions in cycle), nights 11-14
+   * NULL for non-supervisor staff.
+   */
+  supervisorOffset: number | null;
+
   /** Custom shift start time in HH:mm:ss format (overrides shift's default start time) */
   customShiftStart: string | null;
 

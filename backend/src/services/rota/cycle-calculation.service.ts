@@ -64,16 +64,17 @@ export class CycleCalculationService {
 
     const daysSinceZero = daysBetween(appZeroDate, targetDate);
 
+    // Use centralized cycle utility for Supervisor
+    if (staff.status === 'Supervisor') {
+      const supervisorOffset = staff.supervisorOffset ?? 0;
+      return calculateCycleStatus('16-day-supervisor', daysSinceZero, supervisorOffset);
+    }
+
     // Use personal offset if set AND non-zero, otherwise use shift's offset
     // A personal offset of 0 means "use the shift offset", not "override with 0"
     const effectiveOffset = (staff.daysOffset !== null && staff.daysOffset !== undefined && staff.daysOffset !== 0)
       ? staff.daysOffset
       : (staff.shift?.daysOffset || 0);
-
-    // Use centralized cycle utility for Supervisor
-    if (staff.status === 'Supervisor') {
-      return calculateCycleStatus('16-day-supervisor', daysSinceZero, effectiveOffset);
-    }
 
     // Use centralized cycle utility for Regular staff
     // Use shift's cycle type instead of deprecated staff.cycleType
@@ -91,12 +92,17 @@ export class CycleCalculationService {
 
   /**
    * Calculate effective offset for a staff member
-   * 
+   *
    * @param staff - Staff member with shift information
    * @returns The effective offset to use for cycle calculations
    */
   getEffectiveOffset(staff: StaffMemberWithShift): number {
-    // Use personal offset if set AND non-zero, otherwise use shift's offset
+    // Supervisors use supervisor_offset
+    if (staff.status === 'Supervisor') {
+      return staff.supervisorOffset ?? 0;
+    }
+
+    // Regular staff: Use personal offset if set AND non-zero, otherwise use shift's offset
     if (staff.daysOffset !== null && staff.daysOffset !== undefined && staff.daysOffset !== 0) {
       return staff.daysOffset;
     }
@@ -133,16 +139,17 @@ export class CycleCalculationService {
       return onDuty;
     }
 
-    // Use personal offset if set, otherwise use shift's offset
-    const effectiveOffset = (staff.daysOffset !== null && staff.daysOffset !== undefined)
-      ? staff.daysOffset
-      : (staff.shift?.daysOffset || 0);
-
     // Use centralized cycle utility
     if (staff.status === 'Supervisor') {
-      const { onDuty } = calculateCycleStatus('16-day-supervisor', daysSinceZero, effectiveOffset);
+      const supervisorOffset = staff.supervisorOffset ?? 0;
+      const { onDuty } = calculateCycleStatus('16-day-supervisor', daysSinceZero, supervisorOffset);
       return onDuty;
     } else {
+      // Regular staff: Use personal offset if set, otherwise use shift's offset
+      const effectiveOffset = (staff.daysOffset !== null && staff.daysOffset !== undefined)
+        ? staff.daysOffset
+        : (staff.shift?.daysOffset || 0);
+
       // Regular staff: 4-on-4-off (8-day cycle)
       const { onDuty } = calculateCycleStatus('4-on-4-off', daysSinceZero, effectiveOffset);
       return onDuty;

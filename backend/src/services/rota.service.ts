@@ -9,7 +9,6 @@ import { AbsenceRepository } from '../repositories/absence.repository';
 import { ShiftRepository } from '../repositories/shift.repository';
 import { formatLocalDate, addDaysLocal } from '../utils/date.utils';
 import { daysBetween } from '../utils/date.utils';
-import { getSupervisorRegularShiftOffset } from '../utils/cycle.utils';
 
 // Import specialized services
 import { CycleCalculationService } from './rota/cycle-calculation.service';
@@ -89,18 +88,25 @@ export class RotaService {
     const staffInActiveShifts = await this.staffRepo.findByShiftIds(activeShiftIds);
     console.log(`[ROTA] Found ${staffInActiveShifts.length} staff in active shifts`);
 
+    // Get all supervisors (they don't have shifts anymore)
+    const allSupervisors = await this.staffRepo.findAll({ status: 'Supervisor' });
+    console.log(`[ROTA] Found ${allSupervisors.length} supervisors`);
+
+    // Combine staff and supervisors
+    const allStaff = [...staffInActiveShifts, ...allSupervisors];
+
     // Get manual assignments for current day only
     const manualAssignments = await this.manualAssignmentService.getManualAssignmentsForDate(targetDate);
 
-    // Fetch staff for manual assignments (they might not be in active shifts)
+    // Fetch staff for manual assignments (they might not be in active shifts or supervisors)
     const manualStaffMap = await this.fetchManualAssignmentStaff(
       manualAssignments,
-      staffInActiveShifts
+      allStaff
     );
 
     // Pre-fetch contracted hours for all staff
     const contractedHoursMap = await this.fetchContractedHours(
-      staffInActiveShifts,
+      allStaff,
       manualStaffMap
     );
 
@@ -122,7 +128,7 @@ export class RotaService {
 
     // 3. Process cycle-based staff (excluding pool staff and manually assigned)
     const cycleBasedAssignments = await this.processCycleBasedStaff(
-      staffInActiveShifts,
+      allStaff,
       targetDate,
       appZeroDate,
       contractedHoursMap,
@@ -412,9 +418,10 @@ export class RotaService {
   }
 
   /**
-   * Sort shifts by status, offset (to group supervisors with their shift), staff type (supervisors first within offset), and name
+   * Sort shifts by status, staff type (supervisors first), supervisor offset, shift offset, and name
    *
-   * For supervisors, calculates which regular shift offset they should align with based on their cycle position
+   * Supervisors are now first-class citizens with their own supervisor_offset field.
+   * They are sorted separately from regular staff and don't need complex offset mapping.
    */
   private sortShifts(shifts: ShiftAssignment[], targetDate: string, appZeroDate: string): void {
     const statusOrder: Record<ShiftStatus, number> = {
@@ -423,24 +430,25 @@ export class RotaService {
       'expired': 3,
     };
 
-    const daysSinceZero = daysBetween(appZeroDate, targetDate);
-
     shifts.sort((a, b) => {
       // 1. Sort by status (active, pending, expired)
       const statusDiff = statusOrder[a.status] - statusOrder[b.status];
       if (statusDiff !== 0) return statusDiff;
 
-      // 2. Sort by offset - this groups supervisors with regular staff on the same rotation
-      // For supervisors, calculate which regular shift offset they should align with
-      // For regular staff, use personal offset if set AND non-zero, otherwise use shift's offset
+      // 2. Sort by staff type - Supervisors first
+      const aIsSupervisor = a.staff.status === 'Supervisor';
+      const bIsSupervisor = b.staff.status === 'Supervisor';
+      if (aIsSupervisor && !bIsSupervisor) return -1;
+      if (!aIsSupervisor && bIsSupervisor) return 1;
+
+      // 3. Sort by offset
+      // For supervisors: Use supervisor_offset (0, 4, 8, 12)
+      // For regular staff: Use personal offset if set AND non-zero, otherwise use shift's offset
       let aOffset: number;
       let bOffset: number;
 
       if (a.staff.status === 'Supervisor') {
-        const supervisorOffset = (a.staff.daysOffset !== null && a.staff.daysOffset !== undefined && a.staff.daysOffset !== 0)
-          ? a.staff.daysOffset
-          : (a.staff.shift?.daysOffset || 0);
-        aOffset = getSupervisorRegularShiftOffset(daysSinceZero, supervisorOffset);
+        aOffset = a.staff.supervisorOffset ?? 0;
       } else {
         aOffset = (a.staff.daysOffset !== null && a.staff.daysOffset !== undefined && a.staff.daysOffset !== 0)
           ? a.staff.daysOffset
@@ -448,10 +456,7 @@ export class RotaService {
       }
 
       if (b.staff.status === 'Supervisor') {
-        const supervisorOffset = (b.staff.daysOffset !== null && b.staff.daysOffset !== undefined && b.staff.daysOffset !== 0)
-          ? b.staff.daysOffset
-          : (b.staff.shift?.daysOffset || 0);
-        bOffset = getSupervisorRegularShiftOffset(daysSinceZero, supervisorOffset);
+        bOffset = b.staff.supervisorOffset ?? 0;
       } else {
         bOffset = (b.staff.daysOffset !== null && b.staff.daysOffset !== undefined && b.staff.daysOffset !== 0)
           ? b.staff.daysOffset
@@ -459,12 +464,6 @@ export class RotaService {
       }
 
       if (aOffset !== bOffset) return aOffset - bOffset;
-
-      // 3. Sort by staff type - Supervisors first within the same offset group
-      const aIsSupervisor = a.staff.status === 'Supervisor';
-      const bIsSupervisor = b.staff.status === 'Supervisor';
-      if (aIsSupervisor && !bIsSupervisor) return -1;
-      if (!aIsSupervisor && bIsSupervisor) return 1;
 
       // 4. Sort by name (alphabetically)
       const nameA = `${a.staff.lastName} ${a.staff.firstName}`;

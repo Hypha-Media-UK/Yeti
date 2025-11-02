@@ -10,6 +10,7 @@ interface StaffRow {
   shift_id: number | null;
   cycle_type: string | null;
   days_offset: number;
+  supervisor_offset: number | null;
   custom_shift_start: string | null;
   custom_shift_end: string | null;
   use_cycle_for_permanent: boolean;
@@ -42,6 +43,7 @@ export class StaffRepository extends BaseRepository<
       shiftId: row.shift_id,
       cycleType: row.cycle_type as any,
       daysOffset: row.days_offset,
+      supervisorOffset: row.supervisor_offset ?? null,
       customShiftStart: row.custom_shift_start || null,
       customShiftEnd: row.custom_shift_end || null,
       useCycleForPermanent: row.use_cycle_for_permanent || false,
@@ -63,6 +65,7 @@ export class StaffRepository extends BaseRepository<
       shift_id: input.shiftId,
       cycle_type: input.cycleType,
       days_offset: input.daysOffset,
+      supervisor_offset: input.supervisorOffset ?? null,
       custom_shift_start: input.customShiftStart,
       custom_shift_end: input.customShiftEnd,
       use_cycle_for_permanent: input.useCycleForPermanent || false,
@@ -94,6 +97,9 @@ export class StaffRepository extends BaseRepository<
     }
     if (input.daysOffset !== undefined) {
       updateData.days_offset = input.daysOffset;
+    }
+    if (input.supervisorOffset !== undefined) {
+      updateData.supervisor_offset = input.supervisorOffset;
     }
     if (input.customShiftStart !== undefined) {
       updateData.custom_shift_start = input.customShiftStart;

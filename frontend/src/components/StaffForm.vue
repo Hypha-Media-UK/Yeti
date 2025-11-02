@@ -101,9 +101,9 @@
     </div>
 
     <!-- SECTION 3: Shift Assignment -->
-    <div v-if="formData.status === 'Regular' || formData.status === 'Supervisor'" class="form-row">
+    <div v-if="formData.status === 'Regular'" class="form-row">
       <div class="form-group">
-        <label for="shift" class="form-label">Shift {{ formData.status === 'Supervisor' ? '(Day/Night)' : '' }}</label>
+        <label for="shift" class="form-label">Shift</label>
         <select
           id="shift"
           v-model="formData.shiftId"
@@ -130,13 +130,9 @@
             </option>
           </optgroup>
         </select>
-        <p v-if="formData.status === 'Regular'" class="form-hint">
+        <p class="form-hint">
           Select a shift to use its cycle pattern for determining working days.
           Leave as "No Shift" to use contracted hours instead.
-        </p>
-        <p v-else-if="formData.status === 'Supervisor'" class="form-hint">
-          Select a day or night shift. Supervisors work both day and night shifts on a 16-day cycle,
-          but the shift selection determines default times and offset.
         </p>
       </div>
 
@@ -201,8 +197,28 @@
       </p>
     </div>
 
-    <!-- Days Offset (only show for shift-based staff) -->
-    <div v-if="showDaysOffset" class="form-group">
+    <!-- Supervisor Offset (only for supervisors) -->
+    <div v-if="formData.status === 'Supervisor'" class="form-group">
+      <label for="supervisorOffset" class="form-label">Supervisor Rotation Group *</label>
+      <select
+        id="supervisorOffset"
+        v-model.number="formData.supervisorOffset"
+        class="form-input"
+        required
+      >
+        <option :value="0">Group 1 (Offset 0) - Works Nov 2-5, 10-13, 18-21...</option>
+        <option :value="4">Group 2 (Offset 4) - Works Nov 6-9, 14-17, 22-25...</option>
+        <option :value="8">Group 3 (Offset 8) - Works Nov 10-13, 18-21, 26-29...</option>
+        <option :value="12">Group 4 (Offset 12) - Works Nov 14-17, 22-25, 30-Dec 3...</option>
+      </select>
+      <p class="form-hint">
+        Select which 4-day rotation group this supervisor belongs to.
+        Each group works 4 consecutive days, then 4 off, then 4 nights, then 4 off (16-day cycle).
+      </p>
+    </div>
+
+    <!-- Days Offset (only show for Regular staff with shift) -->
+    <div v-if="formData.status === 'Regular' && formData.shiftId !== null" class="form-group">
       <label for="daysOffset" class="form-label">Days Offset</label>
       <input
         id="daysOffset"
@@ -210,14 +226,9 @@
         type="number"
         class="form-input"
         min="0"
-        :max="formData.status === 'Supervisor' ? 15 : 7"
+        max="7"
       />
-      <p v-if="formData.status === 'Supervisor'" class="form-hint">
-        Offset within the 16-day supervisor cycle (0-15).
-        {{ formData.shiftId ? `Shift default offset: ${selectedShiftDefaultOffset ?? 0}.` : '' }}
-        Set a personal offset if this supervisor works different days than others.
-      </p>
-      <p v-else class="form-hint">
+      <p class="form-hint">
         Shift default offset: {{ selectedShiftDefaultOffset ?? 0 }}.
         Leave blank or set to {{ selectedShiftDefaultOffset ?? 0 }} to use shift's default.
         Set a personal offset if this staff member works different days than the rest of their shift.
@@ -336,6 +347,7 @@ const formData = reactive({
   useContractedHours: false,  // Will be set in watch
   adjustShiftTimes: false,  // Will be set based on customShiftStart/End
   daysOffset: props.staff?.daysOffset || 0,
+  supervisorOffset: props.staff?.supervisorOffset ?? null as number | null,
   customShiftStart: props.staff?.customShiftStart?.substring(0, 5) || '',  // Convert "HH:mm:ss" to "HH:mm"
   customShiftEnd: props.staff?.customShiftEnd?.substring(0, 5) || '',      // Convert "HH:mm:ss" to "HH:mm"
   earlyFinishDay: props.staff?.earlyFinishDay || null as number | null,
@@ -365,13 +377,7 @@ const showCustomShiftTimes = computed(() => {
   return formData.adjustShiftTimes && formData.shiftId !== null;
 });
 
-const showDaysOffset = computed(() => {
-  // Show days offset for Regular staff when shift is selected, or for Supervisors (always)
-  if (formData.status === 'Supervisor') {
-    return true; // Supervisors always have offset (16-day cycle)
-  }
-  return formData.status === 'Regular' && formData.shiftId !== null;
-});
+
 
 const showEarlyFinishDay = computed(() => {
   // Show early finish day only when shift is selected and NOT using contracted hours
@@ -424,12 +430,19 @@ const handleStatusChange = () => {
   if (formData.status === 'Relief') {
     formData.shiftId = null;
     formData.daysOffset = 0;
+    formData.supervisorOffset = null;
   } else if (formData.status === 'Supervisor') {
     formData.shiftId = null;
+    formData.daysOffset = 0;
+    // Default to offset 0 if not set
+    if (formData.supervisorOffset === null) {
+      formData.supervisorOffset = 0;
+    }
   } else if (formData.status === 'Regular' && !formData.shiftId) {
     // Default to "No Shift" for all regular staff
     // User can manually select a shift if needed
     formData.shiftId = null;
+    formData.supervisorOffset = null;
   }
 };
 
@@ -481,8 +494,8 @@ const handleSubmit = () => {
       referenceShiftId = null;
     }
   } else if (formData.status === 'Supervisor') {
-    // Supervisors can be assigned to a shift for default times and offset
-    shiftId = formData.shiftId;
+    // Supervisors don't use shifts anymore - they use supervisor_offset
+    shiftId = null;
     referenceShiftId = null;
   } else if (formData.status === 'Relief') {
     // Relief staff don't have shift assignments
@@ -511,6 +524,7 @@ const handleSubmit = () => {
     shiftId,
     cycleType: cycleType || null,
     daysOffset: formData.daysOffset,
+    supervisorOffset: formData.status === 'Supervisor' ? formData.supervisorOffset : null,
     customShiftStart,
     customShiftEnd,
     earlyFinishDay: formData.earlyFinishDay,
@@ -548,6 +562,7 @@ watch(() => props.staff, async (newStaff) => {
     formData.lastName = newStaff.lastName;
     formData.status = newStaff.status;
     formData.daysOffset = newStaff.daysOffset;
+    formData.supervisorOffset = newStaff.supervisorOffset ?? null;
     formData.customShiftStart = newStaff.customShiftStart?.substring(0, 5) || '';
     formData.customShiftEnd = newStaff.customShiftEnd?.substring(0, 5) || '';
 
