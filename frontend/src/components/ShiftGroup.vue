@@ -301,10 +301,6 @@ const groupClass = computed(() => ({
   box-shadow: var(--shadow-low);
 }
 
-.staff-item:hover .staff-actions {
-  opacity: 1;
-}
-
 /* Status-based styling */
 .staff-item.status-active {
   background-color: var(--color-bg);
@@ -364,8 +360,6 @@ const groupClass = computed(() => ({
   display: flex;
   gap: var(--spacing-1);
   align-items: center;
-  opacity: 0;
-  transition: opacity var(--transition-base);
 }
 
 .btn-icon {
