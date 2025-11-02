@@ -21,13 +21,37 @@
         :key="`${assignment.staff.id}-${assignment.assignmentDate}`"
         class="staff-item"
         :class="getStaffItemClass(assignment)"
-        @click="handleStaffClick(assignment)"
         :title="getStaffItemTitle(assignment)"
       >
         <span class="staff-name">
           {{ assignment.staff.firstName }} {{ assignment.staff.lastName }}
         </span>
-        <span class="staff-time">{{ formatTime(assignment.shiftStart) }} - {{ formatTime(assignment.shiftEnd) }}</span>
+        <div class="staff-right">
+          <span class="staff-time">{{ formatTime(assignment.shiftStart) }} - {{ formatTime(assignment.shiftEnd) }}</span>
+          <div class="staff-actions">
+            <button
+              class="btn-icon"
+              @click.stop="$emit('staffAssignment', assignment)"
+              title="Temporary Assignment"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+            </button>
+            <button
+              class="btn-icon btn-absence"
+              @click.stop="$emit('staffAbsence', assignment)"
+              title="Mark Absence"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Separator after supervisors if there are any -->
@@ -39,13 +63,37 @@
         :key="`${assignment.staff.id}-${assignment.assignmentDate}`"
         class="staff-item"
         :class="getStaffItemClass(assignment)"
-        @click="handleStaffClick(assignment)"
         :title="getStaffItemTitle(assignment)"
       >
         <span class="staff-name">
           {{ assignment.staff.firstName }} {{ assignment.staff.lastName }}
         </span>
-        <span class="staff-time">{{ formatTime(assignment.shiftStart) }} - {{ formatTime(assignment.shiftEnd) }}</span>
+        <div class="staff-right">
+          <span class="staff-time">{{ formatTime(assignment.shiftStart) }} - {{ formatTime(assignment.shiftEnd) }}</span>
+          <div class="staff-actions">
+            <button
+              class="btn-icon"
+              @click.stop="$emit('staffAssignment', assignment)"
+              title="Temporary Assignment"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+            </button>
+            <button
+              class="btn-icon btn-absence"
+              @click.stop="$emit('staffAbsence', assignment)"
+              title="Mark Absence"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Absent staff (separate container at bottom) -->
@@ -245,16 +293,16 @@ const groupClass = computed(() => ({
   justify-content: space-between;
   align-items: center;
   transition: var(--transition-base);
+  gap: var(--spacing-2);
 }
 
-.staff-item.clickable {
-  cursor: pointer;
-}
-
-.staff-item.clickable:hover {
+.staff-item:hover {
   background-color: var(--color-background);
   box-shadow: var(--shadow-low);
-  transform: translateY(-1px);
+}
+
+.staff-item:hover .staff-actions {
+  opacity: 1;
 }
 
 /* Status-based styling */
@@ -296,6 +344,12 @@ const groupClass = computed(() => ({
   gap: var(--spacing-1);
 }
 
+.staff-right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
 .staff-time {
   font-family: var(--font-family-mono);
   font-size: var(--font-size-body-sm);
@@ -304,7 +358,37 @@ const groupClass = computed(() => ({
   background-color: var(--color-surface);
   padding: 2px var(--spacing-1);
   border-radius: 4px;
-  margin-left: var(--spacing-2);
+}
+
+.staff-actions {
+  display: flex;
+  gap: var(--spacing-1);
+  align-items: center;
+  opacity: 0;
+  transition: opacity var(--transition-base);
+}
+
+.btn-icon {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: var(--spacing-1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-button);
+  transition: var(--transition-base);
+}
+
+.btn-icon:hover {
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
+.btn-icon.btn-absence:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--color-error);
 }
 
 .absence-badge {
