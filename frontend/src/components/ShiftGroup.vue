@@ -9,44 +9,61 @@
         {{ assignments.length }} {{ assignments.length === 1 ? 'person' : 'people' }}
       </div>
     </header>
-    
+
     <div v-if="assignments.length === 0" class="empty-state">
       No staff scheduled for this shift
     </div>
 
     <div v-else class="shift-list">
       <!-- Supervisors (present) -->
-      <div v-if="getSupervisors(assignments).length > 0" class="supervisor-container">
-        <StaffCard
-          v-for="assignment in getSupervisors(assignments)"
-          :key="`${assignment.staff.id}-${assignment.assignmentDate}`"
-          :assignment="assignment"
-          :clickable="true"
-          @assignment="$emit('staffAssignment', assignment)"
-          @absence="$emit('staffAbsence', assignment)"
-        />
+      <div
+        v-for="assignment in getSupervisors(assignments)"
+        :key="`${assignment.staff.id}-${assignment.assignmentDate}`"
+        class="staff-item"
+        :class="getStaffItemClass(assignment)"
+        @click="handleStaffClick(assignment)"
+        :title="getStaffItemTitle(assignment)"
+      >
+        <span class="staff-name">
+          {{ assignment.staff.firstName }} {{ assignment.staff.lastName }}
+        </span>
+        <span class="staff-time">{{ formatTime(assignment.shiftStart) }} - {{ formatTime(assignment.shiftEnd) }}</span>
       </div>
 
+      <!-- Separator after supervisors if there are any -->
+      <div v-if="getSupervisors(assignments).length > 0 && getRegularStaff(assignments).length > 0" class="staff-separator"></div>
+
       <!-- Regular Staff (present) -->
-      <StaffCard
+      <div
         v-for="assignment in getRegularStaff(assignments)"
         :key="`${assignment.staff.id}-${assignment.assignmentDate}`"
-        :assignment="assignment"
-        :clickable="true"
-        @assignment="$emit('staffAssignment', assignment)"
-        @absence="$emit('staffAbsence', assignment)"
-      />
+        class="staff-item"
+        :class="getStaffItemClass(assignment)"
+        @click="handleStaffClick(assignment)"
+        :title="getStaffItemTitle(assignment)"
+      >
+        <span class="staff-name">
+          {{ assignment.staff.firstName }} {{ assignment.staff.lastName }}
+        </span>
+        <span class="staff-time">{{ formatTime(assignment.shiftStart) }} - {{ formatTime(assignment.shiftEnd) }}</span>
+      </div>
 
       <!-- Absent staff (separate container at bottom) -->
       <div v-if="getAbsentStaff(assignments).length > 0" class="absent-staff-container">
-        <StaffCard
+        <div
           v-for="assignment in getAbsentStaff(assignments)"
           :key="`${assignment.staff.id}-${assignment.assignmentDate}`"
-          :assignment="assignment"
-          :clickable="true"
-          @assignment="$emit('staffAssignment', assignment)"
-          @absence="$emit('staffAbsence', assignment)"
-        />
+          class="staff-item staff-absent"
+          :title="formatAbsenceDisplay(assignment.staff.currentAbsence!)"
+        >
+          <span class="staff-name">
+            {{ assignment.staff.firstName }} {{ assignment.staff.lastName }}
+            <span class="absence-badge" :title="formatAbsenceDisplay(assignment.staff.currentAbsence!)">
+              {{ formatAbsencePeriod(assignment.staff.currentAbsence!) }}
+            </span>
+          </span>
+          <span class="staff-time">{{ formatTime(assignment.shiftStart) }} - {{ formatTime(assignment.shiftEnd) }}</span>
+        </div>
       </div>
     </div>
   </section>
@@ -55,8 +72,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { ShiftAssignment } from '@shared/types/shift';
-import StaffCard from './StaffCard.vue';
 import { useAbsence } from '@/composables/useAbsence';
+import { useTimeZone } from '@/composables/useTimeZone';
 
 const props = defineProps<{
   shiftType: 'Day' | 'Night';
@@ -68,7 +85,8 @@ const emit = defineEmits<{
   staffAbsence: [assignment: ShiftAssignment];
 }>();
 
-const { isAbsenceActive } = useAbsence();
+const { isAbsenceActive, formatAbsencePeriod, formatAbsenceDisplay } = useAbsence();
+const { formatTime } = useTimeZone();
 
 // Check if staff is currently absent
 function isStaffAbsent(assignment: ShiftAssignment): boolean {
@@ -92,6 +110,47 @@ function getRegularStaff(assignments: ShiftAssignment[]): ShiftAssignment[] {
 // Get absent staff (all statuses)
 function getAbsentStaff(assignments: ShiftAssignment[]): ShiftAssignment[] {
   return assignments.filter(assignment => isStaffAbsent(assignment));
+}
+
+// Get CSS class for staff item based on status
+function getStaffItemClass(assignment: ShiftAssignment): string {
+  const classes = ['clickable'];
+
+  if (assignment.status === 'active') {
+    classes.push('status-active');
+  } else if (assignment.status === 'pending') {
+    classes.push('status-pending');
+  } else if (assignment.status === 'expired') {
+    classes.push('status-expired');
+  }
+
+  return classes.join(' ');
+}
+
+// Get title/tooltip for staff item
+function getStaffItemTitle(assignment: ShiftAssignment): string {
+  const parts: string[] = [];
+
+  if (assignment.isManualAssignment) {
+    parts.push('Manual assignment');
+  }
+  if (assignment.isFixedSchedule) {
+    parts.push('Fixed schedule');
+  }
+  if (assignment.status === 'pending') {
+    parts.push('Pending (starts in future)');
+  } else if (assignment.status === 'expired') {
+    parts.push('Expired (ended in past)');
+  }
+
+  return parts.length > 0 ? parts.join(' • ') : 'Click to manage assignment or absence';
+}
+
+// Handle staff click - show context menu or modal
+function handleStaffClick(assignment: ShiftAssignment) {
+  // For now, emit both events and let parent decide
+  // In future, could show a context menu
+  emit('staffAssignment', assignment);
 }
 
 const shiftTime = computed(() => {
@@ -165,21 +224,104 @@ const groupClass = computed(() => ({
 }
 
 .shift-list {
-  display: grid;
-  gap: var(--spacing-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
 }
 
-.supervisor-container {
-  display: grid;
-  gap: var(--spacing-2);
-  padding-bottom: var(--spacing-2);
-  margin-bottom: var(--spacing-2);
-  border-bottom: 1px solid var(--color-border);
+.staff-separator {
+  height: 1px;
+  background-color: var(--color-border);
+  margin: var(--spacing-1) 0;
+}
+
+.staff-item {
+  font-size: var(--font-size-body-sm);
+  color: var(--color-text-primary);
+  padding: var(--spacing-1);
+  background-color: var(--color-bg);
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: var(--transition-base);
+}
+
+.staff-item.clickable {
+  cursor: pointer;
+}
+
+.staff-item.clickable:hover {
+  background-color: var(--color-background);
+  box-shadow: var(--shadow-low);
+  transform: translateY(-1px);
+}
+
+/* Status-based styling */
+.staff-item.status-active {
+  background-color: var(--color-bg);
+}
+
+.staff-item.status-pending {
+  background-color: rgba(254, 243, 199, 0.3); /* Very pale yellow */
+}
+
+.staff-item.status-expired {
+  background-color: rgba(156, 163, 175, 0.15); /* Grey */
+  opacity: 0.6;
+  color: var(--color-text-secondary);
+}
+
+.staff-item.status-expired .staff-time {
+  color: var(--color-text-tertiary, #9ca3af);
+}
+
+/* Absent staff styling - overrides status colors */
+.staff-item.staff-absent {
+  background-color: rgba(239, 68, 68, 0.15) !important; /* Red background */
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  cursor: not-allowed !important;
+  opacity: 1 !important;
+}
+
+.staff-item.staff-absent:hover {
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.staff-name {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+}
+
+.staff-time {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-body-sm);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+  background-color: var(--color-surface);
+  padding: 2px var(--spacing-1);
+  border-radius: 4px;
+  margin-left: var(--spacing-2);
+}
+
+.absence-badge {
+  background-color: rgba(239, 68, 68, 0.9);
+  color: white;
+  padding: 0.125rem 0.375rem;
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-bold);
+  border-radius: var(--radius-badge);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .absent-staff-container {
-  display: grid;
-  gap: var(--spacing-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
   padding-top: var(--spacing-2);
   margin-top: var(--spacing-2);
   border-top: 1px solid var(--color-border);
