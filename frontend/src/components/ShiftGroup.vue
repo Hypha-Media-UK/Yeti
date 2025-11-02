@@ -15,9 +15,21 @@
     </div>
 
     <div v-else class="shift-list">
-      <!-- Present staff -->
+      <!-- Supervisors (present) -->
+      <div v-if="getSupervisors(assignments).length > 0" class="supervisor-container">
+        <StaffCard
+          v-for="assignment in getSupervisors(assignments)"
+          :key="`${assignment.staff.id}-${assignment.assignmentDate}`"
+          :assignment="assignment"
+          :clickable="true"
+          @assignment="$emit('staffAssignment', assignment)"
+          @absence="$emit('staffAbsence', assignment)"
+        />
+      </div>
+
+      <!-- Regular Staff (present) -->
       <StaffCard
-        v-for="assignment in getPresentStaff(assignments)"
+        v-for="assignment in getRegularStaff(assignments)"
         :key="`${assignment.staff.id}-${assignment.assignmentDate}`"
         :assignment="assignment"
         :clickable="true"
@@ -63,12 +75,21 @@ function isStaffAbsent(assignment: ShiftAssignment): boolean {
   return isAbsenceActive(assignment.staff.currentAbsence);
 }
 
-// Get present staff (not absent)
-function getPresentStaff(assignments: ShiftAssignment[]): ShiftAssignment[] {
-  return assignments.filter(assignment => !isStaffAbsent(assignment));
+// Get supervisors (present only)
+function getSupervisors(assignments: ShiftAssignment[]): ShiftAssignment[] {
+  return assignments.filter(assignment =>
+    assignment.staff.status === 'Supervisor' && !isStaffAbsent(assignment)
+  );
 }
 
-// Get absent staff
+// Get regular staff (present only, excluding supervisors)
+function getRegularStaff(assignments: ShiftAssignment[]): ShiftAssignment[] {
+  return assignments.filter(assignment =>
+    assignment.staff.status !== 'Supervisor' && !isStaffAbsent(assignment)
+  );
+}
+
+// Get absent staff (all statuses)
 function getAbsentStaff(assignments: ShiftAssignment[]): ShiftAssignment[] {
   return assignments.filter(assignment => isStaffAbsent(assignment));
 }
@@ -148,9 +169,20 @@ const groupClass = computed(() => ({
   gap: var(--spacing-2);
 }
 
+.supervisor-container {
+  display: grid;
+  gap: var(--spacing-2);
+  padding-bottom: var(--spacing-2);
+  margin-bottom: var(--spacing-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
 .absent-staff-container {
   display: grid;
   gap: var(--spacing-2);
+  padding-top: var(--spacing-2);
+  margin-top: var(--spacing-2);
+  border-top: 1px solid var(--color-border);
 }
 
 .empty-state {
