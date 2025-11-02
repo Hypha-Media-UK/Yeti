@@ -47,15 +47,28 @@ export function calculateCycleStatus(
 
   if (cycleType === '16-day-supervisor') {
     const cyclePosition = ((adjustedDays % CYCLE_LENGTHS.SUPERVISOR) + CYCLE_LENGTHS.SUPERVISOR) % CYCLE_LENGTHS.SUPERVISOR;
-    
-    if (cyclePosition < 4) {
-      // Days 0-3: Day shift
+
+    // Supervisors work 4 consecutive days, twice in the 16-day cycle
+    // ALL supervisors work at the same cycle positions:
+    // - Positions 7-10: DAY shift
+    // - Positions 15, 0, 1, 2: NIGHT shift (wraps around)
+    // - All other positions: OFF duty
+    //
+    // The offset determines WHEN each supervisor hits position 7
+    // Example with app zero date 2025-10-26:
+    // - Offset 0: Hits position 7 on Nov 2 (day 7)
+    // - Offset 4: Hits position 7 on Nov 6 (day 11)
+    // - Offset 8: Hits position 7 on Nov 10 (day 15)
+    // - Offset 12: Hits position 7 on Nov 14 (day 19)
+
+    if (cyclePosition >= 7 && cyclePosition <= 10) {
+      // Positions 7-10: Day shift
       return { onDuty: true, shiftType: 'day' };
-    } else if (cyclePosition >= 8 && cyclePosition < 12) {
-      // Days 8-11: Night shift
+    } else if (cyclePosition === 15 || cyclePosition <= 2) {
+      // Positions 15, 0, 1, 2: Night shift (wraps around)
       return { onDuty: true, shiftType: 'night' };
     } else {
-      // Days 4-7 and 12-15: Off duty
+      // Positions 3-6 and 11-14: Off duty
       return { onDuty: false, shiftType: null };
     }
   }
@@ -103,6 +116,21 @@ export function isShiftActiveOnDate(
 ): boolean {
   // Shifts without cycle information (relief, fixed) are not calculated
   if (!cycleType || !cycleLength) {
+    return false;
+  }
+
+  // For supervisor shifts, check if ANY supervisor (with any offset 0, 4, 8, 12) would be working
+  // Since supervisors work at positions 7-10 (day) and 15-2 (night), and there are 4 offset groups,
+  // at least one supervisor is always working on any given day
+  if (cycleType === '16-day-supervisor') {
+    // Check all 4 possible offset groups (0, 4, 8, 12)
+    for (let offsetGroup = 0; offsetGroup < 4; offsetGroup++) {
+      const testOffset = daysOffset + (offsetGroup * 4);
+      const { onDuty } = calculateCycleStatus(cycleType, daysSinceZero, testOffset);
+      if (onDuty) {
+        return true;
+      }
+    }
     return false;
   }
 
