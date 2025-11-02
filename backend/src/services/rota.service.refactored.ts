@@ -8,6 +8,8 @@ import { AllocationRepository } from '../repositories/allocation.repository';
 import { AbsenceRepository } from '../repositories/absence.repository';
 import { ShiftRepository } from '../repositories/shift.repository';
 import { formatLocalDate, addDaysLocal } from '../utils/date.utils';
+import { daysBetween } from '../utils/date.utils';
+import { getSupervisorRegularShiftOffset } from '../utils/cycle.utils';
 
 // Import specialized services
 import { CycleCalculationService } from './rota/cycle-calculation.service';
@@ -154,8 +156,8 @@ export class RotaService {
     await this.attachAbsenceInfo(dayShifts, nightShifts, targetDate);
 
     // 6. Sort shifts
-    this.sortShifts(dayShifts);
-    this.sortShifts(nightShifts);
+    this.sortShifts(dayShifts, targetDate, appZeroDate);
+    this.sortShifts(nightShifts, targetDate, appZeroDate);
 
     const endTime = Date.now();
     console.log(`[ROTA] Completed in ${endTime - startTime}ms (${dayShifts.length} day, ${nightShifts.length} night)`);
@@ -418,13 +420,17 @@ export class RotaService {
 
   /**
    * Sort shifts by status, offset (to group supervisors with their shift), staff type (supervisors first within offset), and name
+   *
+   * For supervisors, calculates which regular shift offset they should align with based on their cycle position
    */
-  private sortShifts(shifts: ShiftAssignment[]): void {
+  private sortShifts(shifts: ShiftAssignment[], targetDate: string, appZeroDate: string): void {
     const statusOrder: Record<ShiftStatus, number> = {
       'active': 1,
       'pending': 2,
       'expired': 3,
     };
+
+    const daysSinceZero = daysBetween(appZeroDate, targetDate);
 
     shifts.sort((a, b) => {
       // 1. Sort by status (active, pending, expired)
@@ -432,13 +438,32 @@ export class RotaService {
       if (statusDiff !== 0) return statusDiff;
 
       // 2. Sort by offset - this groups supervisors with regular staff on the same rotation
-      // Use personal offset if set AND non-zero, otherwise use shift's offset
-      const aOffset = (a.staff.daysOffset !== null && a.staff.daysOffset !== undefined && a.staff.daysOffset !== 0)
-        ? a.staff.daysOffset
-        : (a.staff.shift?.daysOffset || 0);
-      const bOffset = (b.staff.daysOffset !== null && b.staff.daysOffset !== undefined && b.staff.daysOffset !== 0)
-        ? b.staff.daysOffset
-        : (b.staff.shift?.daysOffset || 0);
+      // For supervisors, calculate which regular shift offset they should align with
+      // For regular staff, use personal offset if set AND non-zero, otherwise use shift's offset
+      let aOffset: number;
+      let bOffset: number;
+
+      if (a.staff.status === 'Supervisor') {
+        const supervisorOffset = (a.staff.daysOffset !== null && a.staff.daysOffset !== undefined && a.staff.daysOffset !== 0)
+          ? a.staff.daysOffset
+          : (a.staff.shift?.daysOffset || 0);
+        aOffset = getSupervisorRegularShiftOffset(daysSinceZero, supervisorOffset);
+      } else {
+        aOffset = (a.staff.daysOffset !== null && a.staff.daysOffset !== undefined && a.staff.daysOffset !== 0)
+          ? a.staff.daysOffset
+          : (a.staff.shift?.daysOffset || 0);
+      }
+
+      if (b.staff.status === 'Supervisor') {
+        const supervisorOffset = (b.staff.daysOffset !== null && b.staff.daysOffset !== undefined && b.staff.daysOffset !== 0)
+          ? b.staff.daysOffset
+          : (b.staff.shift?.daysOffset || 0);
+        bOffset = getSupervisorRegularShiftOffset(daysSinceZero, supervisorOffset);
+      } else {
+        bOffset = (b.staff.daysOffset !== null && b.staff.daysOffset !== undefined && b.staff.daysOffset !== 0)
+          ? b.staff.daysOffset
+          : (b.staff.shift?.daysOffset || 0);
+      }
 
       if (aOffset !== bOffset) return aOffset - bOffset;
 

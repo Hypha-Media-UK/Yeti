@@ -88,7 +88,7 @@ export function calculateCyclePosition(
 
 /**
  * Check if a shift is active on a given date based on its cycle
- * 
+ *
  * @param cycleType - The type of cycle
  * @param cycleLength - Length of the cycle
  * @param daysSinceZero - Number of days since app zero date
@@ -108,5 +108,73 @@ export function isShiftActiveOnDate(
 
   const { onDuty } = calculateCycleStatus(cycleType, daysSinceZero, daysOffset);
   return onDuty;
+}
+
+/**
+ * Calculate which regular shift offset a supervisor should align with on a given date
+ *
+ * Supervisors follow a 16-day cycle but need to appear with regular staff shifts (A or B).
+ * The mapping is:
+ * - Cycle days 0, 8: Shift B (offset 4)
+ * - Cycle days 1-3, 9-11: Shift A (offset 0)
+ * - Cycle days 4, 12: Shift A (offset 0)
+ * - Cycle days 5-7, 13-15: Shift B (offset 4)
+ *
+ * @param daysSinceZero - Number of days since app zero date
+ * @param supervisorOffset - The supervisor's personal or shift offset
+ * @returns The regular shift offset (0 for Shift A, 4 for Shift B) to align with
+ *
+ * @example
+ * // Supervisor with offset 0 on day 0 of their cycle
+ * getSupervisorRegularShiftOffset(0, 0) // Returns 4 (Shift B)
+ *
+ * @example
+ * // Supervisor with offset 0 on day 1 of their cycle
+ * getSupervisorRegularShiftOffset(1, 0) // Returns 0 (Shift A)
+ */
+export function getSupervisorRegularShiftOffset(
+  daysSinceZero: number,
+  supervisorOffset: number
+): number {
+  // Calculate the supervisor's position in their 16-day cycle
+  const cyclePosition = calculateCyclePosition(daysSinceZero, supervisorOffset, CYCLE_LENGTHS.SUPERVISOR);
+
+  // The pattern depends on BOTH the cycle position AND the supervisor's offset
+  // Supervisors with different offsets work opposite shifts to ensure coverage
+
+  // Normalize the supervisor offset to 0-15 range
+  const normalizedOffset = ((supervisorOffset % 16) + 16) % 16;
+
+  // Determine which "group" the supervisor belongs to (0-3, 4-7, 8-11, or 12-15)
+  const offsetGroup = Math.floor(normalizedOffset / 4);
+
+  // Base mapping for offset group 0 (offsets 0-3):
+  const baseMapping: Record<number, number> = {
+    0: 0,  // Shift A
+    1: 0,  // Shift A
+    2: 0,  // Shift A
+    3: 0,  // Shift A
+    4: 0,  // Shift A
+    5: 4,  // Shift B
+    6: 4,  // Shift B
+    7: 4,  // Shift B
+    8: 0,  // Shift A
+    9: 0,  // Shift A
+    10: 0, // Shift A
+    11: 0, // Shift A
+    12: 0, // Shift A
+    13: 4, // Shift B
+    14: 4, // Shift B
+    15: 4, // Shift B
+  };
+
+  const baseShift = baseMapping[cyclePosition] || 0;
+
+  // Invert the shift for offset groups 1 and 3 (offsets 4-7 and 12-15)
+  if (offsetGroup === 1 || offsetGroup === 3) {
+    return baseShift === 0 ? 4 : 0;
+  }
+
+  return baseShift;
 }
 
