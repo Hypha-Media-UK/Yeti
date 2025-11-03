@@ -12,6 +12,7 @@ import staffContractedHoursRoutes from './staff-contracted-hours.routes';
 import shiftRoutes from './shift.routes';
 import absenceRoutes from './absence.routes';
 import taskRoutes from './task.routes';
+import taskConfigRoutes from './task-config.routes';
 
 const router = Router();
 
@@ -28,6 +29,7 @@ router.use('/contracted-hours', staffContractedHoursRoutes);
 router.use('/shifts', shiftRoutes);
 router.use('/absences', absenceRoutes);
 router.use('/tasks', taskRoutes);
+router.use('/task-config', taskConfigRoutes);
 
 export default router;
 

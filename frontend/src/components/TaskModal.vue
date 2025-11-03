@@ -83,11 +83,13 @@
               @change="handleTaskTypeChange"
             >
               <option value="">Select task type...</option>
-              <option value="patient-transfer">Patient Transfer</option>
-              <option value="samples">Samples</option>
-              <option value="asset-move">Asset Move</option>
-              <option value="gases">Gases</option>
-              <option value="service">Service</option>
+              <option
+                v-for="taskType in taskTypes"
+                :key="taskType.id"
+                :value="taskType.name"
+              >
+                {{ taskType.label }}
+              </option>
             </select>
           </div>
 
@@ -201,8 +203,8 @@ import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { useTaskStore } from '@/stores/task';
 import { useAreaStore } from '@/stores/area';
 import { useStaffStore } from '@/stores/staff';
-import { TASK_DETAIL_OPTIONS } from '@shared/types/task';
-import type { TaskType, CreateTaskInput } from '@shared/types/task';
+import { useTaskConfigStore } from '@/stores/task-config';
+import type { CreateTaskInput } from '@shared/types/task';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -217,6 +219,7 @@ const emit = defineEmits<{
 const taskStore = useTaskStore();
 const areaStore = useAreaStore();
 const staffStore = useStaffStore();
+const taskConfigStore = useTaskConfigStore();
 
 const isSubmitting = ref(false);
 const errorMessage = ref('');
@@ -224,7 +227,7 @@ const errorMessage = ref('');
 const formData = reactive({
   originAreaKey: '', // Format: "department-1" or "service-2"
   destinationAreaKey: '',
-  taskType: '' as TaskType | '',
+  taskType: '',
   taskDetail: '',
   requestedTime: '',
   allocatedTime: '',
@@ -236,6 +239,7 @@ const formData = reactive({
 const departments = computed(() => areaStore.departments);
 const services = computed(() => areaStore.services);
 const activeStaff = computed(() => staffStore.activeStaff);
+const taskTypes = computed(() => taskConfigStore.taskTypes.filter(tt => tt.isActive));
 
 const availableDestinationDepartments = computed(() => {
   if (!formData.originAreaKey) return departments.value;
@@ -249,7 +253,8 @@ const availableDestinationServices = computed(() => {
 
 const taskDetailOptions = computed(() => {
   if (!formData.taskType) return [];
-  return TASK_DETAIL_OPTIONS[formData.taskType as TaskType] || [];
+  const taskType = taskTypes.value.find(tt => tt.name === formData.taskType);
+  return taskType?.items.filter(item => item.isActive).map(item => item.name) || [];
 });
 
 // Initialize form with default times
@@ -285,6 +290,26 @@ function handleTaskTypeChange() {
   formData.taskDetail = '';
 }
 
+// Watch for task detail changes to auto-populate origin/destination
+watch(() => formData.taskDetail, (selectedItemName) => {
+  if (!selectedItemName || !formData.taskType) return;
+
+  const taskType = taskTypes.value.find(tt => tt.name === formData.taskType);
+  const taskItem = taskType?.items.find(i => i.name === selectedItemName);
+
+  if (taskItem) {
+    // Auto-populate origin if set and not already selected
+    if (taskItem.defaultOriginAreaId && taskItem.defaultOriginAreaType && !formData.originAreaKey) {
+      formData.originAreaKey = `${taskItem.defaultOriginAreaType}-${taskItem.defaultOriginAreaId}`;
+    }
+
+    // Auto-populate destination if set and not already selected
+    if (taskItem.defaultDestinationAreaId && taskItem.defaultDestinationAreaType && !formData.destinationAreaKey) {
+      formData.destinationAreaKey = `${taskItem.defaultDestinationAreaType}-${taskItem.defaultDestinationAreaId}`;
+    }
+  }
+});
+
 // Parse area key to get ID and type
 function parseAreaKey(key: string): { id: number; type: 'department' | 'service' } | null {
   if (!key) return null;
@@ -309,13 +334,18 @@ async function handleSubmit() {
       return;
     }
 
+    // Find the task item ID
+    const taskType = taskTypes.value.find(tt => tt.name === formData.taskType);
+    const taskItem = taskType?.items.find(i => i.name === formData.taskDetail);
+
     const input: CreateTaskInput = {
       originAreaId: origin.id,
       originAreaType: origin.type,
       destinationAreaId: destination.id,
       destinationAreaType: destination.type,
-      taskType: formData.taskType as TaskType,
-      taskDetail: formData.taskDetail,
+      taskType: formData.taskType,
+      taskDetail: formData.taskDetail, // Keep for backward compatibility
+      taskItemId: taskItem?.id || null, // New field
       requestedTime: formData.requestedTime,
       allocatedTime: formData.allocatedTime,
       completedTime: formData.completedTime || null,
@@ -351,7 +381,7 @@ function closeModal() {
 function resetForm() {
   formData.originAreaKey = '';
   formData.destinationAreaKey = '';
-  formData.taskType = '' as TaskType | '';
+  formData.taskType = '';
   formData.taskDetail = '';
   formData.assignedStaffId = null;
   errorMessage.value = '';
@@ -370,6 +400,7 @@ onMounted(async () => {
   await Promise.all([
     areaStore.fetchAllAreas(),
     staffStore.fetchAllStaff({ status: 'active' }),
+    taskConfigStore.fetchTaskTypes(),
   ]);
 });
 </script>

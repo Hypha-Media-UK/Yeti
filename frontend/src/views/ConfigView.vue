@@ -177,6 +177,27 @@
           <p v-else class="empty-state">No permanently assigned staff</p>
         </div>
 
+        <!-- Task Types Tab -->
+        <div v-if="activeTab === 'task-types'" class="tab-content">
+          <div class="section-header">
+            <h2 class="section-title">Task Types</h2>
+            <button class="btn btn-primary" @click="openAddTaskTypeModal">
+              + Add Task Type
+            </button>
+          </div>
+          <div v-if="taskTypes.length > 0" class="task-types-grid">
+            <TaskTypeCard
+              v-for="taskType in taskTypes"
+              :key="taskType.id"
+              :task-type="taskType"
+              :item-count="taskType.items.length"
+              @click="openTaskTypeModal"
+              @delete="confirmDeleteTaskType"
+            />
+          </div>
+          <p v-else class="empty-state">No task types</p>
+        </div>
+
         <!-- Settings Tab -->
         <div v-if="activeTab === 'settings'" class="tab-content">
           <ShiftTimesSettings />
@@ -247,6 +268,19 @@
       @submit="handleShiftSubmit"
     />
 
+    <!-- Task Type Modal -->
+    <TaskTypeModal
+      v-if="selectedTaskType"
+      v-model="showTaskTypeModal"
+      :task-type="selectedTaskType"
+      :departments="departments"
+      :services="services"
+      @update-task-type="handleUpdateTaskType"
+      @add-task-item="handleAddTaskItem"
+      @update-task-item="handleUpdateTaskItem"
+      @delete-task-item="handleDeleteTaskItem"
+    />
+
     <!-- Manage Absences Modal -->
     <ManageAbsencesModal
       v-if="selectedStaffForAbsences"
@@ -284,13 +318,19 @@ import ServiceModal from '@/components/ServiceModal.vue';
 import ShiftCard from '@/components/ShiftCard.vue';
 import ShiftModal from '@/components/ShiftModal.vue';
 import ShiftTimesSettings from '@/components/ShiftTimesSettings.vue';
+import TaskTypeCard from '@/components/TaskTypeCard.vue';
+import TaskTypeModal from '@/components/TaskTypeModal.vue';
 import type { StaffMember, StaffStatus } from '@shared/types/staff';
 import type { Building } from '@shared/types/building';
 import type { Department } from '@shared/types/department';
 import type { Service } from '@shared/types/service';
 import type { Shift } from '@shared/types/shift';
 import type { AllocationWithDetails } from '@shared/types/allocation';
+import type { TaskTypeWithItems } from '@shared/types/task-config';
 import { deduplicateHours } from '@/utils/hours';
+import { useTaskConfigStore } from '@/stores/task-config';
+
+const taskConfigStore = useTaskConfigStore();
 
 const activeTab = ref('staff');
 const activeStaffTab = ref('regular');
@@ -323,12 +363,17 @@ const editingService = ref<Service | null>(null);
 const showShiftModal = ref(false);
 const editingShift = ref<Shift | null>(null);
 
+const showTaskTypeModal = ref(false);
+const selectedTaskType = ref<TaskTypeWithItems | null>(null);
+
 const showDeleteConfirm = ref(false);
 const deleteConfirmTitle = ref('');
 const deleteConfirmMessage = ref('');
 const deleteTarget = ref<any>(null);
-const deleteType = ref<'staff' | 'building' | 'department' | 'service' | 'shift'>('staff');
+const deleteType = ref<'staff' | 'building' | 'department' | 'service' | 'shift' | 'task-type'>('staff');
 const isHardDelete = ref(false);
+
+const taskTypes = computed(() => taskConfigStore.taskTypes);
 
 // Computed
 const tabs = computed<Tab[]>(() => [
@@ -336,6 +381,7 @@ const tabs = computed<Tab[]>(() => [
   { label: 'Locations', value: 'locations' },
   { label: 'Services', value: 'services' },
   { label: 'Shifts', value: 'shifts' },
+  { label: 'Task Types', value: 'task-types' },
   { label: 'Settings', value: 'settings' },
 ]);
 
@@ -853,6 +899,115 @@ const confirmDeleteShift = (shift: Shift) => {
   showDeleteConfirm.value = true;
 };
 
+// Task Type handlers
+const openAddTaskTypeModal = () => {
+  selectedTaskType.value = {
+    id: 0,
+    name: '',
+    label: '',
+    description: null,
+    isActive: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    items: [],
+    departmentIds: [],
+  };
+  showTaskTypeModal.value = true;
+};
+
+const openTaskTypeModal = (taskType: TaskTypeWithItems) => {
+  selectedTaskType.value = taskType;
+  showTaskTypeModal.value = true;
+};
+
+const handleUpdateTaskType = async (
+  id: number,
+  name: string,
+  label: string,
+  description: string | null,
+  departmentIds: number[]
+) => {
+  try {
+    if (id === 0) {
+      // Create new task type
+      await taskConfigStore.createTaskType({ name, label, description });
+    } else {
+      // Update existing task type
+      await taskConfigStore.updateTaskType(id, { name, label, description });
+      await taskConfigStore.updateTaskTypeDepartments(id, departmentIds);
+    }
+    await taskConfigStore.fetchTaskTypes();
+    showTaskTypeModal.value = false;
+  } catch (error) {
+    console.error('Failed to save task type:', error);
+    alert('Failed to save task type. Please check the console for details.');
+  }
+};
+
+const handleAddTaskItem = async (
+  taskTypeId: number,
+  name: string,
+  defaultOriginAreaId: number | null,
+  defaultOriginAreaType: 'department' | 'service' | null,
+  defaultDestinationAreaId: number | null,
+  defaultDestinationAreaType: 'department' | 'service' | null
+) => {
+  try {
+    await taskConfigStore.createTaskItem(taskTypeId, {
+      name,
+      defaultOriginAreaId,
+      defaultOriginAreaType,
+      defaultDestinationAreaId,
+      defaultDestinationAreaType,
+    });
+    await taskConfigStore.fetchTaskTypes();
+  } catch (error) {
+    console.error('Failed to add task item:', error);
+    alert('Failed to add task item. Please check the console for details.');
+  }
+};
+
+const handleUpdateTaskItem = async (
+  id: number,
+  name: string,
+  defaultOriginAreaId: number | null,
+  defaultOriginAreaType: 'department' | 'service' | null,
+  defaultDestinationAreaId: number | null,
+  defaultDestinationAreaType: 'department' | 'service' | null
+) => {
+  try {
+    await taskConfigStore.updateTaskItem(id, {
+      name,
+      defaultOriginAreaId,
+      defaultOriginAreaType,
+      defaultDestinationAreaId,
+      defaultDestinationAreaType,
+    });
+    await taskConfigStore.fetchTaskTypes();
+  } catch (error) {
+    console.error('Failed to update task item:', error);
+    alert('Failed to update task item. Please check the console for details.');
+  }
+};
+
+const handleDeleteTaskItem = async (id: number) => {
+  try {
+    await taskConfigStore.deleteTaskItem(id);
+    await taskConfigStore.fetchTaskTypes();
+  } catch (error) {
+    console.error('Failed to delete task item:', error);
+    alert('Failed to delete task item. Please check the console for details.');
+  }
+};
+
+const confirmDeleteTaskType = (taskType: TaskTypeWithItems) => {
+  deleteTarget.value = taskType;
+  deleteType.value = 'task-type';
+  deleteConfirmTitle.value = 'Delete Task Type';
+  deleteConfirmMessage.value = `Are you sure you want to delete "${taskType.label}"? This will also delete all associated task items.`;
+  showDeleteConfirm.value = true;
+};
+
 // Delete confirmation
 const handleDeleteConfirm = async () => {
   try {
@@ -872,6 +1027,9 @@ const handleDeleteConfirm = async () => {
     } else if (deleteType.value === 'shift') {
       await api.deleteShift(deleteTarget.value.id);
       await loadShifts();
+    } else if (deleteType.value === 'task-type') {
+      await taskConfigStore.deleteTaskType(deleteTarget.value.id);
+      await taskConfigStore.fetchTaskTypes();
     }
   } catch (error) {
     console.error('Failed to delete:', error);
@@ -888,6 +1046,7 @@ onMounted(() => {
   loadDepartments();
   loadServices();
   loadShifts();
+  taskConfigStore.fetchTaskTypes();
 });
 </script>
 
@@ -948,6 +1107,12 @@ onMounted(() => {
 }
 
 .shifts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--spacing-3);
+}
+
+.task-types-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: var(--spacing-3);

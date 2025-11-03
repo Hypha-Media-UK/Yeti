@@ -38,7 +38,8 @@ export interface Task {
   destinationAreaId: number;
   destinationAreaType: AreaType;
   taskType: TaskType;
-  taskDetail: string;
+  taskDetail: string; // Deprecated - kept for backward compatibility
+  taskItemId: number | null; // New - references task_items table
   requestedTime: string; // HH:MM format
   allocatedTime: string; // HH:MM format
   completedTime: string | null; // HH:MM format
@@ -75,7 +76,8 @@ export interface CreateTaskInput {
   destinationAreaId: number;
   destinationAreaType: AreaType;
   taskType: TaskType;
-  taskDetail: string;
+  taskDetail: string; // Deprecated - kept for backward compatibility
+  taskItemId?: number | null; // New - references task_items table
   requestedTime: string;
   allocatedTime: string;
   completedTime?: string | null;
