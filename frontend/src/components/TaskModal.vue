@@ -201,10 +201,12 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { useTaskStore } from '@/stores/task';
-import { useAreaStore } from '@/stores/area';
 import { useStaffStore } from '@/stores/staff';
 import { useTaskConfigStore } from '@/stores/task-config';
+import { api } from '@/services/api';
 import type { CreateTaskInput } from '@shared/types/task';
+import type { Department } from '@shared/types/department';
+import type { Service } from '@shared/types/service';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -217,12 +219,15 @@ const emit = defineEmits<{
 }>();
 
 const taskStore = useTaskStore();
-const areaStore = useAreaStore();
 const staffStore = useStaffStore();
 const taskConfigStore = useTaskConfigStore();
 
 const isSubmitting = ref(false);
 const errorMessage = ref('');
+
+// Local state for departments and services
+const departments = ref<Department[]>([]);
+const services = ref<Service[]>([]);
 
 const formData = reactive({
   originAreaKey: '', // Format: "department-1" or "service-2"
@@ -236,8 +241,6 @@ const formData = reactive({
 });
 
 // Computed properties
-const departments = computed(() => areaStore.departments);
-const services = computed(() => areaStore.services);
 const activeStaff = computed(() => staffStore.activeStaff);
 const taskTypes = computed(() => taskConfigStore.taskTypes.filter(tt => tt.isActive));
 
@@ -397,11 +400,20 @@ watch(() => props.modelValue, (newValue) => {
 
 // Load data on mount
 onMounted(async () => {
-  await Promise.all([
-    areaStore.fetchAllAreas(),
-    staffStore.fetchAllStaff({ status: 'active' }),
-    taskConfigStore.fetchTaskTypes(),
-  ]);
+  try {
+    const [departmentsResponse, servicesResponse] = await Promise.all([
+      api.getAllDepartments(),
+      api.getAllServices(),
+      staffStore.fetchAllStaff({ status: 'active' }),
+      taskConfigStore.fetchTaskTypes(),
+    ]);
+
+    departments.value = departmentsResponse.departments;
+    services.value = servicesResponse.services;
+  } catch (error) {
+    console.error('Error loading task modal data:', error);
+    errorMessage.value = 'Failed to load required data. Please try again.';
+  }
 });
 </script>
 
