@@ -26,10 +26,10 @@ export const useTaskConfigStore = defineStore('taskConfig', () => {
     error.value = null;
 
     try {
-      const response = await api.get('/task-config/types');
-      taskTypes.value = response.data.taskTypes;
+      const response = await api.getTaskTypes();
+      taskTypes.value = response.taskTypes;
     } catch (err: any) {
-      error.value = err.response?.data?.error || 'Failed to fetch task types';
+      error.value = err.message || 'Failed to fetch task types';
       console.error('Error fetching task types:', err);
       throw err;
     } finally {
@@ -42,9 +42,9 @@ export const useTaskConfigStore = defineStore('taskConfig', () => {
     error.value = null;
 
     try {
-      const response = await api.post('/task-config/types', input);
-      const newTaskType = response.data.taskType;
-      
+      const response = await api.createTaskType(input);
+      const newTaskType = response.taskType;
+
       // Add to local state with empty items and departments
       taskTypes.value.push({
         ...newTaskType,
@@ -54,7 +54,7 @@ export const useTaskConfigStore = defineStore('taskConfig', () => {
 
       return newTaskType;
     } catch (err: any) {
-      error.value = err.response?.data?.error || 'Failed to create task type';
+      error.value = err.message || 'Failed to create task type';
       console.error('Error creating task type:', err);
       throw err;
     } finally {
@@ -67,8 +67,8 @@ export const useTaskConfigStore = defineStore('taskConfig', () => {
     error.value = null;
 
     try {
-      const response = await api.patch(`/task-config/types/${id}`, input);
-      const updatedTaskType = response.data.taskType;
+      const response = await api.updateTaskType(id, input);
+      const updatedTaskType = response.taskType;
 
       // Update in local state
       const index = taskTypes.value.findIndex(tt => tt.id === id);
@@ -81,7 +81,7 @@ export const useTaskConfigStore = defineStore('taskConfig', () => {
 
       return updatedTaskType;
     } catch (err: any) {
-      error.value = err.response?.data?.error || 'Failed to update task type';
+      error.value = err.message || 'Failed to update task type';
       console.error('Error updating task type:', err);
       throw err;
     } finally {
@@ -94,12 +94,12 @@ export const useTaskConfigStore = defineStore('taskConfig', () => {
     error.value = null;
 
     try {
-      await api.delete(`/task-config/types/${id}`);
+      await api.deleteTaskType(id);
 
       // Remove from local state
       taskTypes.value = taskTypes.value.filter(tt => tt.id !== id);
     } catch (err: any) {
-      error.value = err.response?.data?.error || 'Failed to delete task type';
+      error.value = err.message || 'Failed to delete task type';
       console.error('Error deleting task type:', err);
       throw err;
     } finally {
@@ -116,8 +116,8 @@ export const useTaskConfigStore = defineStore('taskConfig', () => {
     error.value = null;
 
     try {
-      const response = await api.post(`/task-config/types/${taskTypeId}/items`, input);
-      const newItem = response.data.item;
+      const response = await api.createTaskItem(input);
+      const newItem = response.taskItem;
 
       // Add to local state
       const taskType = taskTypes.value.find(tt => tt.id === taskTypeId);
@@ -127,7 +127,7 @@ export const useTaskConfigStore = defineStore('taskConfig', () => {
 
       return newItem;
     } catch (err: any) {
-      error.value = err.response?.data?.error || 'Failed to create task item';
+      error.value = err.message || 'Failed to create task item';
       console.error('Error creating task item:', err);
       throw err;
     } finally {
@@ -140,8 +140,8 @@ export const useTaskConfigStore = defineStore('taskConfig', () => {
     error.value = null;
 
     try {
-      const response = await api.patch(`/task-config/items/${id}`, input);
-      const updatedItem = response.data.item;
+      const response = await api.updateTaskItem(id, input);
+      const updatedItem = response.taskItem;
 
       // Update in local state
       for (const taskType of taskTypes.value) {
@@ -154,7 +154,7 @@ export const useTaskConfigStore = defineStore('taskConfig', () => {
 
       return updatedItem;
     } catch (err: any) {
-      error.value = err.response?.data?.error || 'Failed to update task item';
+      error.value = err.message || 'Failed to update task item';
       console.error('Error updating task item:', err);
       throw err;
     } finally {
@@ -167,7 +167,7 @@ export const useTaskConfigStore = defineStore('taskConfig', () => {
     error.value = null;
 
     try {
-      await api.delete(`/task-config/items/${id}`);
+      await api.deleteTaskItem(id);
 
       // Remove from local state
       for (const taskType of taskTypes.value) {
@@ -178,7 +178,7 @@ export const useTaskConfigStore = defineStore('taskConfig', () => {
         }
       }
     } catch (err: any) {
-      error.value = err.response?.data?.error || 'Failed to delete task item';
+      error.value = err.message || 'Failed to delete task item';
       console.error('Error deleting task item:', err);
       throw err;
     } finally {
@@ -195,7 +195,7 @@ export const useTaskConfigStore = defineStore('taskConfig', () => {
     error.value = null;
 
     try {
-      await api.put(`/task-config/types/${taskTypeId}/departments`, { departmentIds });
+      await api.updateTaskTypeDepartments(taskTypeId, departmentIds);
 
       // Update in local state
       const taskType = taskTypes.value.find(tt => tt.id === taskTypeId);
@@ -203,7 +203,7 @@ export const useTaskConfigStore = defineStore('taskConfig', () => {
         taskType.departmentIds = departmentIds;
       }
     } catch (err: any) {
-      error.value = err.response?.data?.error || 'Failed to update department links';
+      error.value = err.message || 'Failed to update department links';
       console.error('Error updating department links:', err);
       throw err;
     } finally {
@@ -216,15 +216,15 @@ export const useTaskConfigStore = defineStore('taskConfig', () => {
     error.value = null;
 
     try {
-      await api.post(`/task-config/types/${taskTypeId}/departments/${departmentId}`);
-
-      // Update in local state
+      // Use the updateTaskTypeDepartments method with the new department added
       const taskType = taskTypes.value.find(tt => tt.id === taskTypeId);
       if (taskType && !taskType.departmentIds.includes(departmentId)) {
-        taskType.departmentIds.push(departmentId);
+        const newDepartmentIds = [...taskType.departmentIds, departmentId];
+        await api.updateTaskTypeDepartments(taskTypeId, newDepartmentIds);
+        taskType.departmentIds = newDepartmentIds;
       }
     } catch (err: any) {
-      error.value = err.response?.data?.error || 'Failed to link department';
+      error.value = err.message || 'Failed to link department';
       console.error('Error linking department:', err);
       throw err;
     } finally {
@@ -237,15 +237,15 @@ export const useTaskConfigStore = defineStore('taskConfig', () => {
     error.value = null;
 
     try {
-      await api.delete(`/task-config/types/${taskTypeId}/departments/${departmentId}`);
-
-      // Update in local state
+      // Use the updateTaskTypeDepartments method with the department removed
       const taskType = taskTypes.value.find(tt => tt.id === taskTypeId);
       if (taskType) {
-        taskType.departmentIds = taskType.departmentIds.filter(id => id !== departmentId);
+        const newDepartmentIds = taskType.departmentIds.filter(id => id !== departmentId);
+        await api.updateTaskTypeDepartments(taskTypeId, newDepartmentIds);
+        taskType.departmentIds = newDepartmentIds;
       }
     } catch (err: any) {
-      error.value = err.response?.data?.error || 'Failed to unlink department';
+      error.value = err.message || 'Failed to unlink department';
       console.error('Error unlinking department:', err);
       throw err;
     } finally {

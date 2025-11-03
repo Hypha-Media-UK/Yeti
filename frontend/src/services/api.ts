@@ -6,6 +6,15 @@ import type { Department } from '@shared/types/department';
 import type { Service } from '@shared/types/service';
 import type { StaffAllocation, AllocationWithDetails, AreaType } from '@shared/types/allocation';
 import type { Absence, CreateAbsenceRequest, UpdateAbsenceRequest } from '@shared/types/absence';
+import type {
+  TaskTypeWithItems,
+  TaskType,
+  TaskItem,
+  CreateTaskTypeInput,
+  UpdateTaskTypeInput,
+  CreateTaskItemInput,
+  UpdateTaskItemInput,
+} from '@shared/types/task-config';
 
 // Use empty string for production (same domain), localhost for development
 const API_BASE_URL = import.meta.env.VITE_API_URL !== undefined
@@ -479,6 +488,62 @@ export const api = {
   async deleteAbsence(id: number): Promise<{ success: boolean }> {
     return fetchApi<{ success: boolean }>(`/absences/${id}`, {
       method: 'DELETE',
+    });
+  },
+
+  // Task Configuration
+  async getTaskTypes(): Promise<{ taskTypes: TaskTypeWithItems[] }> {
+    return fetchApi<{ taskTypes: TaskTypeWithItems[] }>('/task-config/types');
+  },
+
+  async getTaskTypeById(id: number): Promise<{ taskType: TaskTypeWithItems }> {
+    return fetchApi<{ taskType: TaskTypeWithItems }>(`/task-config/types/${id}`);
+  },
+
+  async createTaskType(input: CreateTaskTypeInput): Promise<{ taskType: TaskType }> {
+    return fetchApi<{ taskType: TaskType }>('/task-config/types', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async updateTaskType(id: number, input: UpdateTaskTypeInput): Promise<{ taskType: TaskType }> {
+    return fetchApi<{ taskType: TaskType }>(`/task-config/types/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async deleteTaskType(id: number): Promise<{ success: boolean }> {
+    return fetchApi<{ success: boolean }>(`/task-config/types/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async createTaskItem(input: CreateTaskItemInput): Promise<{ taskItem: TaskItem }> {
+    return fetchApi<{ taskItem: TaskItem }>('/task-config/items', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async updateTaskItem(id: number, input: UpdateTaskItemInput): Promise<{ taskItem: TaskItem }> {
+    return fetchApi<{ taskItem: TaskItem }>(`/task-config/items/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async deleteTaskItem(id: number): Promise<{ success: boolean }> {
+    return fetchApi<{ success: boolean }>(`/task-config/items/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async updateTaskTypeDepartments(taskTypeId: number, departmentIds: number[]): Promise<{ success: boolean }> {
+    return fetchApi<{ success: boolean }>(`/task-config/types/${taskTypeId}/departments`, {
+      method: 'PUT',
+      body: JSON.stringify({ departmentIds }),
     });
   },
 };
