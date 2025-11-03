@@ -72,15 +72,10 @@ export class TaskConfigService {
    * Create a new task type
    */
   async createTaskType(input: CreateTaskTypeInput): Promise<TaskType> {
-    // Validate name is URL-safe (lowercase, hyphens only)
-    if (!/^[a-z0-9-]+$/.test(input.name)) {
-      throw new Error('Task type name must be lowercase with hyphens only (e.g., "patient-transfer")');
-    }
-
-    // Check if name already exists
-    const existing = await this.taskTypeRepo.findByName(input.name);
+    // Check if label already exists
+    const existing = await this.taskTypeRepo.findByLabel(input.label);
     if (existing) {
-      throw new Error(`Task type with name "${input.name}" already exists`);
+      throw new Error(`Task type with label "${input.label}" already exists`);
     }
 
     return await this.taskTypeRepo.create(input);
@@ -90,21 +85,16 @@ export class TaskConfigService {
    * Update a task type
    */
   async updateTaskType(id: number, input: UpdateTaskTypeInput): Promise<TaskType> {
-    // If updating name, validate it's URL-safe
-    if (input.name && !/^[a-z0-9-]+$/.test(input.name)) {
-      throw new Error('Task type name must be lowercase with hyphens only (e.g., "patient-transfer")');
-    }
-
-    // If updating name, check for duplicates
-    if (input.name) {
-      const existing = await this.taskTypeRepo.findByName(input.name);
+    // If updating label, check for duplicates
+    if (input.label) {
+      const existing = await this.taskTypeRepo.findByLabel(input.label);
       if (existing && existing.id !== id) {
-        throw new Error(`Task type with name "${input.name}" already exists`);
+        throw new Error(`Task type with label "${input.label}" already exists`);
       }
     }
 
     const updated = await this.taskTypeRepo.update(id, input);
-    
+
     if (!updated) {
       throw new Error('Task type not found');
     }

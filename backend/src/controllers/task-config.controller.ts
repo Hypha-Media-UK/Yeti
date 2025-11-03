@@ -54,15 +54,14 @@ export class TaskConfigController {
    */
   createTaskType = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { name, label, description } = req.body;
+      const { label, description } = req.body;
 
-      if (!name || !label) {
-        res.status(400).json({ error: 'Name and label are required' });
+      if (!label) {
+        res.status(400).json({ error: 'Label is required' });
         return;
       }
 
       const taskType = await this.taskConfigService.createTaskType({
-        name: name.trim(),
         label: label.trim(),
         description: description?.trim() || null,
       });

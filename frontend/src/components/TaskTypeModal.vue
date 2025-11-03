@@ -4,22 +4,9 @@
       <!-- Task Type Edit Section -->
       <div class="task-type-edit-section">
         <h3 class="section-title">Task Type Details</h3>
-        
-        <div class="form-group">
-          <label for="taskTypeName" class="form-label">Name (URL-safe) *</label>
-          <input
-            id="taskTypeName"
-            v-model="taskTypeName"
-            type="text"
-            class="form-input"
-            placeholder="e.g., patient-transfer"
-            required
-          />
-          <p class="form-hint">Lowercase with hyphens only</p>
-        </div>
 
         <div class="form-group">
-          <label for="taskTypeLabel" class="form-label">Display Label *</label>
+          <label for="taskTypeLabel" class="form-label">Label *</label>
           <input
             id="taskTypeLabel"
             v-model="taskTypeLabel"
@@ -282,7 +269,7 @@ const props = defineProps<Props>();
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean];
-  'updateTaskType': [id: number, name: string, label: string, description: string | null, departmentIds: number[]];
+  'updateTaskType': [id: number, label: string, description: string | null, departmentIds: number[]];
   'addTaskItem': [taskTypeId: number, name: string, defaultOriginAreaId: number | null, defaultOriginAreaType: 'department' | 'service' | null, defaultDestinationAreaId: number | null, defaultDestinationAreaType: 'department' | 'service' | null];
   'updateTaskItem': [id: number, name: string, defaultOriginAreaId: number | null, defaultOriginAreaType: 'department' | 'service' | null, defaultDestinationAreaId: number | null, defaultDestinationAreaType: 'department' | 'service' | null];
   'deleteTaskItem': [id: number];
@@ -294,7 +281,6 @@ const isOpen = computed({
 });
 
 // Task Type editing
-const taskTypeName = ref('');
 const taskTypeLabel = ref('');
 const taskTypeDescription = ref('');
 const linkedDepartmentIds = ref<number[]>([]);
@@ -320,7 +306,6 @@ const taskItems = computed(() => props.taskType.items || []);
 // Initialize form when modal opens or task type changes
 watch(() => props.taskType, (newTaskType) => {
   if (newTaskType) {
-    taskTypeName.value = newTaskType.name;
     taskTypeLabel.value = newTaskType.label;
     taskTypeDescription.value = newTaskType.description || '';
     linkedDepartmentIds.value = [...(newTaskType.departmentIds || [])];
@@ -337,7 +322,7 @@ const getAreasForType = (type: 'department' | 'service' | null) => {
 };
 
 const saveTaskType = () => {
-  emit('updateTaskType', props.taskType.id, taskTypeName.value, taskTypeLabel.value, taskTypeDescription.value || null, linkedDepartmentIds.value);
+  emit('updateTaskType', props.taskType.id, taskTypeLabel.value, taskTypeDescription.value || null, linkedDepartmentIds.value);
 };
 
 const startAddingTaskItem = () => {

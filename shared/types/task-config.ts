@@ -9,8 +9,7 @@
 
 export interface TaskType {
   id: number;
-  name: string;  // e.g., "patient-transfer" (URL-safe identifier)
-  label: string;  // e.g., "Patient Transfer" (display name)
+  label: string;  // e.g., "Patient Transfer"
   description: string | null;
   isActive: boolean;
   createdAt: string;
@@ -64,13 +63,11 @@ export interface TaskItemWithAreas extends TaskItem {
 // ============================================================================
 
 export interface CreateTaskTypeInput {
-  name: string;
   label: string;
   description?: string | null;
 }
 
 export interface UpdateTaskTypeInput {
-  name?: string;
   label?: string;
   description?: string | null;
   isActive?: boolean;

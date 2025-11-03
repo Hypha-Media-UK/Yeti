@@ -903,7 +903,6 @@ const confirmDeleteShift = (shift: Shift) => {
 const openAddTaskTypeModal = () => {
   selectedTaskType.value = {
     id: 0,
-    name: '',
     label: '',
     description: null,
     isActive: true,
@@ -922,7 +921,6 @@ const openTaskTypeModal = (taskType: TaskTypeWithItems) => {
 
 const handleUpdateTaskType = async (
   id: number,
-  name: string,
   label: string,
   description: string | null,
   departmentIds: number[]
@@ -930,10 +928,10 @@ const handleUpdateTaskType = async (
   try {
     if (id === 0) {
       // Create new task type
-      await taskConfigStore.createTaskType({ name, label, description });
+      await taskConfigStore.createTaskType({ label, description });
     } else {
       // Update existing task type
-      await taskConfigStore.updateTaskType(id, { name, label, description });
+      await taskConfigStore.updateTaskType(id, { label, description });
       await taskConfigStore.updateTaskTypeDepartments(id, departmentIds);
     }
     await taskConfigStore.fetchTaskTypes();

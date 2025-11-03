@@ -3,7 +3,6 @@ import type { TaskType, CreateTaskTypeInput, UpdateTaskTypeInput } from '@shared
 
 interface TaskTypeRow {
   id: number;
-  name: string;
   label: string;
   description: string | null;
   is_active: boolean;
@@ -22,7 +21,6 @@ export class TaskTypeRepository extends BaseRepository<
   protected mapRowToEntity(row: TaskTypeRow): TaskType {
     return {
       id: row.id,
-      name: row.name,
       label: row.label,
       description: row.description,
       isActive: row.is_active,
@@ -33,7 +31,6 @@ export class TaskTypeRepository extends BaseRepository<
 
   protected mapEntityToInsertRow(input: CreateTaskTypeInput): Partial<TaskTypeRow> {
     return {
-      name: input.name,
       label: input.label,
       description: input.description ?? null,
       is_active: true,
@@ -43,7 +40,6 @@ export class TaskTypeRepository extends BaseRepository<
   protected mapEntityToUpdateRow(input: UpdateTaskTypeInput): Partial<TaskTypeRow> {
     const updateRow: Partial<TaskTypeRow> = {};
 
-    if (input.name !== undefined) updateRow.name = input.name;
     if (input.label !== undefined) updateRow.label = input.label;
     if (input.description !== undefined) updateRow.description = input.description;
     if (input.isActive !== undefined) updateRow.is_active = input.isActive;
@@ -77,13 +73,13 @@ export class TaskTypeRepository extends BaseRepository<
   }
 
   /**
-   * Find task type by name
+   * Find task type by label
    */
-  async findByName(name: string): Promise<TaskType | null> {
+  async findByLabel(label: string): Promise<TaskType | null> {
     const { data, error } = await this.client
       .from(this.tableName)
       .select('*')
-      .eq('name', name)
+      .eq('label', label)
       .eq('is_active', true)
       .single();
 
@@ -91,7 +87,7 @@ export class TaskTypeRepository extends BaseRepository<
       if (error.code === 'PGRST116') {
         return null; // Not found
       }
-      throw new Error(`Failed to find task type by name: ${error.message}`);
+      throw new Error(`Failed to find task type by label: ${error.message}`);
     }
 
     return data ? this.mapRowToEntity(data as TaskTypeRow) : null;
