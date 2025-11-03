@@ -404,7 +404,7 @@ onMounted(async () => {
     const [departmentsResponse, servicesResponse] = await Promise.all([
       api.getAllDepartments(),
       api.getAllServices(),
-      staffStore.fetchAllStaff({ status: 'active' }),
+      staffStore.fetchAllStaff(), // No status filter - activeStaff computed property filters by isActive
       taskConfigStore.fetchTaskTypes(),
     ]);
 
