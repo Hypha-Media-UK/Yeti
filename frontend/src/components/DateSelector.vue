@@ -1,18 +1,18 @@
 <template>
-  <div class="date-selector">
+  <div class="rota-nav">
     <div class="date-controls">
-      <button 
-        class="btn btn-secondary nav-btn" 
+      <button
+        class="btn btn-secondary nav-btn"
         @click="previousDay"
         aria-label="Previous day"
       >
         ←
       </button>
-      
+
       <div class="date-display">
-        <input 
-          type="date" 
-          :value="modelValue" 
+        <input
+          type="date"
+          :value="modelValue"
           @input="handleDateChange"
           class="date-input"
           aria-label="Select date"
@@ -21,22 +21,29 @@
           {{ formattedDate }}
         </div>
       </div>
-      
-      <button 
-        class="btn btn-secondary nav-btn" 
+
+      <button
+        class="btn btn-primary today-btn"
+        @click="goToToday"
+        :disabled="isToday"
+      >
+        Today
+      </button>
+
+      <button
+        class="btn btn-secondary nav-btn"
         @click="nextDay"
         aria-label="Next day"
       >
         →
       </button>
     </div>
-    
-    <button 
-      class="btn btn-primary today-btn" 
-      @click="goToToday"
-      :disabled="isToday"
+
+    <button
+      class="btn btn-primary task-status-btn"
+      @click="openTaskStatus"
     >
-      Today
+      Task Status
     </button>
   </div>
 </template>
@@ -51,6 +58,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:modelValue': [value: string];
+  'open-task-status': [];
 }>();
 
 const { formatDisplayDate, getTodayString, addDaysToDate, isToday: checkIsToday } = useTimeZone();
@@ -76,10 +84,14 @@ function nextDay() {
 function goToToday() {
   emit('update:modelValue', getTodayString());
 }
+
+function openTaskStatus() {
+  emit('open-task-status');
+}
 </script>
 
 <style scoped>
-.date-selector {
+.rota-nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -129,14 +141,19 @@ function goToToday() {
   min-width: 100px;
 }
 
+.task-status-btn {
+  min-width: 120px;
+}
+
 @media (max-width: 600px) {
-  .date-selector {
+  .rota-nav {
     flex-direction: column;
     width: 100%;
   }
 
   .date-controls {
     width: 100%;
+    flex-wrap: wrap;
   }
 
   .date-display {
@@ -144,7 +161,8 @@ function goToToday() {
     min-width: 0;
   }
 
-  .today-btn {
+  .today-btn,
+  .task-status-btn {
     width: 100%;
   }
 }

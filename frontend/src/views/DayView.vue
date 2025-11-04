@@ -5,8 +5,8 @@
         <h1 class="page-title">Staff Rota</h1>
       </header>
 
-      <div class="date-section">
-        <DateSelector v-model="selectedDate" />
+      <div class="rota-nav">
+        <DateSelector v-model="selectedDate" @open-task-status="handleOpenTaskStatus" />
       </div>
 
       <div v-if="isLoading" class="loading-state">
@@ -575,6 +575,11 @@ async function handleTaskCreated() {
   console.log('Task created successfully');
 }
 
+// Handle opening task status view
+function handleOpenTaskStatus() {
+  router.push({ name: 'task-status', params: { date: selectedDate.value } });
+}
+
 onMounted(async () => {
   // Initialize date from route or use today
   const routeDate = route.params.date;
@@ -610,7 +615,7 @@ onMounted(async () => {
   color: var(--color-text-primary);
 }
 
-.date-section {
+.rota-nav {
   margin-bottom: var(--spacing-4);
   padding: var(--spacing-3);
   background-color: var(--color-surface);
@@ -888,7 +893,7 @@ onMounted(async () => {
     font-size: var(--font-size-section);
   }
 
-  .date-section {
+  .rota-nav {
     padding: var(--spacing-2);
   }
 }

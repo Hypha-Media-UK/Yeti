@@ -7,7 +7,7 @@
       </div>
 
       <div class="modal-body">
-        <form @submit.prevent="handleSubmit">
+        <form @submit.prevent>
           <!-- Origin Department/Service -->
           <div class="form-group">
             <label for="originArea">From (Origin) *</label>
@@ -195,17 +195,11 @@
             <button type="button" class="btn btn-secondary" @click="closeModal">
               Cancel
             </button>
-            <button type="submit" class="btn btn-primary" :disabled="isSubmitting">
-              {{ isSubmitting ? 'Creating...' : 'Create Task' }}
+            <button type="button" class="btn btn-primary" @click="handleSubmit('pending')" :disabled="isSubmitting">
+              {{ isSubmitting ? 'Creating...' : 'Pending' }}
             </button>
-            <button
-              v-if="createAnother"
-              type="button"
-              class="btn btn-outline"
-              @click="handleCreateAnother"
-              :disabled="isSubmitting"
-            >
-              Create Another
+            <button type="button" class="btn btn-primary" @click="handleSubmit('completed')" :disabled="isSubmitting">
+              {{ isSubmitting ? 'Creating...' : 'Complete' }}
             </button>
           </div>
         </form>
@@ -227,7 +221,6 @@ import type { Service } from '@shared/types/service';
 
 const props = defineProps<{
   modelValue: boolean;
-  createAnother?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -363,7 +356,7 @@ function parseAreaKey(key: string): { id: number; type: 'department' | 'service'
 }
 
 // Handle form submission
-async function handleSubmit() {
+async function handleSubmit(status: 'pending' | 'completed') {
   errorMessage.value = '';
   isSubmitting.value = true;
 
@@ -390,9 +383,9 @@ async function handleSubmit() {
       taskItemId: taskItem?.id || null, // New field
       requestedTime: formData.requestedTime,
       allocatedTime: formData.allocatedTime,
-      completedTime: formData.completedTime || null,
+      completedTime: status === 'completed' ? formData.allocatedTime : null,
       assignedStaffId: formData.assignedStaffId,
-      status: 'pending',
+      status: status,
     };
 
     await taskStore.addTask(input);
@@ -403,14 +396,6 @@ async function handleSubmit() {
   } finally {
     isSubmitting.value = false;
   }
-}
-
-// Handle create another
-function handleCreateAnother() {
-  // Keep origin, destination, and task type, but reset other fields
-  formData.taskDetail = '';
-  formData.assignedStaffId = null;
-  initializeForm();
 }
 
 // Close modal
