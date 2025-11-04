@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import DayView from '@/views/DayView.vue';
 import ConfigView from '@/views/ConfigView.vue';
 import TaskStatusView from '@/views/TaskStatusView.vue';
+import ReportsView from '@/views/ReportsView.vue';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -22,6 +23,11 @@ const router = createRouter({
       path: '/task-status/:date',
       name: 'task-status',
       component: TaskStatusView,
+    },
+    {
+      path: '/reports',
+      name: 'reports',
+      component: ReportsView,
     },
     {
       path: '/config',

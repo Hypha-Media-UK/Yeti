@@ -39,18 +39,30 @@
       </button>
     </div>
 
-    <button
-      class="btn btn-primary task-status-btn"
-      @click="openTaskStatus"
-    >
-      Task Status
-    </button>
+    <div class="action-buttons">
+      <button
+        class="btn btn-primary"
+        @click="openTaskStatus"
+      >
+        Task Status
+      </button>
+
+      <button
+        class="btn btn-primary"
+        @click="openReports"
+      >
+        Reports
+      </button>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { useTimeZone } from '@/composables/useTimeZone';
+
+const router = useRouter();
 
 const props = defineProps<{
   modelValue: string;
@@ -87,6 +99,10 @@ function goToToday() {
 
 function openTaskStatus() {
   emit('open-task-status');
+}
+
+function openReports() {
+  router.push({ name: 'reports' });
 }
 </script>
 
@@ -161,10 +177,19 @@ function openTaskStatus() {
     min-width: 0;
   }
 
-  .today-btn,
-  .task-status-btn {
+  .action-buttons {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .action-buttons .btn {
     width: 100%;
   }
+}
+
+.action-buttons {
+  display: flex;
+  gap: var(--spacing-2);
 }
 </style>
 

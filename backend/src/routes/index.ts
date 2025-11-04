@@ -13,6 +13,7 @@ import shiftRoutes from './shift.routes';
 import absenceRoutes from './absence.routes';
 import taskRoutes from './task.routes';
 import taskConfigRoutes from './task-config.routes';
+import reportsRoutes from './reports.routes';
 
 const router = Router();
 
@@ -30,6 +31,7 @@ router.use('/shifts', shiftRoutes);
 router.use('/absences', absenceRoutes);
 router.use('/tasks', taskRoutes);
 router.use('/task-config', taskConfigRoutes);
+router.use('/reports', reportsRoutes);
 
 export default router;
 

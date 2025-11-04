@@ -15,6 +15,7 @@ import type {
   CreateTaskItemInput,
   UpdateTaskItemInput,
 } from '@shared/types/task-config';
+import type { TaskReportsData } from '@shared/types/reports';
 
 // Use empty string for production (same domain), localhost for development
 const API_BASE_URL = import.meta.env.VITE_API_URL !== undefined
@@ -538,6 +539,14 @@ export const api = {
     return fetchApi<{ success: boolean }>(`/task-config/items/${id}`, {
       method: 'DELETE',
     });
+  },
+
+  // ============================================================================
+  // Reports API
+  // ============================================================================
+
+  async getReportsData(): Promise<TaskReportsData> {
+    return fetchApi<TaskReportsData>('/reports');
   },
 };
 
