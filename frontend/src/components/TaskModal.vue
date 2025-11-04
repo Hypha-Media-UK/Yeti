@@ -10,7 +10,7 @@
         <form @submit.prevent class="task-create-form">
           <!-- Origin and Destination Row -->
           <div class="form-row">
-            <!-- Origin Department/Service -->
+            <!-- Origin Department -->
             <div class="form-group">
               <label for="originArea" class="form-label">From (Origin) *</label>
               <select
@@ -22,42 +22,24 @@
               >
                 <option value="">Select origin...</option>
 
-                <!-- Prioritized Departments (if any) -->
-                <optgroup v-if="prioritizedDepartments.length > 0" label="Frequent Departments">
+                <!-- Departments grouped by building -->
+                <optgroup
+                  v-for="(depts, buildingKey) in departmentsByBuilding"
+                  :key="`building-${buildingKey}`"
+                  :label="getBuildingName(buildingKey === 'unassigned' ? null : Number(buildingKey))"
+                >
                   <option
-                    v-for="dept in prioritizedDepartments"
+                    v-for="dept in depts"
                     :key="`dept-${dept.id}`"
                     :value="`department-${dept.id}`"
                   >
                     {{ dept.name }}
-                  </option>
-                </optgroup>
-
-                <!-- Regular Departments -->
-                <optgroup v-if="regularDepartments.length > 0" :label="prioritizedDepartments.length > 0 ? 'Other Departments' : 'Departments'">
-                  <option
-                    v-for="dept in regularDepartments"
-                    :key="`dept-${dept.id}`"
-                    :value="`department-${dept.id}`"
-                  >
-                    {{ dept.name }}
-                  </option>
-                </optgroup>
-
-                <!-- Services -->
-                <optgroup label="Services">
-                  <option
-                    v-for="service in services"
-                    :key="`service-${service.id}`"
-                    :value="`service-${service.id}`"
-                  >
-                    {{ service.name }}
                   </option>
                 </optgroup>
               </select>
             </div>
 
-            <!-- Destination Department/Service -->
+            <!-- Destination Department (only includeInTasks=true) -->
             <div class="form-group">
               <label for="destinationArea" class="form-label">To (Destination) *</label>
               <select
@@ -68,22 +50,19 @@
                 :disabled="!formData.originAreaKey"
               >
                 <option value="">Select destination...</option>
-                <optgroup label="Departments">
+
+                <!-- Departments grouped by building (only includeInTasks=true) -->
+                <optgroup
+                  v-for="(depts, buildingKey) in destinationDepartmentsByBuilding"
+                  :key="`building-${buildingKey}`"
+                  :label="getBuildingName(buildingKey === 'unassigned' ? null : Number(buildingKey))"
+                >
                   <option
-                    v-for="dept in availableDestinationDepartments"
+                    v-for="dept in depts"
                     :key="`dept-${dept.id}`"
                     :value="`department-${dept.id}`"
                   >
                     {{ dept.name }}
-                  </option>
-                </optgroup>
-                <optgroup label="Services">
-                  <option
-                    v-for="service in availableDestinationServices"
-                    :key="`service-${service.id}`"
-                    :value="`service-${service.id}`"
-                  >
-                    {{ service.name }}
                   </option>
                 </optgroup>
               </select>
@@ -220,6 +199,7 @@ import { api } from '@/services/api';
 import type { CreateTaskInput } from '@shared/types/task';
 import type { Department } from '@shared/types/department';
 import type { Service } from '@shared/types/service';
+import type { Building } from '@shared/types/building';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -238,9 +218,10 @@ const taskConfigStore = useTaskConfigStore();
 const isSubmitting = ref(false);
 const errorMessage = ref('');
 
-// Local state for departments and services
+// Local state for departments, services, and buildings
 const departments = ref<Department[]>([]);
 const services = ref<Service[]>([]);
+const buildings = ref<Building[]>([]);
 
 const formData = reactive({
   originAreaKey: '', // Format: "department-1" or "service-2"
@@ -269,24 +250,47 @@ const staffInShiftPool = computed(() => {
 
 const taskTypes = computed(() => taskConfigStore.taskTypes.filter(tt => tt.isActive));
 
-// Split departments into prioritized (includeInTasks=true) and regular
-const prioritizedDepartments = computed(() =>
-  departments.value.filter(dept => dept.includeInTasks)
-);
+// Group departments by building for origin field
+const departmentsByBuilding = computed(() => {
+  const grouped: Record<number | string, Department[]> = {};
 
-const regularDepartments = computed(() =>
-  departments.value.filter(dept => !dept.includeInTasks)
-);
+  departments.value.forEach(dept => {
+    const key = dept.buildingId ?? 'unassigned';
+    if (!grouped[key]) {
+      grouped[key] = [];
+    }
+    grouped[key].push(dept);
+  });
 
-const availableDestinationDepartments = computed(() => {
-  if (!formData.originAreaKey) return departments.value;
-  return departments.value.filter(dept => `department-${dept.id}` !== formData.originAreaKey);
+  return grouped;
 });
 
-const availableDestinationServices = computed(() => {
-  if (!formData.originAreaKey) return services.value;
-  return services.value.filter(service => `service-${service.id}` !== formData.originAreaKey);
+// Group departments by building for destination field (only includeInTasks=true)
+const destinationDepartmentsByBuilding = computed(() => {
+  const grouped: Record<number | string, Department[]> = {};
+
+  // Filter to only departments with includeInTasks=true and exclude the origin
+  const filteredDepts = departments.value.filter(dept =>
+    dept.includeInTasks && `department-${dept.id}` !== formData.originAreaKey
+  );
+
+  filteredDepts.forEach(dept => {
+    const key = dept.buildingId ?? 'unassigned';
+    if (!grouped[key]) {
+      grouped[key] = [];
+    }
+    grouped[key].push(dept);
+  });
+
+  return grouped;
 });
+
+// Get building name by ID
+const getBuildingName = (buildingId: number | null): string => {
+  if (buildingId === null) return 'Unassigned';
+  const building = buildings.value.find(b => b.id === buildingId);
+  return building?.name || `Building ${buildingId}`;
+};
 
 const taskDetailOptions = computed(() => {
   if (!formData.taskType) return [];
@@ -427,15 +431,17 @@ watch(() => props.modelValue, (newValue) => {
 // Load data on mount
 onMounted(async () => {
   try {
-    const [departmentsResponse, servicesResponse] = await Promise.all([
+    const [departmentsResponse, servicesResponse, buildingsResponse] = await Promise.all([
       api.getAllDepartments(),
       api.getAllServices(),
+      api.getAllBuildings(),
       staffStore.fetchAllStaff(), // No status filter - activeStaff computed property filters by isActive
       taskConfigStore.fetchTaskTypes(),
     ]);
 
     departments.value = departmentsResponse.departments;
     services.value = servicesResponse.services;
+    buildings.value = buildingsResponse.buildings;
   } catch (error) {
     console.error('Error loading task modal data:', error);
     errorMessage.value = 'Failed to load required data. Please try again.';
