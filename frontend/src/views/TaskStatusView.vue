@@ -40,26 +40,27 @@
             <div
               v-for="task in pendingTasks"
               :key="task.id"
-              class="task-card"
-              @click="handleEditTask(task)"
+              class="task-card task-pending"
             >
-              <div class="task-header">
-                <div class="task-type">
-                  <span class="task-type-label">{{ getTaskTypeLabel(task) }}</span>
-                  <span class="task-detail">{{ getTaskDetail(task) }}</span>
-                </div>
-                <div class="task-time">{{ formatTime(task.requestedTime) }}</div>
+              <div class="task-card-content" @click="handleEditTask(task)">
+                <span class="task-info">
+                  <strong>{{ getTaskTypeLabel(task) }}:</strong> {{ getTaskDetail(task) }}
+                </span>
+                <span class="task-route">
+                  {{ getAreaName(task.originAreaId, task.originAreaType) }} → {{ getAreaName(task.destinationAreaId, task.destinationAreaType) }}
+                </span>
+                <span class="task-staff">
+                  {{ task.assignedStaffId ? getStaffName(task.assignedStaffId) : 'Unassigned' }}
+                </span>
+                <span class="task-time">{{ formatTime(task.requestedTime) }}</span>
               </div>
-              <div class="task-body">
-                <div class="task-route">
-                  <span class="task-origin">{{ getAreaName(task.originAreaId, task.originAreaType) }}</span>
-                  <span class="task-arrow">→</span>
-                  <span class="task-destination">{{ getAreaName(task.destinationAreaId, task.destinationAreaType) }}</span>
-                </div>
-                <div v-if="task.assignedStaffId" class="task-assigned">
-                  Assigned to: {{ getStaffName(task.assignedStaffId) }}
-                </div>
-              </div>
+              <button
+                class="btn-icon btn-complete"
+                @click.stop="handleQuickComplete(task)"
+                title="Mark as complete"
+              >
+                ✓
+              </button>
             </div>
           </div>
         </div>
@@ -80,30 +81,26 @@
               v-for="task in completedTasks"
               :key="task.id"
               class="task-card task-completed"
-              @click="handleEditTask(task)"
             >
-              <div class="task-header">
-                <div class="task-type">
-                  <span class="task-type-label">{{ getTaskTypeLabel(task) }}</span>
-                  <span class="task-detail">{{ getTaskDetail(task) }}</span>
-                </div>
-                <div class="task-time">
-                  {{ formatTime(task.requestedTime) }}
-                  <span v-if="task.completedTime" class="completed-time">
-                    ✓ {{ formatTime(task.completedTime) }}
-                  </span>
-                </div>
+              <div class="task-card-content" @click="handleEditTask(task)">
+                <span class="task-info">
+                  <strong>{{ getTaskTypeLabel(task) }}:</strong> {{ getTaskDetail(task) }}
+                </span>
+                <span class="task-route">
+                  {{ getAreaName(task.originAreaId, task.originAreaType) }} → {{ getAreaName(task.destinationAreaId, task.destinationAreaType) }}
+                </span>
+                <span class="task-staff">
+                  {{ task.assignedStaffId ? getStaffName(task.assignedStaffId) : 'Unassigned' }}
+                </span>
+                <span class="task-time">{{ formatTime(task.requestedTime) }}</span>
               </div>
-              <div class="task-body">
-                <div class="task-route">
-                  <span class="task-origin">{{ getAreaName(task.originAreaId, task.originAreaType) }}</span>
-                  <span class="task-arrow">→</span>
-                  <span class="task-destination">{{ getAreaName(task.destinationAreaId, task.destinationAreaType) }}</span>
-                </div>
-                <div v-if="task.assignedStaffId" class="task-assigned">
-                  Assigned to: {{ getStaffName(task.assignedStaffId) }}
-                </div>
-              </div>
+              <button
+                class="btn-icon btn-pending"
+                @click.stop="handleQuickPending(task)"
+                title="Move to pending"
+              >
+                ↻
+              </button>
             </div>
           </div>
         </div>
@@ -262,6 +259,34 @@ function formatTime(time: string): string {
 function handleEditTask(task: Task) {
   selectedTask.value = task;
   showEditModal.value = true;
+}
+
+// Handle quick complete
+async function handleQuickComplete(task: Task) {
+  try {
+    await taskStore.modifyTask(task.id, {
+      status: 'completed',
+      completedTime: task.allocatedTime, // Use allocated time as completed time
+    });
+    await loadTasks();
+  } catch (err: any) {
+    console.error('Error completing task:', err);
+    error.value = err.message || 'Failed to complete task';
+  }
+}
+
+// Handle quick pending
+async function handleQuickPending(task: Task) {
+  try {
+    await taskStore.modifyTask(task.id, {
+      status: 'pending',
+      completedTime: null,
+    });
+    await loadTasks();
+  } catch (err: any) {
+    console.error('Error moving task to pending:', err);
+    error.value = err.message || 'Failed to move task to pending';
+  }
 }
 
 // Handle task updated
@@ -428,11 +453,12 @@ onMounted(async () => {
 }
 
 .task-card {
-  background-color: var(--color-bg);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-button);
   padding: var(--spacing-2);
-  cursor: pointer;
   transition: var(--transition-base);
 }
 
@@ -441,73 +467,80 @@ onMounted(async () => {
   transform: translateY(-1px);
 }
 
+.task-card.task-pending {
+  background-color: #fff4e6; /* Pale orange */
+}
+
 .task-card.task-completed {
-  opacity: 0.8;
+  background-color: #e8f5e9; /* Pale green */
 }
 
-.task-header {
+.task-card-content {
+  flex: 1;
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: var(--spacing-1);
+  align-items: center;
+  gap: var(--spacing-3);
+  cursor: pointer;
 }
 
-.task-type {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.task-info {
+  min-width: 200px;
+  font-size: var(--font-size-body);
 }
 
-.task-type-label {
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
+.task-route {
+  min-width: 180px;
+  font-size: var(--font-size-body-sm);
+  color: var(--color-text-secondary);
 }
 
-.task-detail {
+.task-staff {
+  min-width: 150px;
   font-size: var(--font-size-body-sm);
   color: var(--color-text-secondary);
 }
 
 .task-time {
+  min-width: 60px;
   font-family: var(--font-family-mono);
   font-size: var(--font-size-body-sm);
   color: var(--color-text-secondary);
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
+  text-align: right;
 }
 
-.completed-time {
-  color: var(--color-success);
-  font-size: var(--font-size-secondary);
-}
-
-.task-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-1);
-}
-
-.task-route {
+.btn-icon {
   display: flex;
   align-items: center;
-  gap: var(--spacing-1);
-  font-size: var(--font-size-body-sm);
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-button);
+  background-color: transparent;
+  cursor: pointer;
+  font-size: 18px;
+  transition: var(--transition-base);
+  flex-shrink: 0;
 }
 
-.task-origin,
-.task-destination {
-  font-weight: var(--font-weight-medium);
+.btn-icon:hover {
+  background-color: var(--color-bg-hover);
 }
 
-.task-arrow {
-  color: var(--color-text-secondary);
+.btn-complete {
+  color: var(--color-success);
 }
 
-.task-assigned {
-  font-size: var(--font-size-body-sm);
-  color: var(--color-text-secondary);
+.btn-complete:hover {
+  background-color: var(--color-success-bg);
+}
+
+.btn-pending {
+  color: var(--color-warning);
+}
+
+.btn-pending:hover {
+  background-color: var(--color-warning-bg);
 }
 </style>
 

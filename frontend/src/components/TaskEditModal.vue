@@ -7,152 +7,155 @@
       </div>
 
       <div class="modal-body">
-        <form @submit.prevent>
-          <!-- Origin Department/Service -->
-          <div class="form-group">
-            <label for="origin-area">Origin</label>
-            <select
-              id="origin-area"
-              v-model="formData.originAreaKey"
-              class="form-control"
-              required
-            >
-              <option value="">Select origin...</option>
-              <optgroup label="Departments">
-                <option
-                  v-for="dept in departments"
-                  :key="`dept-${dept.id}`"
-                  :value="`department-${dept.id}`"
-                >
-                  {{ dept.name }}
-                </option>
-              </optgroup>
-              <optgroup label="Services">
-                <option
-                  v-for="service in services"
-                  :key="`service-${service.id}`"
-                  :value="`service-${service.id}`"
-                >
-                  {{ service.name }}
-                </option>
-              </optgroup>
-            </select>
-          </div>
-
-          <!-- Destination Department/Service -->
-          <div class="form-group">
-            <label for="destination-area">Destination</label>
-            <select
-              id="destination-area"
-              v-model="formData.destinationAreaKey"
-              class="form-control"
-              required
-            >
-              <option value="">Select destination...</option>
-              <optgroup label="Departments">
-                <option
-                  v-for="dept in departments"
-                  :key="`dept-${dept.id}`"
-                  :value="`department-${dept.id}`"
-                >
-                  {{ dept.name }}
-                </option>
-              </optgroup>
-              <optgroup label="Services">
-                <option
-                  v-for="service in services"
-                  :key="`service-${service.id}`"
-                  :value="`service-${service.id}`"
-                >
-                  {{ service.name }}
-                </option>
-              </optgroup>
-            </select>
-          </div>
-
-          <!-- Task Type -->
-          <div class="form-group">
-            <label for="task-type">Task Type</label>
-            <select
-              id="task-type"
-              v-model="formData.taskType"
-              class="form-control"
-              required
-            >
-              <option value="">Select task type...</option>
-              <option
-                v-for="type in taskTypes"
-                :key="type.id"
-                :value="type.label"
+        <form @submit.prevent class="task-edit-form">
+          <!-- Origin and Destination Row -->
+          <div class="form-row">
+            <div class="form-group">
+              <label for="origin-area" class="form-label">Origin</label>
+              <select
+                id="origin-area"
+                v-model="formData.originAreaKey"
+                class="form-input"
+                required
               >
-                {{ type.label }}
-              </option>
-            </select>
-          </div>
+                <option value="">Select origin...</option>
+                <optgroup label="Departments">
+                  <option
+                    v-for="dept in departments"
+                    :key="`dept-${dept.id}`"
+                    :value="`department-${dept.id}`"
+                  >
+                    {{ dept.name }}
+                  </option>
+                </optgroup>
+                <optgroup label="Services">
+                  <option
+                    v-for="service in services"
+                    :key="`service-${service.id}`"
+                    :value="`service-${service.id}`"
+                  >
+                    {{ service.name }}
+                  </option>
+                </optgroup>
+              </select>
+            </div>
 
-          <!-- Task Detail -->
-          <div class="form-group">
-            <label for="task-detail">Task Detail</label>
-            <select
-              id="task-detail"
-              v-model="formData.taskDetail"
-              class="form-control"
-              :disabled="!formData.taskType"
-              required
-            >
-              <option value="">Select task detail...</option>
-              <option
-                v-for="item in availableTaskItems"
-                :key="item.id"
-                :value="item.name"
+            <div class="form-group">
+              <label for="destination-area" class="form-label">Destination</label>
+              <select
+                id="destination-area"
+                v-model="formData.destinationAreaKey"
+                class="form-input"
+                required
               >
-                {{ item.name }}
-              </option>
-            </select>
+                <option value="">Select destination...</option>
+                <optgroup label="Departments">
+                  <option
+                    v-for="dept in departments"
+                    :key="`dept-${dept.id}`"
+                    :value="`department-${dept.id}`"
+                  >
+                    {{ dept.name }}
+                  </option>
+                </optgroup>
+                <optgroup label="Services">
+                  <option
+                    v-for="service in services"
+                    :key="`service-${service.id}`"
+                    :value="`service-${service.id}`"
+                  >
+                    {{ service.name }}
+                  </option>
+                </optgroup>
+              </select>
+            </div>
           </div>
 
-          <!-- Requested Time -->
-          <div class="form-group">
-            <label for="requested-time">Requested Time</label>
-            <input
-              id="requested-time"
-              type="time"
-              v-model="formData.requestedTime"
-              class="form-control"
-              required
-            />
+          <!-- Task Type and Task Detail Row -->
+          <div class="form-row">
+            <div class="form-group">
+              <label for="task-type" class="form-label">Task Type</label>
+              <select
+                id="task-type"
+                v-model="formData.taskType"
+                class="form-input"
+                required
+              >
+                <option value="">Select task type...</option>
+                <option
+                  v-for="type in taskTypes"
+                  :key="type.id"
+                  :value="type.label"
+                >
+                  {{ type.label }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="task-detail" class="form-label">Task Detail</label>
+              <select
+                id="task-detail"
+                v-model="formData.taskDetail"
+                class="form-input"
+                :disabled="!formData.taskType"
+                required
+              >
+                <option value="">Select task detail...</option>
+                <option
+                  v-for="item in availableTaskItems"
+                  :key="item.id"
+                  :value="item.name"
+                >
+                  {{ item.name }}
+                </option>
+              </select>
+            </div>
           </div>
 
-          <!-- Allocated Time -->
-          <div class="form-group">
-            <label for="allocated-time">Allocated Time</label>
-            <input
-              id="allocated-time"
-              type="time"
-              v-model="formData.allocatedTime"
-              class="form-control"
-              required
-            />
-          </div>
+          <!-- Time Fields Row -->
+          <div class="form-row form-row-three">
+            <div class="form-group">
+              <label for="requested-time" class="form-label">Requested Time</label>
+              <input
+                id="requested-time"
+                type="time"
+                v-model="formData.requestedTime"
+                class="form-input"
+                required
+              />
+            </div>
 
-          <!-- Completed Time (if completed) -->
-          <div v-if="task.status === 'completed'" class="form-group">
-            <label for="completed-time">Completed Time</label>
-            <input
-              id="completed-time"
-              type="time"
-              v-model="formData.completedTime"
-              class="form-control"
-            />
+            <div class="form-group">
+              <label for="allocated-time" class="form-label">Allocated Time</label>
+              <input
+                id="allocated-time"
+                type="time"
+                v-model="formData.allocatedTime"
+                class="form-input"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="completed-time" class="form-label">Completed Time</label>
+              <input
+                id="completed-time"
+                type="time"
+                v-model="formData.completedTime"
+                class="form-input"
+                :disabled="task.status !== 'completed'"
+              />
+            </div>
           </div>
 
           <!-- Assign to Staff Member -->
           <div class="form-group">
-            <label for="assigned-staff">Assign to Staff Member</label>
+            <label for="assigned-staff" class="form-label">Assign to Staff Member</label>
             <select
               id="assigned-staff"
               v-model="formData.assignedStaffId"
-              class="form-control"
+              class="form-input"
             >
               <option :value="null">Unassigned</option>
               <option
@@ -486,39 +489,58 @@ onMounted(() => {
   padding: var(--spacing-3);
 }
 
-.form-group {
-  margin-bottom: var(--spacing-3);
+.task-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
 }
 
-.form-group label {
-  display: block;
-  margin-bottom: var(--spacing-1);
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-3);
+}
+
+.form-row-three {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.form-label {
+  font-size: var(--font-size-body-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-text-primary);
-  font-size: var(--font-size-body-sm);
 }
 
-.form-control {
-  width: 100%;
-  padding: var(--spacing-1) var(--spacing-2);
+.form-input {
+  padding: var(--spacing-2);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-button);
+  border-radius: var(--radius-input);
   font-size: var(--font-size-body);
-  color: var(--color-text-primary);
-  background-color: var(--color-surface);
+  font-family: inherit;
   transition: var(--transition-base);
 }
 
-.form-control:focus {
+.form-input:focus {
   outline: none;
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
 }
 
-.form-control:disabled {
+.form-input:disabled {
   background-color: var(--color-bg);
   color: var(--color-text-secondary);
   cursor: not-allowed;
+  opacity: 0.6;
+}
+
+select.form-input {
+  cursor: pointer;
 }
 
 .error-message {
