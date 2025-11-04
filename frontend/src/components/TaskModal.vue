@@ -182,7 +182,7 @@
                 {{ staff.firstName }} {{ staff.lastName }} ({{ staff.status }})
               </option>
             </select>
-            <p class="form-hint">Optional - assign task to a staff member in today's shift pool</p>
+            <p class="form-hint">Optional - assign task to a staff member currently active in their shift</p>
           </div>
 
           <!-- Error Message -->
@@ -259,11 +259,16 @@ const formData = reactive({
 });
 
 // Computed properties
-// Get staff who are in the shift pool (day or night shifts) for the current date
+// Get staff who are currently active in their shift (within shift times)
 const staffInShiftPool = computed(() => {
   const allShifts = dayStore.allShiftsForDate;
-  const staffIds = new Set(allShifts.map(shift => shift.staff.id));
-  return staffStore.activeStaff.filter(staff => staffIds.has(staff.id));
+  // Only include staff whose shift status is 'active' (currently within their shift hours)
+  const activeShiftStaffIds = new Set(
+    allShifts
+      .filter(shift => shift.status === 'active')
+      .map(shift => shift.staff.id)
+  );
+  return staffStore.activeStaff.filter(staff => activeShiftStaffIds.has(staff.id));
 });
 
 const taskTypes = computed(() => taskConfigStore.taskTypes.filter(tt => tt.isActive));
