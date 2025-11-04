@@ -128,13 +128,14 @@ export class RotaService {
 
     // 2. Check if we need to include yesterday's night shift (if it's still active)
     // Night shifts typically run 20:00-08:00, so yesterday's night shift extends into today
+    // Add them to DAY shifts since they're working during day hours (00:00-08:00)
     const yesterdayNightShift = await this.getYesterdayNightShiftIfActive(
       targetDate,
       appZeroDate,
       contractedHoursMap,
       manuallyAssignedStaffIds
     );
-    nightShifts.push(...yesterdayNightShift);
+    dayShifts.push(...yesterdayNightShift);
 
     // 3. Process cycle-based staff (excluding pool staff and manually assigned)
     const cycleBasedAssignments = await this.processCycleBasedStaff(
