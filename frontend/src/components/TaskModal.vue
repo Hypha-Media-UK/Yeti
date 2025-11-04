@@ -175,13 +175,14 @@
             >
               <option :value="null">Unassigned</option>
               <option
-                v-for="staff in activeStaff"
+                v-for="staff in staffInShiftPool"
                 :key="staff.id"
                 :value="staff.id"
               >
                 {{ staff.firstName }} {{ staff.lastName }} ({{ staff.status }})
               </option>
             </select>
+            <p class="form-hint">Optional - assign task to a staff member in today's shift pool</p>
           </div>
 
           <!-- Error Message -->
@@ -217,6 +218,7 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { useTaskStore } from '@/stores/task';
 import { useStaffStore } from '@/stores/staff';
+import { useDayStore } from '@/stores/day';
 import { useTaskConfigStore } from '@/stores/task-config';
 import { api } from '@/services/api';
 import type { CreateTaskInput } from '@shared/types/task';
@@ -235,6 +237,7 @@ const emit = defineEmits<{
 
 const taskStore = useTaskStore();
 const staffStore = useStaffStore();
+const dayStore = useDayStore();
 const taskConfigStore = useTaskConfigStore();
 
 const isSubmitting = ref(false);
@@ -256,7 +259,13 @@ const formData = reactive({
 });
 
 // Computed properties
-const activeStaff = computed(() => staffStore.activeStaff);
+// Get staff who are in the shift pool (day or night shifts) for the current date
+const staffInShiftPool = computed(() => {
+  const allShifts = dayStore.allShiftsForDate;
+  const staffIds = new Set(allShifts.map(shift => shift.staff.id));
+  return staffStore.activeStaff.filter(staff => staffIds.has(staff.id));
+});
+
 const taskTypes = computed(() => taskConfigStore.taskTypes.filter(tt => tt.isActive));
 
 // Split departments into prioritized (includeInTasks=true) and regular
