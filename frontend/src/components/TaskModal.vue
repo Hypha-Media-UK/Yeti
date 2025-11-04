@@ -385,7 +385,7 @@ async function handleSubmit() {
       originAreaType: origin.type,
       destinationAreaId: destination.id,
       destinationAreaType: destination.type,
-      taskType: formData.taskType,
+      taskType: null, // Set to null - we use task_item_id instead
       taskDetail: formData.taskDetail, // Keep for backward compatibility
       taskItemId: taskItem?.id || null, // New field
       requestedTime: formData.requestedTime,
