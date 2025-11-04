@@ -19,15 +19,30 @@
               @change="handleOriginChange"
             >
               <option value="">Select origin...</option>
-              <optgroup label="Departments">
+
+              <!-- Prioritized Departments (if any) -->
+              <optgroup v-if="prioritizedDepartments.length > 0" label="Frequent Departments">
                 <option
-                  v-for="dept in departments"
+                  v-for="dept in prioritizedDepartments"
                   :key="`dept-${dept.id}`"
                   :value="`department-${dept.id}`"
                 >
                   {{ dept.name }}
                 </option>
               </optgroup>
+
+              <!-- Regular Departments -->
+              <optgroup v-if="regularDepartments.length > 0" :label="prioritizedDepartments.length > 0 ? 'Other Departments' : 'Departments'">
+                <option
+                  v-for="dept in regularDepartments"
+                  :key="`dept-${dept.id}`"
+                  :value="`department-${dept.id}`"
+                >
+                  {{ dept.name }}
+                </option>
+              </optgroup>
+
+              <!-- Services -->
               <optgroup label="Services">
                 <option
                   v-for="service in services"
@@ -243,6 +258,15 @@ const formData = reactive({
 // Computed properties
 const activeStaff = computed(() => staffStore.activeStaff);
 const taskTypes = computed(() => taskConfigStore.taskTypes.filter(tt => tt.isActive));
+
+// Split departments into prioritized (includeInTasks=true) and regular
+const prioritizedDepartments = computed(() =>
+  departments.value.filter(dept => dept.includeInTasks)
+);
+
+const regularDepartments = computed(() =>
+  departments.value.filter(dept => !dept.includeInTasks)
+);
 
 const availableDestinationDepartments = computed(() => {
   if (!formData.originAreaKey) return departments.value;

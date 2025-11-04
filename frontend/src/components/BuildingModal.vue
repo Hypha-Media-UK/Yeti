@@ -97,6 +97,18 @@
             <div class="form-group">
               <label class="checkbox-label">
                 <input
+                  v-model="editingIncludeInTasks"
+                  type="checkbox"
+                  class="checkbox-input"
+                />
+                <span>Include in Tasks</span>
+              </label>
+              <p class="form-hint">When enabled, this department appears at the top of the origin list in task creation</p>
+            </div>
+
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input
                   v-model="editingIs24_7"
                   type="checkbox"
                   class="checkbox-input"
@@ -191,7 +203,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean];
   'updateBuilding': [id: number, name: string];
   'addDepartment': [buildingId: number, name: string];
-  'updateDepartment': [id: number, name: string, includeInMainRota: boolean, is24_7: boolean, operationalHours: HoursEntry[], requiresMinimumStaffing: boolean, staffingRequirements: StaffingRequirement[]];
+  'updateDepartment': [id: number, name: string, includeInMainRota: boolean, includeInTasks: boolean, is24_7: boolean, operationalHours: HoursEntry[], requiresMinimumStaffing: boolean, staffingRequirements: StaffingRequirement[]];
   'deleteDepartment': [department: Department];
 }>();
 
@@ -207,6 +219,7 @@ const savingDepartment = ref(false);
 const expandedDepartmentId = ref<number | null>(null);
 const editingDepartmentName = ref('');
 const editingIncludeInMainRota = ref(false);
+const editingIncludeInTasks = ref(false);
 const editingIs24_7 = ref(false);
 const editingOperationalHours = ref<HoursEntry[]>([]);
 const editingRequiresMinimumStaffing = ref(false);
@@ -258,6 +271,7 @@ const toggleDepartment = async (deptId: number) => {
     expandedDepartmentId.value = null;
     editingDepartmentName.value = '';
     editingIncludeInMainRota.value = false;
+    editingIncludeInTasks.value = false;
     editingIs24_7.value = false;
     editingOperationalHours.value = [];
     editingRequiresMinimumStaffing.value = false;
@@ -269,6 +283,7 @@ const toggleDepartment = async (deptId: number) => {
     if (dept) {
       editingDepartmentName.value = dept.name;
       editingIncludeInMainRota.value = Boolean(dept.includeInMainRota);
+      editingIncludeInTasks.value = Boolean(dept.includeInTasks);
       editingIs24_7.value = Boolean(dept.is24_7);
       editingRequiresMinimumStaffing.value = Boolean(dept.requiresMinimumStaffing);
 
@@ -311,6 +326,7 @@ const cancelEditingDepartment = () => {
   expandedDepartmentId.value = null;
   editingDepartmentName.value = '';
   editingIncludeInMainRota.value = false;
+  editingIncludeInTasks.value = false;
   editingIs24_7.value = false;
   editingOperationalHours.value = [];
   editingRequiresMinimumStaffing.value = false;
@@ -319,10 +335,11 @@ const cancelEditingDepartment = () => {
 
 const handleUpdateDepartment = (id: number) => {
   if (editingDepartmentName.value.trim()) {
-    emit('updateDepartment', id, editingDepartmentName.value.trim(), editingIncludeInMainRota.value, editingIs24_7.value, editingOperationalHours.value, editingRequiresMinimumStaffing.value, editingStaffingRequirements.value);
+    emit('updateDepartment', id, editingDepartmentName.value.trim(), editingIncludeInMainRota.value, editingIncludeInTasks.value, editingIs24_7.value, editingOperationalHours.value, editingRequiresMinimumStaffing.value, editingStaffingRequirements.value);
     expandedDepartmentId.value = null;
     editingDepartmentName.value = '';
     editingIncludeInMainRota.value = false;
+    editingIncludeInTasks.value = false;
     editingIs24_7.value = false;
     editingOperationalHours.value = [];
     editingRequiresMinimumStaffing.value = false;

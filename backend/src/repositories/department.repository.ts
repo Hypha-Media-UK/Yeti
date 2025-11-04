@@ -7,6 +7,7 @@ interface DepartmentRow {
   building_id: number | null;
   description: string | null;
   include_in_main_rota: boolean;
+  include_in_tasks: boolean;
   is_24_7: boolean;
   requires_minimum_staffing: boolean;
   is_active: boolean;
@@ -19,6 +20,7 @@ type DepartmentCreateInput = {
   buildingId?: number | null;
   description?: string | null;
   includeInMainRota?: boolean;
+  includeInTasks?: boolean;
   is24_7?: boolean;
   requiresMinimumStaffing?: boolean;
 };
@@ -28,6 +30,7 @@ type DepartmentUpdateInput = {
   buildingId?: number | null;
   description?: string | null;
   includeInMainRota?: boolean;
+  includeInTasks?: boolean;
   is24_7?: boolean;
   requiresMinimumStaffing?: boolean;
   isActive?: boolean;
@@ -48,6 +51,7 @@ export class DepartmentRepository extends BaseRepository<
       buildingId: row.building_id,
       description: row.description,
       includeInMainRota: row.include_in_main_rota,
+      includeInTasks: row.include_in_tasks,
       is24_7: row.is_24_7,
       requiresMinimumStaffing: row.requires_minimum_staffing,
       isActive: row.is_active,
@@ -62,6 +66,7 @@ export class DepartmentRepository extends BaseRepository<
       building_id: input.buildingId || null,
       description: input.description || null,
       include_in_main_rota: input.includeInMainRota ?? false,
+      include_in_tasks: input.includeInTasks ?? false,
       is_24_7: input.is24_7 ?? false,
       requires_minimum_staffing: input.requiresMinimumStaffing ?? false,
       is_active: true,
@@ -85,6 +90,10 @@ export class DepartmentRepository extends BaseRepository<
 
     if (input.includeInMainRota !== undefined) {
       updateData.include_in_main_rota = input.includeInMainRota;
+    }
+
+    if (input.includeInTasks !== undefined) {
+      updateData.include_in_tasks = input.includeInTasks;
     }
 
     if (input.is24_7 !== undefined) {

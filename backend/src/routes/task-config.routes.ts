@@ -17,10 +17,5 @@ router.post('/types/:typeId/items', taskConfigController.createTaskItem);
 router.patch('/items/:id', taskConfigController.updateTaskItem);
 router.delete('/items/:id', taskConfigController.deleteTaskItem);
 
-// Department link routes
-router.put('/types/:typeId/departments', taskConfigController.updateTaskTypeDepartments);
-router.post('/types/:typeId/departments/:deptId', taskConfigController.linkDepartment);
-router.delete('/types/:typeId/departments/:deptId', taskConfigController.unlinkDepartment);
-
 export default router;
 

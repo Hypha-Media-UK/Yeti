@@ -42,7 +42,6 @@ export interface TaskTypeDepartment {
 
 export interface TaskTypeWithItems extends TaskType {
   items: TaskItem[];
-  departmentIds: number[];  // Array of linked department IDs
 }
 
 export interface TaskItemWithAreas extends TaskItem {

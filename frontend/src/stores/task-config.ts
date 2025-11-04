@@ -45,11 +45,10 @@ export const useTaskConfigStore = defineStore('taskConfig', () => {
       const response = await api.createTaskType(input);
       const newTaskType = response.taskType;
 
-      // Add to local state with empty items and departments
+      // Add to local state with empty items
       taskTypes.value.push({
         ...newTaskType,
         items: [],
-        departmentIds: [],
       });
 
       return newTaskType;
@@ -186,73 +185,6 @@ export const useTaskConfigStore = defineStore('taskConfig', () => {
     }
   }
 
-  // ============================================================================
-  // Department Link Actions
-  // ============================================================================
-
-  async function updateTaskTypeDepartments(taskTypeId: number, departmentIds: number[]): Promise<void> {
-    loading.value = true;
-    error.value = null;
-
-    try {
-      await api.updateTaskTypeDepartments(taskTypeId, departmentIds);
-
-      // Update in local state
-      const taskType = taskTypes.value.find(tt => tt.id === taskTypeId);
-      if (taskType) {
-        taskType.departmentIds = departmentIds;
-      }
-    } catch (err: any) {
-      error.value = err.message || 'Failed to update department links';
-      console.error('Error updating department links:', err);
-      throw err;
-    } finally {
-      loading.value = false;
-    }
-  }
-
-  async function linkDepartment(taskTypeId: number, departmentId: number): Promise<void> {
-    loading.value = true;
-    error.value = null;
-
-    try {
-      // Use the updateTaskTypeDepartments method with the new department added
-      const taskType = taskTypes.value.find(tt => tt.id === taskTypeId);
-      if (taskType && !taskType.departmentIds.includes(departmentId)) {
-        const newDepartmentIds = [...taskType.departmentIds, departmentId];
-        await api.updateTaskTypeDepartments(taskTypeId, newDepartmentIds);
-        taskType.departmentIds = newDepartmentIds;
-      }
-    } catch (err: any) {
-      error.value = err.message || 'Failed to link department';
-      console.error('Error linking department:', err);
-      throw err;
-    } finally {
-      loading.value = false;
-    }
-  }
-
-  async function unlinkDepartment(taskTypeId: number, departmentId: number): Promise<void> {
-    loading.value = true;
-    error.value = null;
-
-    try {
-      // Use the updateTaskTypeDepartments method with the department removed
-      const taskType = taskTypes.value.find(tt => tt.id === taskTypeId);
-      if (taskType) {
-        const newDepartmentIds = taskType.departmentIds.filter(id => id !== departmentId);
-        await api.updateTaskTypeDepartments(taskTypeId, newDepartmentIds);
-        taskType.departmentIds = newDepartmentIds;
-      }
-    } catch (err: any) {
-      error.value = err.message || 'Failed to unlink department';
-      console.error('Error unlinking department:', err);
-      throw err;
-    } finally {
-      loading.value = false;
-    }
-  }
-
   return {
     // State
     taskTypes,
@@ -267,9 +199,6 @@ export const useTaskConfigStore = defineStore('taskConfig', () => {
     createTaskItem,
     updateTaskItem,
     deleteTaskItem,
-    updateTaskTypeDepartments,
-    linkDepartment,
-    unlinkDepartment,
   };
 });
 

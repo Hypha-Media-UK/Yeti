@@ -539,12 +539,5 @@ export const api = {
       method: 'DELETE',
     });
   },
-
-  async updateTaskTypeDepartments(taskTypeId: number, departmentIds: number[]): Promise<{ success: boolean }> {
-    return fetchApi<{ success: boolean }>(`/task-config/types/${taskTypeId}/departments`, {
-      method: 'PUT',
-      body: JSON.stringify({ departmentIds }),
-    });
-  },
 };
 

@@ -712,6 +712,7 @@ const handleUpdateDepartment = async (
   id: number,
   name: string,
   includeInMainRota: boolean,
+  includeInTasks: boolean,
   is24_7: boolean,
   operationalHours: Array<{ id?: number; dayOfWeek: number; startTime: string; endTime: string }>,
   requiresMinimumStaffing: boolean,
@@ -719,7 +720,7 @@ const handleUpdateDepartment = async (
 ) => {
   try {
     // Update department basic info
-    await api.updateDepartment(id, { name, includeInMainRota, is24_7, requiresMinimumStaffing });
+    await api.updateDepartment(id, { name, includeInMainRota, includeInTasks, is24_7, requiresMinimumStaffing });
 
     // Update operational hours - deduplicate first (only if not 24/7)
     if (!is24_7) {
@@ -922,8 +923,7 @@ const openTaskTypeModal = (taskType: TaskTypeWithItems) => {
 const handleUpdateTaskType = async (
   id: number,
   label: string,
-  description: string | null,
-  departmentIds: number[]
+  description: string | null
 ) => {
   try {
     if (id === 0) {
@@ -932,7 +932,6 @@ const handleUpdateTaskType = async (
     } else {
       // Update existing task type
       await taskConfigStore.updateTaskType(id, { label, description });
-      await taskConfigStore.updateTaskTypeDepartments(id, departmentIds);
     }
     await taskConfigStore.fetchTaskTypes();
     showTaskTypeModal.value = false;

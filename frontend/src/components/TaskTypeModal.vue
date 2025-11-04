@@ -28,27 +28,6 @@
           />
         </div>
 
-        <!-- Linked Departments -->
-        <div class="form-group">
-          <label class="form-label">Frequent Requester Departments</label>
-          <p class="form-hint">Select departments that commonly request this task type</p>
-          <div class="department-checkboxes">
-            <label
-              v-for="dept in departments"
-              :key="dept.id"
-              class="checkbox-label"
-            >
-              <input
-                type="checkbox"
-                :value="dept.id"
-                v-model="linkedDepartmentIds"
-                class="checkbox-input"
-              />
-              <span>{{ dept.name }}</span>
-            </label>
-          </div>
-        </div>
-
         <div class="form-actions">
           <button class="btn btn-primary" @click="saveTaskType">
             Save Task Type
@@ -269,7 +248,7 @@ const props = defineProps<Props>();
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean];
-  'updateTaskType': [id: number, label: string, description: string | null, departmentIds: number[]];
+  'updateTaskType': [id: number, label: string, description: string | null];
   'addTaskItem': [taskTypeId: number, name: string, defaultOriginAreaId: number | null, defaultOriginAreaType: 'department' | 'service' | null, defaultDestinationAreaId: number | null, defaultDestinationAreaType: 'department' | 'service' | null];
   'updateTaskItem': [id: number, name: string, defaultOriginAreaId: number | null, defaultOriginAreaType: 'department' | 'service' | null, defaultDestinationAreaId: number | null, defaultDestinationAreaType: 'department' | 'service' | null];
   'deleteTaskItem': [id: number];
@@ -283,7 +262,6 @@ const isOpen = computed({
 // Task Type editing
 const taskTypeLabel = ref('');
 const taskTypeDescription = ref('');
-const linkedDepartmentIds = ref<number[]>([]);
 
 // Task Item adding
 const isAddingTaskItem = ref(false);
@@ -308,7 +286,6 @@ watch(() => props.taskType, (newTaskType) => {
   if (newTaskType) {
     taskTypeLabel.value = newTaskType.label;
     taskTypeDescription.value = newTaskType.description || '';
-    linkedDepartmentIds.value = [...(newTaskType.departmentIds || [])];
   }
 }, { immediate: true });
 
@@ -322,7 +299,7 @@ const getAreasForType = (type: 'department' | 'service' | null) => {
 };
 
 const saveTaskType = () => {
-  emit('updateTaskType', props.taskType.id, taskTypeLabel.value, taskTypeDescription.value || null, linkedDepartmentIds.value);
+  emit('updateTaskType', props.taskType.id, taskTypeLabel.value, taskTypeDescription.value || null);
 };
 
 const startAddingTaskItem = () => {

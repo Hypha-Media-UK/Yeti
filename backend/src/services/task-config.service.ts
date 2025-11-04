@@ -27,20 +27,18 @@ export class TaskConfigService {
   // ============================================================================
 
   /**
-   * Get all task types with their items and linked departments
+   * Get all task types with their items
    */
   async getTaskTypesWithItems(): Promise<TaskTypeWithItems[]> {
     const taskTypes = await this.taskTypeRepo.findAll();
-    
+
     const taskTypesWithItems = await Promise.all(
       taskTypes.map(async (taskType) => {
         const items = await this.taskItemRepo.findByTaskType(taskType.id);
-        const departmentIds = await this.taskTypeDeptRepo.findDepartmentIdsByTaskType(taskType.id);
-        
+
         return {
           ...taskType,
           items,
-          departmentIds,
         };
       })
     );
@@ -49,22 +47,20 @@ export class TaskConfigService {
   }
 
   /**
-   * Get a single task type by ID with items and departments
+   * Get a single task type by ID with items
    */
   async getTaskTypeById(id: number): Promise<TaskTypeWithItems | null> {
     const taskType = await this.taskTypeRepo.findById(id);
-    
+
     if (!taskType) {
       return null;
     }
 
     const items = await this.taskItemRepo.findByTaskType(id);
-    const departmentIds = await this.taskTypeDeptRepo.findDepartmentIdsByTaskType(id);
 
     return {
       ...taskType,
       items,
-      departmentIds,
     };
   }
 
@@ -191,52 +187,5 @@ export class TaskConfigService {
     return !!updated;
   }
 
-  // ============================================================================
-  // Task Type-Department Link Operations
-  // ============================================================================
-
-  /**
-   * Link a department to a task type
-   */
-  async linkDepartmentToTaskType(taskTypeId: number, departmentId: number): Promise<void> {
-    // Check if link already exists
-    const existingDeptIds = await this.taskTypeDeptRepo.findDepartmentIdsByTaskType(taskTypeId);
-    
-    if (existingDeptIds.includes(departmentId)) {
-      // Link already exists, no need to create
-      return;
-    }
-
-    await this.taskTypeDeptRepo.create({
-      taskTypeId,
-      departmentId,
-    });
-  }
-
-  /**
-   * Unlink a department from a task type
-   */
-  async unlinkDepartmentFromTaskType(taskTypeId: number, departmentId: number): Promise<void> {
-    await this.taskTypeDeptRepo.deleteLink(taskTypeId, departmentId);
-  }
-
-  /**
-   * Update all department links for a task type
-   * (Replaces existing links with new set)
-   */
-  async updateTaskTypeDepartments(taskTypeId: number, departmentIds: number[]): Promise<void> {
-    // Delete all existing links
-    await this.taskTypeDeptRepo.deleteAllForTaskType(taskTypeId);
-
-    // Create new links
-    await Promise.all(
-      departmentIds.map(deptId =>
-        this.taskTypeDeptRepo.create({
-          taskTypeId,
-          departmentId: deptId,
-        })
-      )
-    );
-  }
 }
 
