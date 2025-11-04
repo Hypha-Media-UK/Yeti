@@ -133,40 +133,40 @@
 
   /* Primary button - solid blue */
   .btn-primary {
-    background: var(--color-primary) !important;
-    color: white !important;
+    background-color: var(--color-primary);
+    color: white;
   }
 
   .btn-primary:hover:not(:disabled) {
-    background: var(--color-primary-hover) !important;
+    background-color: var(--color-primary-hover);
   }
 
   .btn-primary:disabled {
-    background: var(--color-border) !important;
-    color: var(--color-text-secondary) !important;
-    opacity: 1 !important;
+    background-color: var(--color-border);
+    color: var(--color-text-secondary);
+    opacity: 1;
   }
 
   /* Secondary button - outline */
   .btn-secondary {
-    background: transparent;
+    background-color: transparent;
     color: var(--color-text-primary);
     border: 1px solid var(--color-border);
   }
 
   .btn-secondary:hover:not(:disabled) {
-    background: var(--color-bg);
+    background-color: var(--color-bg);
     border-color: var(--color-text-secondary);
   }
 
   /* Destructive button - solid red */
   .btn-destructive {
-    background: var(--color-error);
+    background-color: var(--color-error);
     color: white;
   }
 
   .btn-destructive:hover:not(:disabled) {
-    background: #B91C1C;
+    background-color: #B91C1C;
   }
 
   /* Small button variant */
