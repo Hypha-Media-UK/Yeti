@@ -1,5 +1,5 @@
 import { TaskRepository } from '../repositories/task.repository';
-import type { Task, CreateTaskInput, UpdateTaskInput, TaskFilterOptions } from '@shared/types/task';
+import type { Task, TaskWithRelations, CreateTaskInput, UpdateTaskInput, TaskFilterOptions } from '@shared/types/task';
 
 export class TaskService {
   private taskRepo: TaskRepository;
@@ -33,7 +33,7 @@ export class TaskService {
   /**
    * Get all tasks with optional filtering
    */
-  async getTasks(filters?: TaskFilterOptions): Promise<Task[]> {
+  async getTasks(filters?: TaskFilterOptions): Promise<TaskWithRelations[]> {
     if (filters) {
       return this.taskRepo.findWithFilters(filters);
     }
@@ -87,28 +87,28 @@ export class TaskService {
   /**
    * Get tasks by assigned staff member
    */
-  async getTasksByStaff(staffId: number): Promise<Task[]> {
+  async getTasksByStaff(staffId: number): Promise<TaskWithRelations[]> {
     return this.taskRepo.findByStaffId(staffId);
   }
 
   /**
    * Get tasks by origin area
    */
-  async getTasksByOriginArea(areaId: number, areaType: 'department' | 'service'): Promise<Task[]> {
+  async getTasksByOriginArea(areaId: number, areaType: 'department' | 'service'): Promise<TaskWithRelations[]> {
     return this.taskRepo.findByOriginArea(areaId, areaType);
   }
 
   /**
    * Get tasks by destination area
    */
-  async getTasksByDestinationArea(areaId: number, areaType: 'department' | 'service'): Promise<Task[]> {
+  async getTasksByDestinationArea(areaId: number, areaType: 'department' | 'service'): Promise<TaskWithRelations[]> {
     return this.taskRepo.findByDestinationArea(areaId, areaType);
   }
 
   /**
    * Get pending tasks (not completed or cancelled)
    */
-  async getPendingTasks(): Promise<Task[]> {
+  async getPendingTasks(): Promise<TaskWithRelations[]> {
     return this.taskRepo.findPending();
   }
 

@@ -1,11 +1,11 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import type { Task, CreateTaskInput, UpdateTaskInput, TaskFilterOptions, TaskStatus } from '@shared/types/task';
+import type { Task, TaskWithRelations, CreateTaskInput, UpdateTaskInput, TaskFilterOptions, TaskStatus } from '@shared/types/task';
 
 // API service for tasks
 const API_BASE = '/api/tasks';
 
-async function fetchTasks(filters?: TaskFilterOptions): Promise<{ tasks: Task[] }> {
+async function fetchTasks(filters?: TaskFilterOptions): Promise<{ tasks: TaskWithRelations[] }> {
   const params = new URLSearchParams();
   
   if (filters) {
@@ -139,7 +139,7 @@ async function assignTask(id: number, staffId: number | null): Promise<{ task: T
 }
 
 export const useTaskStore = defineStore('task', () => {
-  const taskList = ref<Task[]>([]);
+  const taskList = ref<TaskWithRelations[]>([]);
   const isLoading = ref(false);
   const error = ref<string | null>(null);
 

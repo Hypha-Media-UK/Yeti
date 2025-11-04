@@ -1,5 +1,5 @@
 import { BaseRepository } from './base.repository';
-import type { Task, CreateTaskInput, UpdateTaskInput, TaskFilterOptions } from '@shared/types/task';
+import type { Task, TaskWithRelations, CreateTaskInput, UpdateTaskInput, TaskFilterOptions } from '@shared/types/task';
 import { pool } from '../config/database';
 
 interface TaskRow {
@@ -9,7 +9,9 @@ interface TaskRow {
   destination_area_id: number;
   destination_area_type: 'department' | 'service';
   task_type: string;
+  task_type_id: number | null;
   task_detail: string;
+  task_item_id: number | null;
   requested_time: string;
   allocated_time: string;
   completed_time: string | null;
@@ -17,12 +19,20 @@ interface TaskRow {
   status: string;
   created_at: string;
   updated_at: string;
+  task_item?: {
+    id: number;
+    name: string;
+    task_type: {
+      id: number;
+      label: string;
+    };
+  } | null;
 }
 
 export class TaskRepository extends BaseRepository<Task, TaskRow, CreateTaskInput, UpdateTaskInput> {
   protected readonly tableName = 'tasks';
 
-  protected mapRowToEntity(row: TaskRow): Task {
+  protected mapRowToEntity(row: TaskRow): TaskWithRelations {
     return {
       id: row.id,
       originAreaId: row.origin_area_id,
@@ -30,7 +40,9 @@ export class TaskRepository extends BaseRepository<Task, TaskRow, CreateTaskInpu
       destinationAreaId: row.destination_area_id,
       destinationAreaType: row.destination_area_type,
       taskType: row.task_type as Task['taskType'],
+      taskTypeId: row.task_type_id,
       taskDetail: row.task_detail,
+      taskItemId: row.task_item_id,
       requestedTime: row.requested_time,
       allocatedTime: row.allocated_time,
       completedTime: row.completed_time,
@@ -38,6 +50,14 @@ export class TaskRepository extends BaseRepository<Task, TaskRow, CreateTaskInpu
       status: row.status as Task['status'],
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      taskItem: row.task_item ? {
+        id: row.task_item.id,
+        name: row.task_item.name,
+        taskType: {
+          id: row.task_item.task_type.id,
+          label: row.task_item.task_type.label,
+        },
+      } : null,
     };
   }
 
@@ -48,7 +68,9 @@ export class TaskRepository extends BaseRepository<Task, TaskRow, CreateTaskInpu
       destination_area_id: input.destinationAreaId,
       destination_area_type: input.destinationAreaType,
       task_type: input.taskType,
+      task_type_id: input.taskTypeId ?? null,
       task_detail: input.taskDetail,
+      task_item_id: input.taskItemId ?? null,
       requested_time: input.requestedTime,
       allocated_time: input.allocatedTime,
       completed_time: input.completedTime ?? null,
@@ -74,10 +96,20 @@ export class TaskRepository extends BaseRepository<Task, TaskRow, CreateTaskInpu
   /**
    * Find tasks with optional filtering
    */
-  async findWithFilters(filters: TaskFilterOptions = {}): Promise<Task[]> {
+  async findWithFilters(filters: TaskFilterOptions = {}): Promise<TaskWithRelations[]> {
     let query = this.client
       .from(this.tableName)
-      .select('*');
+      .select(`
+        *,
+        task_item:task_items(
+          id,
+          name,
+          task_type:task_types(
+            id,
+            label
+          )
+        )
+      `);
 
     // Status filter
     if (filters.status) {
@@ -139,28 +171,28 @@ export class TaskRepository extends BaseRepository<Task, TaskRow, CreateTaskInpu
   /**
    * Find tasks by assigned staff member
    */
-  async findByStaffId(staffId: number): Promise<Task[]> {
+  async findByStaffId(staffId: number): Promise<TaskWithRelations[]> {
     return this.findWithFilters({ assignedStaffId: staffId });
   }
 
   /**
    * Find tasks by origin area
    */
-  async findByOriginArea(areaId: number, areaType: 'department' | 'service'): Promise<Task[]> {
+  async findByOriginArea(areaId: number, areaType: 'department' | 'service'): Promise<TaskWithRelations[]> {
     return this.findWithFilters({ originAreaId: areaId, originAreaType: areaType });
   }
 
   /**
    * Find tasks by destination area
    */
-  async findByDestinationArea(areaId: number, areaType: 'department' | 'service'): Promise<Task[]> {
+  async findByDestinationArea(areaId: number, areaType: 'department' | 'service'): Promise<TaskWithRelations[]> {
     return this.findWithFilters({ destinationAreaId: areaId, destinationAreaType: areaType });
   }
 
   /**
    * Find pending tasks (not completed or cancelled)
    */
-  async findPending(): Promise<Task[]> {
+  async findPending(): Promise<TaskWithRelations[]> {
     return this.findWithFilters({ status: ['pending', 'in-progress'] });
   }
 

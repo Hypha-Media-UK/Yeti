@@ -191,15 +191,37 @@ async function loadTasks() {
 
 // Get task type label
 function getTaskTypeLabel(task: Task): string {
+  // First, try to get from the new task item system
   if (task.taskItem && task.taskItem.taskType) {
     return task.taskItem.taskType.label;
   }
-  // Fallback to finding the task type from the config store
+
+  // Fallback: Try to find the task type from the config store using taskTypeId
   if (task.taskTypeId) {
     const taskType = taskConfigStore.taskTypes.find(t => t.id === task.taskTypeId);
     if (taskType) return taskType.label;
   }
-  return task.taskType || 'Unknown';
+
+  // Fallback: Try to find the task type by matching the task detail
+  if (task.taskDetail) {
+    // Search through all task types and their items to find a match
+    for (const taskType of taskConfigStore.taskTypes) {
+      const matchingItem = taskType.items.find(item => item.name === task.taskDetail);
+      if (matchingItem) {
+        return taskType.label;
+      }
+    }
+  }
+
+  // Last resort: Use the old taskType enum value if available
+  if (task.taskType) {
+    // Convert enum value to label (e.g., 'asset-move' -> 'Asset Move')
+    return task.taskType.split('-').map(word =>
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
+  }
+
+  return 'Unknown';
 }
 
 // Get task detail

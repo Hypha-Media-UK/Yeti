@@ -68,6 +68,14 @@ export interface TaskWithRelations extends Task {
     lastName: string;
     status: string;
   };
+  taskItem?: {
+    id: number;
+    name: string;
+    taskType: {
+      id: number;
+      label: string;
+    };
+  } | null;
 }
 
 // Task creation input (omits auto-generated fields)
