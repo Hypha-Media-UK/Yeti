@@ -100,6 +100,7 @@ export class TaskController {
         destinationAreaType,
         taskType,
         taskDetail,
+        taskItemId,
         requestedTime,
         allocatedTime,
         completedTime,
@@ -113,8 +114,9 @@ export class TaskController {
         return;
       }
 
-      if (!taskType || !taskDetail) {
-        res.status(400).json({ error: 'Task type and detail are required' });
+      // Either taskItemId (new) or taskType+taskDetail (old) must be provided
+      if (!taskItemId && (!taskType || !taskDetail)) {
+        res.status(400).json({ error: 'Task item is required' });
         return;
       }
 
@@ -128,8 +130,9 @@ export class TaskController {
         originAreaType,
         destinationAreaId: parseInt(destinationAreaId, 10),
         destinationAreaType,
-        taskType,
-        taskDetail,
+        taskType: taskType || null,
+        taskDetail: taskDetail || null,
+        taskItemId: taskItemId ? parseInt(taskItemId, 10) : null,
         requestedTime,
         allocatedTime,
         completedTime: completedTime || null,
