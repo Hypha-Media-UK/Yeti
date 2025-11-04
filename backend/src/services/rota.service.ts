@@ -126,18 +126,7 @@ export class RotaService {
     );
     this.categorizeShifts(manualAssignmentResults, dayShifts, nightShifts);
 
-    // 2. Check if we need to include yesterday's night shift (if it's still active)
-    // Night shifts typically run 20:00-08:00, so yesterday's night shift extends into today
-    // Add them to DAY shifts since they're working during day hours (00:00-08:00)
-    const yesterdayNightShift = await this.getYesterdayNightShiftIfActive(
-      targetDate,
-      appZeroDate,
-      contractedHoursMap,
-      manuallyAssignedStaffIds
-    );
-    dayShifts.push(...yesterdayNightShift);
-
-    // 3. Process cycle-based staff (excluding pool staff and manually assigned)
+    // 2. Process cycle-based staff (excluding pool staff and manually assigned)
     const cycleBasedAssignments = await this.processCycleBasedStaff(
       allStaff,
       targetDate,
@@ -147,7 +136,7 @@ export class RotaService {
     );
     this.categorizeShifts(cycleBasedAssignments, dayShifts, nightShifts);
 
-    // 4. Process pool staff
+    // 3. Process pool staff
     const poolStaffAssignments = await this.poolStaffService.processPoolStaff(
       targetDate,
       appZeroDate,
@@ -155,6 +144,16 @@ export class RotaService {
       contractedHoursMap
     );
     this.categorizeShifts(poolStaffAssignments, dayShifts, nightShifts);
+
+    // 4. Get yesterday's night shift staff if still active (for task assignment only)
+    // Night shifts typically run 20:00-08:00, so yesterday's night shift extends into today
+    // We DON'T add them to dayShifts or nightShifts to keep the rota display clean
+    const previousNightShift = await this.getYesterdayNightShiftIfActive(
+      targetDate,
+      appZeroDate,
+      contractedHoursMap,
+      manuallyAssignedStaffIds
+    );
 
     // 5. Attach absence information
     await this.attachAbsenceInfo(dayShifts, nightShifts, targetDate);
@@ -164,12 +163,13 @@ export class RotaService {
     this.sortShifts(nightShifts, targetDate, appZeroDate);
 
     const endTime = Date.now();
-    console.log(`[ROTA] Completed in ${endTime - startTime}ms (${dayShifts.length} day, ${nightShifts.length} night)`);
+    console.log(`[ROTA] Completed in ${endTime - startTime}ms (${dayShifts.length} day, ${nightShifts.length} night, ${previousNightShift.length} previous night)`);
 
     return {
       date: targetDate,
       dayShifts,
       nightShifts,
+      previousNightShift,
     };
   }
 

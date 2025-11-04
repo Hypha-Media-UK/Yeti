@@ -260,9 +260,9 @@ const formData = reactive({
 
 // Computed properties
 // Get staff who are currently active in their shift (within shift times)
-// The backend now includes yesterday's night shift staff if they're still working
+// Uses allShiftsIncludingPrevious to include yesterday's night shift staff who are still working
 const staffInShiftPool = computed(() => {
-  const allShifts = dayStore.allShiftsForDate;
+  const allShifts = dayStore.allShiftsIncludingPrevious;
   // Only include staff whose shift status is 'active' (currently within their shift hours)
   const activeShiftStaffIds = new Set(
     allShifts

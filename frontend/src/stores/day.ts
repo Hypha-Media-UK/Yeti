@@ -37,7 +37,8 @@ export const useDayStore = defineStore('day', () => {
   // Computed properties
   const dayShifts = computed(() => currentRota.value?.dayShifts || []);
   const nightShifts = computed(() => currentRota.value?.nightShifts || []);
-  
+
+  // All shifts for the date (for display in rota panels)
   const allShiftsForDate = computed(() => {
     if (!currentRota.value) return [];
     return [
@@ -52,6 +53,16 @@ export const useDayStore = defineStore('day', () => {
       const nameB = `${b.staff.lastName} ${b.staff.firstName}`;
       return nameA.localeCompare(nameB);
     });
+  });
+
+  // All shifts including previous night shift (for task assignment)
+  const allShiftsIncludingPrevious = computed(() => {
+    if (!currentRota.value) return [];
+    return [
+      ...currentRota.value.dayShifts,
+      ...currentRota.value.nightShifts,
+      ...(currentRota.value.previousNightShift || [])
+    ];
   });
 
   // ============================================================================
@@ -256,6 +267,7 @@ export const useDayStore = defineStore('day', () => {
     dayShifts,
     nightShifts,
     allShiftsForDate,
+    allShiftsIncludingPrevious,
 
     // Actions
     loadRota,

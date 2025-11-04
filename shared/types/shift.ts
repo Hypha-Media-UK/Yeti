@@ -84,6 +84,8 @@ export interface DayRota {
   date: string;
   dayShifts: ShiftAssignment[];
   nightShifts: ShiftAssignment[];
+  // Yesterday's night shift staff who are still working (for task assignment only, not displayed in panels)
+  previousNightShift?: ShiftAssignment[];
 }
 
 export interface AreaWithStaff {
