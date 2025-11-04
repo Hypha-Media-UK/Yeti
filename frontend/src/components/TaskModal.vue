@@ -331,6 +331,32 @@ function handleTaskTypeChange() {
   formData.taskDetail = '';
 }
 
+// Parse area key to get ID and type
+function parseAreaKey(key: string): { id: number; type: 'department' | 'service' } | null {
+  if (!key) return null;
+  const [type, idStr] = key.split('-');
+  return {
+    id: parseInt(idStr, 10),
+    type: type as 'department' | 'service',
+  };
+}
+
+// Watch for origin department changes to auto-populate task type
+watch(() => formData.originAreaKey, (originKey) => {
+  if (!originKey || formData.taskType) return; // Don't override if task type already selected
+
+  const parsed = parseAreaKey(originKey);
+  if (parsed && parsed.type === 'department') {
+    const department = departments.value.find(d => d.id === parsed.id);
+    if (department?.mostFrequentTaskTypeId) {
+      const taskType = taskTypes.value.find(tt => tt.id === department.mostFrequentTaskTypeId);
+      if (taskType) {
+        formData.taskType = taskType.label;
+      }
+    }
+  }
+});
+
 // Watch for task detail changes to auto-populate origin/destination
 watch(() => formData.taskDetail, (selectedItemName) => {
   if (!selectedItemName || !formData.taskType) return;
@@ -350,16 +376,6 @@ watch(() => formData.taskDetail, (selectedItemName) => {
     }
   }
 });
-
-// Parse area key to get ID and type
-function parseAreaKey(key: string): { id: number; type: 'department' | 'service' } | null {
-  if (!key) return null;
-  const [type, idStr] = key.split('-');
-  return {
-    id: parseInt(idStr, 10),
-    type: type as 'department' | 'service',
-  };
-}
 
 // Handle form submission
 async function handleSubmit(status: 'pending' | 'completed') {

@@ -8,6 +8,7 @@ interface DepartmentRow {
   description: string | null;
   include_in_main_rota: boolean;
   include_in_tasks: boolean;
+  most_frequent_task_type_id: number | null;
   is_24_7: boolean;
   requires_minimum_staffing: boolean;
   is_active: boolean;
@@ -21,6 +22,7 @@ type DepartmentCreateInput = {
   description?: string | null;
   includeInMainRota?: boolean;
   includeInTasks?: boolean;
+  mostFrequentTaskTypeId?: number | null;
   is24_7?: boolean;
   requiresMinimumStaffing?: boolean;
 };
@@ -31,6 +33,7 @@ type DepartmentUpdateInput = {
   description?: string | null;
   includeInMainRota?: boolean;
   includeInTasks?: boolean;
+  mostFrequentTaskTypeId?: number | null;
   is24_7?: boolean;
   requiresMinimumStaffing?: boolean;
   isActive?: boolean;
@@ -52,6 +55,7 @@ export class DepartmentRepository extends BaseRepository<
       description: row.description,
       includeInMainRota: row.include_in_main_rota,
       includeInTasks: row.include_in_tasks,
+      mostFrequentTaskTypeId: row.most_frequent_task_type_id,
       is24_7: row.is_24_7,
       requiresMinimumStaffing: row.requires_minimum_staffing,
       isActive: row.is_active,
@@ -67,6 +71,7 @@ export class DepartmentRepository extends BaseRepository<
       description: input.description || null,
       include_in_main_rota: input.includeInMainRota ?? false,
       include_in_tasks: input.includeInTasks ?? false,
+      most_frequent_task_type_id: input.mostFrequentTaskTypeId || null,
       is_24_7: input.is24_7 ?? false,
       requires_minimum_staffing: input.requiresMinimumStaffing ?? false,
       is_active: true,
@@ -94,6 +99,10 @@ export class DepartmentRepository extends BaseRepository<
 
     if (input.includeInTasks !== undefined) {
       updateData.include_in_tasks = input.includeInTasks;
+    }
+
+    if (input.mostFrequentTaskTypeId !== undefined) {
+      updateData.most_frequent_task_type_id = input.mostFrequentTaskTypeId;
     }
 
     if (input.is24_7 !== undefined) {

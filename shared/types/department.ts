@@ -7,6 +7,7 @@ export interface Department {
   description: string | null;
   includeInMainRota: boolean;
   includeInTasks: boolean;
+  mostFrequentTaskTypeId: number | null;
   is24_7: boolean;
   requiresMinimumStaffing: boolean;
   isActive: boolean;
@@ -30,6 +31,7 @@ export interface UpdateDepartmentDto {
   description?: string | null;
   includeInMainRota?: boolean;
   includeInTasks?: boolean;
+  mostFrequentTaskTypeId?: number | null;
   is24_7?: boolean;
   requiresMinimumStaffing?: boolean;
   isActive?: boolean;

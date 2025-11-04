@@ -62,54 +62,32 @@
           <div class="form-group">
             <label class="form-label">Default Origin (Optional)</label>
             <p class="form-hint">Auto-populate origin when this item is selected</p>
-            <div class="area-selector">
-              <select v-model="newTaskItemOriginType" class="form-input">
-                <option :value="null">None</option>
-                <option value="department">Department</option>
-                <option value="service">Service</option>
-              </select>
-              <select
-                v-if="newTaskItemOriginType"
-                v-model="newTaskItemOriginId"
-                class="form-input"
+            <select v-model="newTaskItemOriginId" class="form-input">
+              <option :value="null">None</option>
+              <option
+                v-for="dept in departments"
+                :key="dept.id"
+                :value="dept.id"
               >
-                <option :value="null">Select {{ newTaskItemOriginType }}</option>
-                <option
-                  v-for="area in getAreasForType(newTaskItemOriginType)"
-                  :key="area.id"
-                  :value="area.id"
-                >
-                  {{ area.name }}
-                </option>
-              </select>
-            </div>
+                {{ dept.name }}
+              </option>
+            </select>
           </div>
 
           <!-- Destination Area Selection -->
           <div class="form-group">
             <label class="form-label">Default Destination (Optional)</label>
             <p class="form-hint">Auto-populate destination when this item is selected</p>
-            <div class="area-selector">
-              <select v-model="newTaskItemDestinationType" class="form-input">
-                <option :value="null">None</option>
-                <option value="department">Department</option>
-                <option value="service">Service</option>
-              </select>
-              <select
-                v-if="newTaskItemDestinationType"
-                v-model="newTaskItemDestinationId"
-                class="form-input"
+            <select v-model="newTaskItemDestinationId" class="form-input">
+              <option :value="null">None</option>
+              <option
+                v-for="dept in departments"
+                :key="dept.id"
+                :value="dept.id"
               >
-                <option :value="null">Select {{ newTaskItemDestinationType }}</option>
-                <option
-                  v-for="area in getAreasForType(newTaskItemDestinationType)"
-                  :key="area.id"
-                  :value="area.id"
-                >
-                  {{ area.name }}
-                </option>
-              </select>
-            </div>
+                {{ dept.name }}
+              </option>
+            </select>
           </div>
 
           <div class="form-actions">
@@ -167,53 +145,31 @@
               <!-- Origin Area Selection -->
               <div class="form-group">
                 <label class="form-label">Default Origin (Optional)</label>
-                <div class="area-selector">
-                  <select v-model="editingTaskItemOriginType" class="form-input">
-                    <option :value="null">None</option>
-                    <option value="department">Department</option>
-                    <option value="service">Service</option>
-                  </select>
-                  <select
-                    v-if="editingTaskItemOriginType"
-                    v-model="editingTaskItemOriginId"
-                    class="form-input"
+                <select v-model="editingTaskItemOriginId" class="form-input">
+                  <option :value="null">None</option>
+                  <option
+                    v-for="dept in departments"
+                    :key="dept.id"
+                    :value="dept.id"
                   >
-                    <option :value="null">Select {{ editingTaskItemOriginType }}</option>
-                    <option
-                      v-for="area in getAreasForType(editingTaskItemOriginType)"
-                      :key="area.id"
-                      :value="area.id"
-                    >
-                      {{ area.name }}
-                    </option>
-                  </select>
-                </div>
+                    {{ dept.name }}
+                  </option>
+                </select>
               </div>
 
               <!-- Destination Area Selection -->
               <div class="form-group">
                 <label class="form-label">Default Destination (Optional)</label>
-                <div class="area-selector">
-                  <select v-model="editingTaskItemDestinationType" class="form-input">
-                    <option :value="null">None</option>
-                    <option value="department">Department</option>
-                    <option value="service">Service</option>
-                  </select>
-                  <select
-                    v-if="editingTaskItemDestinationType"
-                    v-model="editingTaskItemDestinationId"
-                    class="form-input"
+                <select v-model="editingTaskItemDestinationId" class="form-input">
+                  <option :value="null">None</option>
+                  <option
+                    v-for="dept in departments"
+                    :key="dept.id"
+                    :value="dept.id"
                   >
-                    <option :value="null">Select {{ editingTaskItemDestinationType }}</option>
-                    <option
-                      v-for="area in getAreasForType(editingTaskItemDestinationType)"
-                      :key="area.id"
-                      :value="area.id"
-                    >
-                      {{ area.name }}
-                    </option>
-                  </select>
-                </div>
+                    {{ dept.name }}
+                  </option>
+                </select>
               </div>
 
               <div class="form-actions">
@@ -266,17 +222,13 @@ const taskTypeDescription = ref('');
 // Task Item adding
 const isAddingTaskItem = ref(false);
 const newTaskItemName = ref('');
-const newTaskItemOriginType = ref<'department' | 'service' | null>(null);
 const newTaskItemOriginId = ref<number | null>(null);
-const newTaskItemDestinationType = ref<'department' | 'service' | null>(null);
 const newTaskItemDestinationId = ref<number | null>(null);
 
 // Task Item editing
 const expandedTaskItemId = ref<number | null>(null);
 const editingTaskItemName = ref('');
-const editingTaskItemOriginType = ref<'department' | 'service' | null>(null);
 const editingTaskItemOriginId = ref<number | null>(null);
-const editingTaskItemDestinationType = ref<'department' | 'service' | null>(null);
 const editingTaskItemDestinationId = ref<number | null>(null);
 
 const taskItems = computed(() => props.taskType.items || []);
@@ -289,15 +241,6 @@ watch(() => props.taskType, (newTaskType) => {
   }
 }, { immediate: true });
 
-const getAreasForType = (type: 'department' | 'service' | null) => {
-  if (type === 'department') {
-    return props.departments;
-  } else if (type === 'service') {
-    return props.services;
-  }
-  return [];
-};
-
 const saveTaskType = () => {
   emit('updateTaskType', props.taskType.id, taskTypeLabel.value, taskTypeDescription.value || null);
 };
@@ -305,9 +248,7 @@ const saveTaskType = () => {
 const startAddingTaskItem = () => {
   isAddingTaskItem.value = true;
   newTaskItemName.value = '';
-  newTaskItemOriginType.value = null;
   newTaskItemOriginId.value = null;
-  newTaskItemDestinationType.value = null;
   newTaskItemDestinationId.value = null;
 };
 
@@ -320,7 +261,8 @@ const saveNewTaskItem = () => {
     return;
   }
 
-  emit('addTaskItem', props.taskType.id, newTaskItemName.value.trim(), newTaskItemOriginId.value, newTaskItemOriginType.value, newTaskItemDestinationId.value, newTaskItemDestinationType.value);
+  // Always use 'department' as the type since we only support departments now
+  emit('addTaskItem', props.taskType.id, newTaskItemName.value.trim(), newTaskItemOriginId.value, 'department', newTaskItemDestinationId.value, 'department');
   isAddingTaskItem.value = false;
 };
 
@@ -332,9 +274,7 @@ const toggleTaskItem = (itemId: number) => {
     if (item) {
       expandedTaskItemId.value = itemId;
       editingTaskItemName.value = item.name;
-      editingTaskItemOriginType.value = item.defaultOriginAreaType;
       editingTaskItemOriginId.value = item.defaultOriginAreaId;
-      editingTaskItemDestinationType.value = item.defaultDestinationAreaType;
       editingTaskItemDestinationId.value = item.defaultDestinationAreaId;
     }
   }
@@ -349,7 +289,8 @@ const saveEditedTaskItem = () => {
     return;
   }
 
-  emit('updateTaskItem', expandedTaskItemId.value, editingTaskItemName.value.trim(), editingTaskItemOriginId.value, editingTaskItemOriginType.value, editingTaskItemDestinationId.value, editingTaskItemDestinationType.value);
+  // Always use 'department' as the type since we only support departments now
+  emit('updateTaskItem', expandedTaskItemId.value, editingTaskItemName.value.trim(), editingTaskItemOriginId.value, 'department', editingTaskItemDestinationId.value, 'department');
   expandedTaskItemId.value = null;
 };
 

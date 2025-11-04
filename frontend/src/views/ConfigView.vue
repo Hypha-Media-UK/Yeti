@@ -224,6 +224,7 @@
       v-model="showBuildingModal"
       :building="selectedBuilding"
       :departments="getBuildingDepartments(selectedBuilding.id)"
+      :task-types="taskTypes"
       @updateBuilding="handleUpdateBuilding"
       @addDepartment="handleAddDepartment"
       @updateDepartment="handleUpdateDepartment"
@@ -713,6 +714,7 @@ const handleUpdateDepartment = async (
   name: string,
   includeInMainRota: boolean,
   includeInTasks: boolean,
+  mostFrequentTaskTypeId: number | null,
   is24_7: boolean,
   operationalHours: Array<{ id?: number; dayOfWeek: number; startTime: string; endTime: string }>,
   requiresMinimumStaffing: boolean,
@@ -720,7 +722,7 @@ const handleUpdateDepartment = async (
 ) => {
   try {
     // Update department basic info
-    await api.updateDepartment(id, { name, includeInMainRota, includeInTasks, is24_7, requiresMinimumStaffing });
+    await api.updateDepartment(id, { name, includeInMainRota, includeInTasks, mostFrequentTaskTypeId, is24_7, requiresMinimumStaffing });
 
     // Update operational hours - deduplicate first (only if not 24/7)
     if (!is24_7) {

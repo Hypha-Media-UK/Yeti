@@ -107,6 +107,25 @@
             </div>
 
             <div class="form-group">
+              <label for="mostFrequentTaskType" class="form-label">Most Frequent Task Type</label>
+              <select
+                id="mostFrequentTaskType"
+                v-model="editingMostFrequentTaskTypeId"
+                class="form-input"
+              >
+                <option :value="null">None</option>
+                <option
+                  v-for="taskType in taskTypes"
+                  :key="taskType.id"
+                  :value="taskType.id"
+                >
+                  {{ taskType.label }}
+                </option>
+              </select>
+              <p class="form-hint">When this department is selected as origin, this task type will be auto-selected</p>
+            </div>
+
+            <div class="form-group">
               <label class="checkbox-label">
                 <input
                   v-model="editingIs24_7"
@@ -176,6 +195,7 @@ import StaffingRequirementsEditor from './StaffingRequirementsEditor.vue';
 import { api } from '../services/api';
 import type { Building } from '@shared/types/building';
 import type { Department } from '@shared/types/department';
+import type { TaskTypeWithItems } from '@shared/types/task-config';
 
 interface HoursEntry {
   id?: number;
@@ -195,6 +215,7 @@ interface Props {
   modelValue: boolean;
   building: Building;
   departments: Department[];
+  taskTypes: TaskTypeWithItems[];
 }
 
 const props = defineProps<Props>();
@@ -203,7 +224,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean];
   'updateBuilding': [id: number, name: string];
   'addDepartment': [buildingId: number, name: string];
-  'updateDepartment': [id: number, name: string, includeInMainRota: boolean, includeInTasks: boolean, is24_7: boolean, operationalHours: HoursEntry[], requiresMinimumStaffing: boolean, staffingRequirements: StaffingRequirement[]];
+  'updateDepartment': [id: number, name: string, includeInMainRota: boolean, includeInTasks: boolean, mostFrequentTaskTypeId: number | null, is24_7: boolean, operationalHours: HoursEntry[], requiresMinimumStaffing: boolean, staffingRequirements: StaffingRequirement[]];
   'deleteDepartment': [department: Department];
 }>();
 
@@ -220,6 +241,7 @@ const expandedDepartmentId = ref<number | null>(null);
 const editingDepartmentName = ref('');
 const editingIncludeInMainRota = ref(false);
 const editingIncludeInTasks = ref(false);
+const editingMostFrequentTaskTypeId = ref<number | null>(null);
 const editingIs24_7 = ref(false);
 const editingOperationalHours = ref<HoursEntry[]>([]);
 const editingRequiresMinimumStaffing = ref(false);
@@ -272,6 +294,7 @@ const toggleDepartment = async (deptId: number) => {
     editingDepartmentName.value = '';
     editingIncludeInMainRota.value = false;
     editingIncludeInTasks.value = false;
+    editingMostFrequentTaskTypeId.value = null;
     editingIs24_7.value = false;
     editingOperationalHours.value = [];
     editingRequiresMinimumStaffing.value = false;
@@ -284,6 +307,7 @@ const toggleDepartment = async (deptId: number) => {
       editingDepartmentName.value = dept.name;
       editingIncludeInMainRota.value = Boolean(dept.includeInMainRota);
       editingIncludeInTasks.value = Boolean(dept.includeInTasks);
+      editingMostFrequentTaskTypeId.value = dept.mostFrequentTaskTypeId;
       editingIs24_7.value = Boolean(dept.is24_7);
       editingRequiresMinimumStaffing.value = Boolean(dept.requiresMinimumStaffing);
 
@@ -327,6 +351,7 @@ const cancelEditingDepartment = () => {
   editingDepartmentName.value = '';
   editingIncludeInMainRota.value = false;
   editingIncludeInTasks.value = false;
+  editingMostFrequentTaskTypeId.value = null;
   editingIs24_7.value = false;
   editingOperationalHours.value = [];
   editingRequiresMinimumStaffing.value = false;
@@ -335,11 +360,12 @@ const cancelEditingDepartment = () => {
 
 const handleUpdateDepartment = (id: number) => {
   if (editingDepartmentName.value.trim()) {
-    emit('updateDepartment', id, editingDepartmentName.value.trim(), editingIncludeInMainRota.value, editingIncludeInTasks.value, editingIs24_7.value, editingOperationalHours.value, editingRequiresMinimumStaffing.value, editingStaffingRequirements.value);
+    emit('updateDepartment', id, editingDepartmentName.value.trim(), editingIncludeInMainRota.value, editingIncludeInTasks.value, editingMostFrequentTaskTypeId.value, editingIs24_7.value, editingOperationalHours.value, editingRequiresMinimumStaffing.value, editingStaffingRequirements.value);
     expandedDepartmentId.value = null;
     editingDepartmentName.value = '';
     editingIncludeInMainRota.value = false;
     editingIncludeInTasks.value = false;
+    editingMostFrequentTaskTypeId.value = null;
     editingIs24_7.value = false;
     editingOperationalHours.value = [];
     editingRequiresMinimumStaffing.value = false;
