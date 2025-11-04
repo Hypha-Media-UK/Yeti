@@ -124,20 +124,23 @@
 import { ref, computed, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useTaskStore } from '@/stores/task';
-import { useAreaStore } from '@/stores/area';
 import { useStaffStore } from '@/stores/staff';
 import { useTaskConfigStore } from '@/stores/task-config';
+import { useDayStore } from '@/stores/day';
 import { useTimeZone } from '@/composables/useTimeZone';
+import { api } from '@/services/api';
 import DateSelector from '@/components/DateSelector.vue';
 import TaskEditModal from '@/components/TaskEditModal.vue';
 import type { Task } from '@shared/types/task';
+import type { Department } from '@shared/types/department';
+import type { Service } from '@shared/types/service';
 
 const route = useRoute();
 const router = useRouter();
 const taskStore = useTaskStore();
-const areaStore = useAreaStore();
 const staffStore = useStaffStore();
 const taskConfigStore = useTaskConfigStore();
+const dayStore = useDayStore();
 const { getTodayString, addDaysToDate } = useTimeZone();
 
 // Initialize date from route or use today
@@ -149,6 +152,10 @@ const isLoading = ref(false);
 const error = ref<string | null>(null);
 const showEditModal = ref(false);
 const selectedTask = ref<Task | null>(null);
+
+// Local state for departments and services
+const departments = ref<Department[]>([]);
+const services = ref<Service[]>([]);
 
 // Computed properties
 const pendingTasks = computed(() => 
@@ -184,15 +191,20 @@ async function loadTasks() {
 
 // Get task type label
 function getTaskTypeLabel(task: Task): string {
-  if (task.taskItem) {
+  if (task.taskItem && task.taskItem.taskType) {
     return task.taskItem.taskType.label;
+  }
+  // Fallback to finding the task type from the config store
+  if (task.taskTypeId) {
+    const taskType = taskConfigStore.taskTypes.find(t => t.id === task.taskTypeId);
+    if (taskType) return taskType.label;
   }
   return task.taskType || 'Unknown';
 }
 
 // Get task detail
 function getTaskDetail(task: Task): string {
-  if (task.taskItem) {
+  if (task.taskItem && task.taskItem.name) {
     return task.taskItem.name;
   }
   return task.taskDetail || '';
@@ -201,17 +213,20 @@ function getTaskDetail(task: Task): string {
 // Get area name
 function getAreaName(areaId: number, areaType: 'department' | 'service'): string {
   if (areaType === 'department') {
-    const dept = areaStore.allDepartments.find(d => d.id === areaId);
+    const dept = departments.value.find(d => d.id === areaId);
     return dept?.name || `Department ${areaId}`;
   } else {
-    const service = areaStore.allServices.find(s => s.id === areaId);
+    const service = services.value.find(s => s.id === areaId);
     return service?.name || `Service ${areaId}`;
   }
 }
 
 // Get staff name
 function getStaffName(staffId: number): string {
-  const staff = staffStore.allStaff.find(s => s.id === staffId);
+  if (!staffStore.staffList || !Array.isArray(staffStore.staffList)) {
+    return `Staff ${staffId}`;
+  }
+  const staff = staffStore.staffList.find(s => s.id === staffId);
   return staff ? `${staff.firstName} ${staff.lastName}` : `Staff ${staffId}`;
 }
 
@@ -257,11 +272,24 @@ onMounted(async () => {
   }
 
   // Load initial data
-  await Promise.all([
-    areaStore.fetchAllAreas(selectedDate.value),
-    staffStore.fetchAllStaff(),
-    taskConfigStore.fetchTaskTypes(),
-  ]);
+  try {
+    await Promise.all([
+      staffStore.fetchAllStaff(),
+      taskConfigStore.fetchTaskTypes(),
+      dayStore.loadDay(selectedDate.value),
+    ]);
+
+    // Load departments and services separately
+    const [deptsResponse, servsResponse] = await Promise.all([
+      api.getAllDepartments(),
+      api.getAllServices(),
+    ]);
+
+    departments.value = deptsResponse.departments;
+    services.value = servsResponse.services;
+  } catch (err) {
+    console.error('Error loading initial data:', err);
+  }
 
   await loadTasks();
 });
