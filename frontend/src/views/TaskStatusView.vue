@@ -276,7 +276,7 @@ onMounted(async () => {
     await Promise.all([
       staffStore.fetchAllStaff(),
       taskConfigStore.fetchTaskTypes(),
-      dayStore.loadDay(selectedDate.value),
+      dayStore.loadRota(selectedDate.value),
     ]);
 
     // Load departments and services separately
