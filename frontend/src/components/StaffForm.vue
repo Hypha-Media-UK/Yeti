@@ -736,55 +736,8 @@ watch(() => formData.shiftId, (newShiftId) => {
 /* Button styles inherited from global main.css */
 </style>
 
-<!-- Unscoped button styles -->
+<!-- Unscoped styles for time inputs and radio buttons -->
 <style>
-.staff-form .btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-1);
-  padding: 0.625rem var(--spacing-2);
-  font-family: var(--font-family);
-  font-size: var(--font-size-body-sm);
-  font-weight: var(--font-weight-medium);
-  line-height: 1;
-  border: none;
-  border-radius: var(--radius-button);
-  cursor: pointer;
-  transition: background-color var(--transition-enter),
-              box-shadow var(--transition-enter);
-  white-space: nowrap;
-}
-
-.staff-form .btn:hover:not(:disabled) {
-  box-shadow: var(--shadow-low);
-}
-
-.staff-form .btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.staff-form .btn-primary {
-  background-color: var(--color-primary);
-  color: white;
-}
-
-.staff-form .btn-primary:hover:not(:disabled) {
-  background-color: var(--color-primary-hover);
-}
-
-.staff-form .btn-secondary {
-  background-color: transparent;
-  color: var(--color-text-primary);
-  border: 1px solid var(--color-border);
-}
-
-.staff-form .btn-secondary:hover:not(:disabled) {
-  background-color: var(--color-bg);
-  border-color: var(--color-text-secondary);
-}
-
 .time-range-group {
   display: grid;
   grid-template-columns: 1fr 1fr;
