@@ -1,14 +1,15 @@
-@import './reset.css';
 @import './variables.css';
 
 @layer base, components, utilities;
 
 /* ============================================
    BASE STYLES
-   Professional, confident, data-focused
+   Reset and foundational styles
    ============================================ */
 
 @layer base {
+  @import './reset.css';
+
   body {
     font-family: var(--font-family);
     font-size: var(--font-size-body);
