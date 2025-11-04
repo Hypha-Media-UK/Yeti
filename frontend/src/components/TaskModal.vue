@@ -101,7 +101,7 @@
               <option
                 v-for="taskType in taskTypes"
                 :key="taskType.id"
-                :value="taskType.name"
+                :value="taskType.label"
               >
                 {{ taskType.label }}
               </option>
@@ -280,7 +280,7 @@ const availableDestinationServices = computed(() => {
 
 const taskDetailOptions = computed(() => {
   if (!formData.taskType) return [];
-  const taskType = taskTypes.value.find(tt => tt.name === formData.taskType);
+  const taskType = taskTypes.value.find(tt => tt.label === formData.taskType);
   return taskType?.items.filter(item => item.isActive).map(item => item.name) || [];
 });
 
@@ -321,7 +321,7 @@ function handleTaskTypeChange() {
 watch(() => formData.taskDetail, (selectedItemName) => {
   if (!selectedItemName || !formData.taskType) return;
 
-  const taskType = taskTypes.value.find(tt => tt.name === formData.taskType);
+  const taskType = taskTypes.value.find(tt => tt.label === formData.taskType);
   const taskItem = taskType?.items.find(i => i.name === selectedItemName);
 
   if (taskItem) {
@@ -362,7 +362,7 @@ async function handleSubmit() {
     }
 
     // Find the task item ID
-    const taskType = taskTypes.value.find(tt => tt.name === formData.taskType);
+    const taskType = taskTypes.value.find(tt => tt.label === formData.taskType);
     const taskItem = taskType?.items.find(i => i.name === formData.taskDetail);
 
     const input: CreateTaskInput = {
