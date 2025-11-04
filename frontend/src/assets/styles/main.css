@@ -125,7 +125,7 @@
   }
 
   .btn:disabled {
-    opacity: 0.6;
+    opacity: 0.5;
     cursor: not-allowed;
   }
 
@@ -137,6 +137,12 @@
 
   .btn-primary:hover:not(:disabled) {
     background-color: var(--color-primary-hover);
+  }
+
+  .btn-primary:disabled {
+    background-color: var(--color-border);
+    color: var(--color-text-secondary);
+    opacity: 1;
   }
 
   /* Secondary button - outline */
