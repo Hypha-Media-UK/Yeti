@@ -508,31 +508,14 @@ onMounted(async () => {
   text-align: right;
 }
 
-.btn-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: var(--radius-button);
-  background-color: transparent;
-  cursor: pointer;
-  font-size: 18px;
-  transition: var(--transition-base);
-  flex-shrink: 0;
-}
-
-.btn-icon:hover {
-  background-color: var(--color-bg-hover);
-}
+/* Icon button styles inherited from global main.css */
 
 .btn-complete {
   color: var(--color-success);
 }
 
 .btn-complete:hover {
-  background-color: var(--color-success-bg);
+  background-color: rgba(22, 163, 74, 0.1);
 }
 
 .btn-pending {
@@ -540,7 +523,7 @@ onMounted(async () => {
 }
 
 .btn-pending:hover {
-  background-color: var(--color-warning-bg);
+  background-color: var(--color-warning-light);
 }
 </style>
 

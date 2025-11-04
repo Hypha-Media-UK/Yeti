@@ -464,26 +464,7 @@ onMounted(() => {
   margin: 0;
 }
 
-.close-button {
-  background: none;
-  border: none;
-  font-size: 2rem;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  padding: 0;
-  width: 2rem;
-  height: 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-button);
-  transition: var(--transition-base);
-}
-
-.close-button:hover {
-  background-color: var(--color-bg);
-  color: var(--color-text-primary);
-}
+/* Close button styles inherited from global main.css */
 
 .modal-body {
   padding: var(--spacing-3);

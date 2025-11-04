@@ -3,7 +3,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <h2 class="modal-title">Mark Absence</h2>
-        <button class="btn-close" @click="closeModal" aria-label="Close">×</button>
+        <button class="close-button" @click="closeModal" aria-label="Close">×</button>
       </div>
 
       <div class="modal-body">
@@ -287,27 +287,7 @@ function handleSubmit() {
   margin: 0;
 }
 
-.btn-close {
-  background: none;
-  border: none;
-  font-size: 2rem;
-  line-height: 1;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  padding: 0;
-  width: 2rem;
-  height: 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-button);
-  transition: all var(--transition-enter);
-}
-
-.btn-close:hover {
-  background-color: var(--color-bg);
-  color: var(--color-text-primary);
-}
+/* Close button styles inherited from global main.css */
 
 .modal-body {
   padding: var(--spacing-4);

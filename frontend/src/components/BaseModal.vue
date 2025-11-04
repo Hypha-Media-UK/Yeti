@@ -5,7 +5,7 @@
         <div :class="['modal-container', modalClass]" @click.stop>
           <div class="modal-header">
             <h2 class="modal-title">{{ title }}</h2>
-            <button class="modal-close" @click="close" aria-label="Close">
+            <button class="close-button" @click="close" aria-label="Close">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M18 6L6 18M6 6l12 12" />
               </svg>
@@ -103,23 +103,7 @@ watch(() => props.modelValue, (isOpen) => {
   margin: 0;
 }
 
-.modal-close {
-  background: none;
-  border: none;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  padding: var(--spacing-1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-button);
-  transition: var(--transition-base);
-}
-
-.modal-close:hover {
-  background-color: var(--color-bg);
-  color: var(--color-text-primary);
-}
+/* Close button styles inherited from global main.css */
 
 .modal-body {
   padding: var(--spacing-3);

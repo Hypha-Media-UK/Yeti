@@ -606,54 +606,7 @@ select.form-input {
   border-top: 1px solid var(--color-border);
 }
 
-.btn {
-  padding: var(--spacing-2) var(--spacing-4);
-  border-radius: var(--radius-button);
-  font-size: var(--font-size-body);
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-  transition: var(--transition-base);
-  border: none;
-}
-
-.btn-primary {
-  background-color: var(--color-primary);
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background-color: var(--color-primary-dark);
-}
-
-.btn-primary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-secondary {
-  background-color: var(--color-bg);
-  color: var(--color-text-primary);
-  border: 1px solid var(--color-border);
-}
-
-.btn-secondary:hover {
-  background-color: var(--color-background);
-}
-
-.btn-outline {
-  background-color: transparent;
-  color: var(--color-primary);
-  border: 1px solid var(--color-primary);
-}
-
-.btn-outline:hover:not(:disabled) {
-  background-color: rgba(59, 130, 246, 0.1);
-}
-
-.btn-outline:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+/* Button styles inherited from global main.css */
 
 @media (max-width: 600px) {
   .modal-content {

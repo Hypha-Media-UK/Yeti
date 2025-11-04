@@ -256,25 +256,7 @@ const handleSubmit = async () => {
   color: var(--color-text-primary);
 }
 
-.close-button {
-  background: none;
-  border: none;
-  font-size: 2rem;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  padding: 0;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: background-color 0.2s;
-}
-
-.close-button:hover {
-  background-color: var(--color-hover);
-}
+/* Close button styles inherited from global main.css */
 
 .modal-body {
   padding: 1.5rem;

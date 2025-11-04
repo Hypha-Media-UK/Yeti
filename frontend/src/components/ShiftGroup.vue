@@ -374,23 +374,7 @@ const groupClass = computed(() => ({
   align-items: center;
 }
 
-.btn-icon {
-  background: none;
-  border: none;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  padding: var(--spacing-1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-button);
-  transition: var(--transition-base);
-}
-
-.btn-icon:hover {
-  background-color: var(--color-surface);
-  color: var(--color-text-primary);
-}
+/* Icon button styles inherited from global main.css */
 
 .btn-icon.btn-absence:hover {
   background-color: rgba(239, 68, 68, 0.1);

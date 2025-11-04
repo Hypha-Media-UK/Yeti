@@ -112,7 +112,8 @@
     border-radius: var(--radius-button);
     cursor: pointer;
     transition: background-color var(--transition-enter),
-                box-shadow var(--transition-enter);
+                box-shadow var(--transition-enter),
+                transform var(--transition-enter);
     white-space: nowrap;
   }
 
@@ -122,6 +123,7 @@
 
   .btn:active:not(:disabled) {
     box-shadow: none;
+    transform: translateY(1px);
   }
 
   .btn:disabled {
@@ -165,6 +167,55 @@
 
   .btn-destructive:hover:not(:disabled) {
     background: #B91C1C;
+  }
+
+  /* Icon button - transparent with hover */
+  .btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-button);
+    background-color: transparent;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    font-size: 18px;
+    transition: var(--transition-base);
+  }
+
+  .btn-icon:hover {
+    background-color: var(--color-bg);
+    color: var(--color-text-primary);
+  }
+
+  .btn-icon:active {
+    transform: scale(0.95);
+  }
+
+  /* Close button for modals */
+  .close-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-button);
+    background: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    font-size: 24px;
+    line-height: 1;
+    transition: var(--transition-base);
+  }
+
+  .close-button:hover {
+    background-color: var(--color-bg);
+    color: var(--color-text-primary);
   }
 
   /* Cards - white surface, soft shadow, rounded corners */
