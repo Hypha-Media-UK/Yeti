@@ -131,40 +131,40 @@
 
   /* Primary button - solid blue */
   .btn-primary {
-    background-color: var(--color-primary);
+    background: var(--color-primary);
     color: white;
   }
 
   .btn-primary:hover:not(:disabled) {
-    background-color: var(--color-primary-hover);
+    background: var(--color-primary-hover);
   }
 
   .btn-primary:disabled {
-    background-color: var(--color-border);
+    background: var(--color-border);
     color: var(--color-text-secondary);
     opacity: 1;
   }
 
   /* Secondary button - outline */
   .btn-secondary {
-    background-color: transparent;
+    background: transparent;
     color: var(--color-text-primary);
     border: 1px solid var(--color-border);
   }
 
   .btn-secondary:hover:not(:disabled) {
-    background-color: var(--color-bg);
+    background: var(--color-bg);
     border-color: var(--color-text-secondary);
   }
 
   /* Destructive button - solid red */
   .btn-destructive {
-    background-color: var(--color-error);
+    background: var(--color-error);
     color: white;
   }
 
   .btn-destructive:hover:not(:disabled) {
-    background-color: #B91C1C;
+    background: #B91C1C;
   }
 
   /* Cards - white surface, soft shadow, rounded corners */
