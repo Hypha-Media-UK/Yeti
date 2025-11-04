@@ -810,6 +810,10 @@ onMounted(async () => {
   margin-left: var(--spacing-2);
 }
 
+.staff-item.status-active .staff-hours {
+  background-color: rgba(34, 197, 94, 0.2); /* Slightly darker green for active staff hours */
+}
+
 .absence-badge {
   background-color: rgba(239, 68, 68, 0.9);
   color: white;

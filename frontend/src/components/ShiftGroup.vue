@@ -356,6 +356,10 @@ const groupClass = computed(() => ({
   border-radius: 4px;
 }
 
+.staff-item.status-active .staff-time {
+  background-color: rgba(34, 197, 94, 0.2); /* Slightly darker green for active staff time */
+}
+
 .staff-actions {
   display: flex;
   gap: var(--spacing-1);
