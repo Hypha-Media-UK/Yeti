@@ -82,7 +82,21 @@ export class ManualAssignmentService {
       if (times) {
         const now = new Date();
         const shiftStart = new Date(`${targetDate}T${times.start}`);
-        const shiftEnd = new Date(`${targetDate}T${times.end}`);
+
+        // Handle overnight shifts: if end time is before start time, the shift ends the next day
+        let shiftEnd: Date;
+        const startMinutes = this.timeToMinutes(times.start);
+        const endMinutes = this.timeToMinutes(times.end);
+
+        if (endMinutes < startMinutes) {
+          // Overnight shift - end time is on the next day
+          const nextDay = new Date(shiftStart);
+          nextDay.setDate(nextDay.getDate() + 1);
+          shiftEnd = new Date(`${nextDay.toISOString().split('T')[0]}T${times.end}`);
+        } else {
+          // Same-day shift
+          shiftEnd = new Date(`${targetDate}T${times.end}`);
+        }
 
         let status: ShiftStatus = 'active';
         if (now < shiftStart) {
@@ -105,6 +119,16 @@ export class ManualAssignmentService {
     }
 
     return shiftAssignments;
+  }
+
+  /**
+   * Convert time string (HH:mm or HH:mm:ss) to minutes since midnight
+   */
+  private timeToMinutes(time: string): number {
+    const parts = time.split(':');
+    const hours = parseInt(parts[0], 10);
+    const minutes = parseInt(parts[1], 10);
+    return hours * 60 + minutes;
   }
 
   /**
