@@ -123,17 +123,14 @@ const handleAbsenceClick = () => {
 }
 
 /* Status-based styling */
-.staff-card.shift-day.status-active {
-  background-color: rgba(59, 130, 246, 0.08); /* Subtle blue for day shift */
-}
-
+.staff-card.shift-day.status-active,
 .staff-card.shift-night.status-active {
-  background-color: rgba(99, 102, 241, 0.08); /* Subtle indigo for night shift */
+  background-color: rgba(34, 197, 94, 0.1); /* Pale green - currently working */
 }
 
 .staff-card.shift-day.status-pending,
 .staff-card.shift-night.status-pending {
-  background-color: rgba(254, 243, 199, 0.3); /* Very pale yellow for pending */
+  background-color: rgba(156, 163, 175, 0.1); /* Pale grey - not yet started */
 }
 
 .staff-card.shift-day.status-expired,

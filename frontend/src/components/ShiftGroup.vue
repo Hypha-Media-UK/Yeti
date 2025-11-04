@@ -303,11 +303,11 @@ const groupClass = computed(() => ({
 
 /* Status-based styling */
 .staff-item.status-active {
-  background-color: var(--color-bg);
+  background-color: rgba(34, 197, 94, 0.1); /* Pale green - currently working */
 }
 
 .staff-item.status-pending {
-  background-color: rgba(254, 243, 199, 0.3); /* Very pale yellow */
+  background-color: rgba(156, 163, 175, 0.1); /* Pale grey - not yet started */
 }
 
 .staff-item.status-expired {
