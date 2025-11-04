@@ -1,37 +1,52 @@
 # Database Backups
 
-This directory contains database backups for the Staff Rota application.
+This directory contains SQL backup files for the Yeti database.
 
-## Creating a Backup
+## Manual Backup Instructions
 
-To create a new backup, run:
+To create a complete backup of the Supabase database, you have two options:
+
+### Option 1: Using Supabase Dashboard (Recommended)
+1. Go to https://supabase.com/dashboard/project/zqroxxjfkcmcxryuatex/settings/general
+2. Scroll to "Database Backups"
+3. Click "Download backup"
+4. Save the file to this directory
+
+### Option 2: Using pg_dump (Advanced)
+If you have direct database access:
 
 ```bash
-docker exec staff_rota_mysql mysqldump -u root -proot_password staff_rota > database/backups/backup_$(date +%Y%m%d_%H%M%S).sql
+pg_dump -h db.zqroxxjfkcmcxryuatex.supabase.co \
+  -U postgres \
+  -d postgres \
+  --clean \
+  --if-exists \
+  --no-owner \
+  --no-privileges \
+  -f yeti_backup_$(date +%Y%m%d).sql
 ```
 
-## Restoring from a Backup
+### Option 3: Using Supabase CLI
+```bash
+# Login to Supabase
+supabase login
 
-To restore from a backup file:
+# Create backup
+supabase db dump --db-url "postgresql://postgres:[YOUR-PASSWORD]@db.zqroxxjfkcmcxryuatex.supabase.co:5432/postgres" -f yeti_backup_$(date +%Y%m%d).sql --use-copy
+```
+
+## Restore Instructions
+
+To restore a backup:
 
 ```bash
-docker exec -i staff_rota_mysql mysql -u root -proot_password staff_rota < database/backups/backup_YYYYMMDD_HHMMSS.sql
+psql -h db.zqroxxjfkcmcxryuatex.supabase.co \
+  -U postgres \
+  -d postgres \
+  -f yeti_backup_YYYYMMDD.sql
 ```
 
-Replace `backup_YYYYMMDD_HHMMSS.sql` with the actual backup filename.
+## Backup Schedule
 
-## Backup Contents
-
-Each backup includes:
-- All table structures (buildings, departments, staff, manual_assignments)
-- All data from these tables
-- Foreign key relationships
-- Indexes and constraints
-
-## Notes
-
-- Backup files are excluded from git (see `.gitignore`)
-- Backups are timestamped with format: `backup_YYYYMMDD_HHMMSS.sql`
-- Keep regular backups before major changes
-- Test restore process periodically to ensure backups are valid
-
+- **Automatic**: Supabase provides daily backups (retained for 7 days on free tier)
+- **Manual**: Create backups before major changes or deployments
