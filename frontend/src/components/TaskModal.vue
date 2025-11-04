@@ -250,11 +250,14 @@ const staffInShiftPool = computed(() => {
 
 const taskTypes = computed(() => taskConfigStore.taskTypes.filter(tt => tt.isActive));
 
-// Group departments by building for origin field
+// Group departments by building for origin field (only includeInTasks=true)
 const departmentsByBuilding = computed(() => {
   const grouped: Record<number | string, Department[]> = {};
 
-  departments.value.forEach(dept => {
+  // Filter to only departments with includeInTasks=true
+  const filteredDepts = departments.value.filter(dept => dept.includeInTasks);
+
+  filteredDepts.forEach(dept => {
     const key = dept.buildingId ?? 'unassigned';
     if (!grouped[key]) {
       grouped[key] = [];
