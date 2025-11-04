@@ -357,7 +357,15 @@ const groupClass = computed(() => ({
 }
 
 .staff-item.status-active .staff-time {
-  background-color: rgba(219, 240, 227, 1); /* Slightly darker green for active staff time */
+  background-color: rgba(219, 240, 227, 1); /* Green for active staff time */
+}
+
+.staff-item.status-pending .staff-time {
+  background-color: rgba(254, 243, 199, 0.3); /* Pale yellow for pending staff time */
+}
+
+.staff-item.status-expired .staff-time {
+  background-color: transparent; /* Transparent for expired staff time */
 }
 
 .staff-actions {

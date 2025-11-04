@@ -811,7 +811,15 @@ onMounted(async () => {
 }
 
 .staff-item.status-active .staff-hours {
-  background-color: rgba(219, 240, 227, 1); /* Slightly darker green for active staff hours */
+  background-color: rgba(219, 240, 227, 1); /* Green for active staff hours */
+}
+
+.staff-item.status-pending .staff-hours {
+  background-color: rgba(254, 243, 199, 0.3); /* Pale yellow for pending staff hours */
+}
+
+.staff-item.status-expired .staff-hours {
+  background-color: transparent; /* Transparent for expired staff hours */
 }
 
 .absence-badge {
