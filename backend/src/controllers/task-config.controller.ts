@@ -187,7 +187,7 @@ export class TaskConfigController {
         defaultDestinationAreaType: defaultDestinationAreaType || null,
       });
 
-      res.status(201).json({ item });
+      res.status(201).json({ taskItem: item });
     } catch (error: any) {
       console.error('Error creating task item:', error);
 
