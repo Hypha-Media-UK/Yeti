@@ -110,12 +110,15 @@ export const useTaskConfigStore = defineStore('taskConfig', () => {
   // Task Item Actions
   // ============================================================================
 
-  async function createTaskItem(taskTypeId: number, input: CreateTaskItemInput): Promise<TaskItem> {
+  async function createTaskItem(taskTypeId: number, input: Omit<CreateTaskItemInput, 'taskTypeId'>): Promise<TaskItem> {
     loading.value = true;
     error.value = null;
 
     try {
-      const response = await api.createTaskItem(input);
+      const response = await api.createTaskItem({
+        ...input,
+        taskTypeId,
+      });
       const newItem = response.taskItem;
 
       // Add to local state
