@@ -126,6 +126,16 @@ export class RotaService {
     );
     this.categorizeShifts(manualAssignmentResults, dayShifts, nightShifts);
 
+    // 2. Check if we need to include yesterday's night shift (if it's still active)
+    // Night shifts typically run 20:00-08:00, so yesterday's night shift extends into today
+    const yesterdayNightShift = await this.getYesterdayNightShiftIfActive(
+      targetDate,
+      appZeroDate,
+      contractedHoursMap,
+      manuallyAssignedStaffIds
+    );
+    nightShifts.push(...yesterdayNightShift);
+
     // 3. Process cycle-based staff (excluding pool staff and manually assigned)
     const cycleBasedAssignments = await this.processCycleBasedStaff(
       allStaff,
@@ -301,6 +311,70 @@ export class RotaService {
     const allStaffIds = [...new Set([...staffIdsInActiveShifts, ...manualStaffIds])];
 
     return await this.shiftTimeService.batchFetchContractedHours(allStaffIds);
+  }
+
+  /**
+   * Get yesterday's night shift staff if they're still working today
+   * Night shifts run 20:00-08:00, so yesterday's night shift extends into today until 08:00
+   */
+  private async getYesterdayNightShiftIfActive(
+    targetDate: string,
+    appZeroDate: string,
+    contractedHoursMap: Map<number, StaffContractedHours[]>,
+    manuallyAssignedStaffIds: Set<number>
+  ): Promise<ShiftAssignment[]> {
+    const assignments: ShiftAssignment[] = [];
+
+    // Calculate yesterday's date
+    const yesterday = formatLocalDate(addDaysLocal(targetDate, -1));
+
+    // Get yesterday's active shifts
+    const allShifts = await this.shiftRepo.findAll(true);
+    const yesterdayActiveShifts = this.cycleService.calculateActiveShifts(yesterday, appZeroDate, allShifts);
+    const yesterdayActiveShiftIds = yesterdayActiveShifts.map(s => s.id);
+
+    // Get staff in yesterday's active shifts
+    const yesterdayStaff = await this.staffRepo.findByShiftIds(yesterdayActiveShiftIds);
+
+    // Also get supervisors
+    const allSupervisors = await this.staffRepo.findAll({ status: 'Supervisor' });
+    const allYesterdayStaff = [...yesterdayStaff, ...allSupervisors];
+
+    // Process each staff member to see if they worked night shift yesterday
+    for (const staff of allYesterdayStaff) {
+      // Skip if already manually assigned today
+      if (manuallyAssignedStaffIds.has(staff.id)) continue;
+
+      // Skip pool staff (they're processed separately)
+      if (staff.isPoolStaff) continue;
+
+      // Check if they were on duty yesterday
+      const dutyCheck = this.cycleService.isStaffOnDuty(staff, yesterday, appZeroDate);
+
+      // Only include if they worked NIGHT shift yesterday
+      if (dutyCheck.onDuty && dutyCheck.shiftType === 'night') {
+        const times = await this.shiftTimeService.getShiftTimesForStaff(
+          staff,
+          'night',
+          yesterday,
+          { contractedHoursMap, appZeroDate }
+        );
+
+        if (times) {
+          // Create assignment with yesterday's date but check if it's still active TODAY
+          const assignment = this.createShiftAssignment(staff, 'night', times, yesterday, false);
+
+          // Only include if the shift is still active (not expired)
+          // The shift status is calculated based on current time vs shift hours
+          if (assignment.status === 'active') {
+            assignments.push(assignment);
+          }
+        }
+      }
+    }
+
+    console.log(`[ROTA] Found ${assignments.length} night shift staff from yesterday still working`);
+    return assignments;
   }
 
   /**
