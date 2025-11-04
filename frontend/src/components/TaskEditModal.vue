@@ -262,15 +262,38 @@ const availableStaff = computed(() => {
 function initializeForm() {
   formData.originAreaKey = `${props.task.originAreaType}-${props.task.originAreaId}`;
   formData.destinationAreaKey = `${props.task.destinationAreaType}-${props.task.destinationAreaId}`;
-  
+
+  // Determine task type and detail using multiple fallback strategies
   if (props.task.taskItem) {
+    // New system: Use task item data
     formData.taskType = props.task.taskItem.taskType.label;
     formData.taskDetail = props.task.taskItem.name;
+  } else if (props.task.taskDetail) {
+    // Fallback: Try to find the task type by matching the task detail
+    formData.taskDetail = props.task.taskDetail;
+
+    // Search through all task types and their items to find a match
+    let foundTaskType = '';
+    for (const taskType of taskConfigStore.taskTypes) {
+      const matchingItem = taskType.items.find(item => item.name === props.task.taskDetail);
+      if (matchingItem) {
+        foundTaskType = taskType.label;
+        break;
+      }
+    }
+
+    formData.taskType = foundTaskType;
+  } else if (props.task.taskType) {
+    // Last resort: Use the old taskType enum value
+    formData.taskType = props.task.taskType.split('-').map(word =>
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
+    formData.taskDetail = '';
   } else {
-    formData.taskType = props.task.taskType || '';
-    formData.taskDetail = props.task.taskDetail || '';
+    formData.taskType = '';
+    formData.taskDetail = '';
   }
-  
+
   formData.requestedTime = props.task.requestedTime.substring(0, 5);
   formData.allocatedTime = props.task.allocatedTime.substring(0, 5);
   formData.completedTime = props.task.completedTime ? props.task.completedTime.substring(0, 5) : '';
@@ -355,12 +378,12 @@ function closeModal() {
 // Load departments and services
 async function loadAreasData() {
   try {
-    const [depts, servs] = await Promise.all([
-      api.getDepartments(),
-      api.getServices(),
+    const [deptsResponse, servsResponse] = await Promise.all([
+      api.getAllDepartments(),
+      api.getAllServices(),
     ]);
-    departments.value = depts;
-    services.value = servs;
+    departments.value = deptsResponse.departments;
+    services.value = servsResponse.services;
   } catch (error) {
     console.error('Error loading areas:', error);
   }
