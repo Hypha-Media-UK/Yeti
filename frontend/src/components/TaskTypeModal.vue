@@ -81,7 +81,7 @@
             <select v-model="newTaskItemDestinationId" class="form-input">
               <option :value="null">None</option>
               <option
-                v-for="dept in departments"
+                v-for="dept in departments.filter(d => d.includeInTasks)"
                 :key="dept.id"
                 :value="dept.id"
               >
@@ -163,7 +163,7 @@
                 <select v-model="editingTaskItemDestinationId" class="form-input">
                   <option :value="null">None</option>
                   <option
-                    v-for="dept in departments"
+                    v-for="dept in departments.filter(d => d.includeInTasks)"
                     :key="dept.id"
                     :value="dept.id"
                   >
