@@ -521,7 +521,7 @@ export const api = {
   },
 
   async createTaskItem(input: CreateTaskItemInput): Promise<{ taskItem: TaskItem }> {
-    return fetchApi<{ taskItem: TaskItem }>('/task-config/items', {
+    return fetchApi<{ taskItem: TaskItem }>(`/task-config/types/${input.taskTypeId}/items`, {
       method: 'POST',
       body: JSON.stringify(input),
     });
