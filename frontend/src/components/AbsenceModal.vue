@@ -315,37 +315,6 @@ textarea.form-control {
   margin-top: 1.5rem;
 }
 
-.btn {
-  padding: 0.625rem 1.25rem;
-  border: none;
-  border-radius: 4px;
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.btn-secondary {
-  background-color: var(--color-surface-variant);
-  color: var(--color-text-primary);
-}
-
-.btn-secondary:hover {
-  background-color: var(--color-hover);
-}
-
-.btn-primary {
-  background-color: var(--color-primary);
-  color: white;
-}
-
-.btn-primary:hover {
-  background-color: var(--color-primary-dark);
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
+/* Button styles inherited from global main.css */
 </style>
 

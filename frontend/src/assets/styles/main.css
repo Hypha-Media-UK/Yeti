@@ -169,6 +169,12 @@
     background: #B91C1C;
   }
 
+  /* Small button variant */
+  .btn-sm {
+    padding: var(--spacing-1) var(--spacing-2);
+    font-size: var(--font-size-body-sm);
+  }
+
   /* Icon button - transparent with hover */
   .btn-icon {
     display: inline-flex;

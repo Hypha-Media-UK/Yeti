@@ -370,39 +370,7 @@ function handleSubmit() {
   border-top: 1px solid var(--color-border);
 }
 
-.btn {
-  padding: var(--spacing-2) var(--spacing-3);
-  border: none;
-  border-radius: var(--radius-button);
-  font-size: var(--font-size-body);
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-  transition: all var(--transition-enter);
-}
-
-.btn-sm {
-  padding: var(--spacing-1) var(--spacing-2);
-  font-size: var(--font-size-body-sm);
-}
-
-.btn-primary {
-  background-color: var(--color-primary);
-  color: white;
-}
-
-.btn-primary:hover {
-  background-color: var(--color-primary-dark);
-}
-
-.btn-secondary {
-  background-color: var(--color-bg);
-  color: var(--color-text-primary);
-  border: 1px solid var(--color-border);
-}
-
-.btn-secondary:hover {
-  background-color: var(--color-border);
-}
+/* Button styles inherited from global main.css */
 
 @media (max-width: 600px) {
   .form-row {
