@@ -235,7 +235,29 @@ export class RotaService {
         targetDate,
         options
       );
-      return hasHours;
+
+      // If they have contracted hours for this day, they're working
+      if (hasHours) {
+        return true;
+      }
+
+      // If no contracted hours but they have a reference shift, check the reference shift cycle
+      // This handles staff with use_cycle_for_permanent=false but no contracted hours set up yet
+      if (staff.referenceShiftId) {
+        const referenceShift = await this.shiftRepo.findById(staff.referenceShiftId);
+        if (referenceShift) {
+          const appZeroDate = options?.appZeroDate || await this.getAppZeroDate();
+          return this.cycleService.isStaffWorkingOnDateByCycle(
+            staff,
+            targetDate,
+            appZeroDate,
+            referenceShift
+          );
+        }
+      }
+
+      // No contracted hours and no reference shift - not working
+      return false;
     }
 
     // Check if staff has a reference shift
@@ -252,9 +274,14 @@ export class RotaService {
       }
     }
 
-    // Default: Use shift cycle pattern
-    const appZeroDate = options?.appZeroDate || await this.getAppZeroDate();
-    return this.cycleService.isStaffWorkingOnDateByCycle(staff, targetDate, appZeroDate);
+    // Default: Use shift cycle pattern (if staff has a shift)
+    if (staff.shift) {
+      const appZeroDate = options?.appZeroDate || await this.getAppZeroDate();
+      return this.cycleService.isStaffWorkingOnDateByCycle(staff, targetDate, appZeroDate);
+    }
+
+    // Staff has no shift, no reference shift, and no contracted hours - not working
+    return false;
   }
 
   /**
