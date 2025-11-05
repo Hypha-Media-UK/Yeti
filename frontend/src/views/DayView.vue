@@ -86,7 +86,7 @@
                   <span class="staff-name">
                     {{ staff.firstName }} {{ staff.lastName }}
                   </span>
-                  <span class="staff-hours">{{ getContractedHoursForToday(staff.contractedHours) }}</span>
+                  <span class="staff-hours">{{ getShiftTimesForStaff(staff) }}</span>
                 </div>
 
                 <!-- Absent staff (separate container at bottom) -->
@@ -105,7 +105,7 @@
                         {{ formatAbsencePeriod(staff.currentAbsence!) }}
                       </span>
                     </span>
-                    <span class="staff-hours">{{ getContractedHoursForToday(staff.contractedHours) }}</span>
+                    <span class="staff-hours">{{ getShiftTimesForStaff(staff) }}</span>
                   </div>
                 </div>
               </div>
@@ -161,7 +161,7 @@
                   <span class="staff-name">
                     {{ staff.firstName }} {{ staff.lastName }}
                   </span>
-                  <span class="staff-hours">{{ getContractedHoursForToday(staff.contractedHours) }}</span>
+                  <span class="staff-hours">{{ getShiftTimesForStaff(staff) }}</span>
                 </div>
 
                 <!-- Absent staff (separate container at bottom) -->
@@ -180,7 +180,7 @@
                         {{ formatAbsencePeriod(staff.currentAbsence!) }}
                       </span>
                     </span>
-                    <span class="staff-hours">{{ getContractedHoursForToday(staff.contractedHours) }}</span>
+                    <span class="staff-hours">{{ getShiftTimesForStaff(staff) }}</span>
                   </div>
                 </div>
               </div>
@@ -344,7 +344,31 @@ function parseTimeToMinutes(timeStr: string): number {
   return hours * 60 + minutes;
 }
 
+// Get shift times for staff (returns formatted time range or empty string)
+function getShiftTimesForStaff(staff: any): string {
+  // First try to use shiftStart and shiftEnd from the staff object (from backend)
+  if (staff.shiftStart && staff.shiftEnd) {
+    return `${formatTime(staff.shiftStart)} - ${formatTime(staff.shiftEnd)}`;
+  }
+
+  // Fallback to contracted hours if shift times not available
+  if (!staff.contractedHours || staff.contractedHours.length === 0) return '';
+
+  // Get day of week for selected date (1=Monday, 7=Sunday)
+  const date = new Date(selectedDate.value);
+  const jsDay = date.getDay();
+  const dayOfWeek = jsDay === 0 ? 7 : jsDay;
+
+  // Find contracted hours for this day
+  const hoursForDay = staff.contractedHours.find((h: any) => h.dayOfWeek === dayOfWeek);
+
+  if (!hoursForDay) return '';
+
+  return `${formatTime(hoursForDay.startTime)} - ${formatTime(hoursForDay.endTime)}`;
+}
+
 // Get contracted hours for today (returns formatted time range or empty string)
+// DEPRECATED: Use getShiftTimesForStaff instead
 function getContractedHoursForToday(contractedHours: any[]): string {
   if (!contractedHours || contractedHours.length === 0) return '';
 
@@ -387,7 +411,7 @@ function getStaffItemClass(staff: any): string {
     // Only add clickable if not absent
     classes.push('clickable');
     // Add status class
-    const statusClass = getStaffStatusClass(staff.contractedHours);
+    const statusClass = getStaffStatusClass(staff);
     if (statusClass) {
       classes.push(statusClass);
     }
@@ -404,19 +428,33 @@ function getStaffItemTitle(staff: any): string {
   return 'Click to manage temporary assignments';
 }
 
-// Get status class for area staff based on their contracted hours
-function getStaffStatusClass(contractedHours: any[]): string {
-  if (!contractedHours || contractedHours.length === 0) return '';
+// Get status class for area staff based on their shift times or contracted hours
+function getStaffStatusClass(staff: any): string {
+  let startTime: string | null = null;
+  let endTime: string | null = null;
 
-  // Get day of week for selected date (1=Monday, 7=Sunday)
-  const date = new Date(selectedDate.value);
-  const jsDay = date.getDay();
-  const dayOfWeek = jsDay === 0 ? 7 : jsDay;
+  // First try to use shiftStart and shiftEnd from the staff object (from backend)
+  if (staff.shiftStart && staff.shiftEnd) {
+    startTime = staff.shiftStart;
+    endTime = staff.shiftEnd;
+  } else if (staff.contractedHours && staff.contractedHours.length > 0) {
+    // Fallback to contracted hours
+    // Get day of week for selected date (1=Monday, 7=Sunday)
+    const date = new Date(selectedDate.value);
+    const jsDay = date.getDay();
+    const dayOfWeek = jsDay === 0 ? 7 : jsDay;
 
-  // Find contracted hours for this day
-  const hoursForDay = contractedHours.find((h: any) => h.dayOfWeek === dayOfWeek);
+    // Find contracted hours for this day
+    const hoursForDay = staff.contractedHours.find((h: any) => h.dayOfWeek === dayOfWeek);
 
-  if (!hoursForDay) return '';
+    if (hoursForDay) {
+      startTime = hoursForDay.startTime;
+      endTime = hoursForDay.endTime;
+    }
+  }
+
+  // If no times available, return empty string
+  if (!startTime || !endTime) return '';
 
   // Only apply status if we're viewing today
   const now = new Date();
@@ -436,10 +474,10 @@ function getStaffStatusClass(contractedHours: any[]): string {
     return parseInt(parts[0]) * 60 + parseInt(parts[1]);
   };
 
-  const startMinutes = parseTime(hoursForDay.startTime);
-  const endMinutes = parseTime(hoursForDay.endTime);
+  const startMinutes = parseTime(startTime);
+  const endMinutes = parseTime(endTime);
 
-  // Check if contracted hours cross midnight
+  // Check if shift crosses midnight
   if (endMinutes < startMinutes) {
     // Overnight shift (e.g., 13:00 - 01:00)
     if (currentMinutes >= startMinutes || currentMinutes < endMinutes) {
