@@ -5,8 +5,13 @@
         {{ shiftType }} Shift
         <span class="shift-time">{{ shiftTime }}</span>
       </h2>
-      <div class="shift-count">
-        {{ assignments.length }} {{ assignments.length === 1 ? 'person' : 'people' }}
+      <div class="shift-header-right">
+        <div class="shift-count">
+          {{ assignments.length }} {{ assignments.length === 1 ? 'person' : 'people' }}
+        </div>
+        <button class="btn btn-bank" @click="$emit('openBank')" title="Add staff to bank (pool)">
+          Bank
+        </button>
       </div>
     </header>
 
@@ -131,6 +136,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   staffAssignment: [assignment: ShiftAssignment];
   staffAbsence: [assignment: ShiftAssignment];
+  openBank: [];
 }>();
 
 const { isAbsenceActive, formatAbsencePeriod, formatAbsenceDisplay } = useAbsence();
@@ -228,6 +234,12 @@ const groupClass = computed(() => ({
   border-bottom: 2px solid var(--color-border);
 }
 
+.shift-header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
 .group-day .shift-header {
   border-bottom-color: var(--color-day-shift-light);
 }
@@ -269,6 +281,15 @@ const groupClass = computed(() => ({
 .group-night .shift-count {
   background-color: var(--color-night-shift-light);
   color: var(--color-night-shift);
+}
+
+.btn-bank {
+  padding: var(--spacing-1) var(--spacing-2);
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-button);
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
 .shift-list {

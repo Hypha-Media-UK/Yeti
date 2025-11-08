@@ -29,6 +29,7 @@
             :assignments="dayShifts"
             @staff-assignment="handleStaffAssignment"
             @staff-absence="handleStaffAbsence"
+            @open-bank="handleOpenBankModal"
           />
 
           <ShiftGroup
@@ -36,6 +37,7 @@
             :assignments="nightShifts"
             @staff-assignment="handleStaffAssignment"
             @staff-absence="handleStaffAbsence"
+            @open-bank="handleOpenBankModal"
           />
         </div>
 
@@ -231,6 +233,13 @@
       @task-created="handleTaskCreated"
     />
 
+    <!-- Bank Staff Modal -->
+    <BankStaffModal
+      :is-open="showBankStaffModal"
+      @close="showBankStaffModal = false"
+      @staff-added="handleStaffAddedToBank"
+    />
+
     <!-- Floating Action Button -->
     <button class="fab" @click="showTaskModal = true" title="Create Task">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -257,6 +266,7 @@ import TemporaryAssignmentModal from '@/components/TemporaryAssignmentModal.vue'
 import ManageAssignmentsModal from '@/components/ManageAssignmentsModal.vue';
 import QuickAbsenceModal from '@/components/QuickAbsenceModal.vue';
 import TaskModal from '@/components/TaskModal.vue';
+import BankStaffModal from '@/components/BankStaffModal.vue';
 import type { ShiftAssignment } from '@shared/types/shift';
 import type { StaffMember } from '@shared/types/staff';
 import type { CreateTemporaryAssignmentDto } from '@shared/types/shift';
@@ -292,6 +302,9 @@ const selectedStaffForAbsence = ref<ShiftAssignment | null>(null);
 
 // Task modal state
 const showTaskModal = ref(false);
+
+// Bank staff modal state
+const showBankStaffModal = ref(false);
 
 // Categorize areas by area type (all areas, regardless of shift)
 const allDepartments = computed(() =>
@@ -616,6 +629,18 @@ async function handleTaskCreated() {
 // Handle opening task status view
 function handleOpenTaskStatus() {
   router.push({ name: 'task-status', params: { date: selectedDate.value } });
+}
+
+// Handle opening bank staff modal
+function handleOpenBankModal() {
+  showBankStaffModal.value = true;
+}
+
+// Handle staff added to bank
+async function handleStaffAddedToBank() {
+  // Clear cache and reload rota to show newly added pool staff
+  dayStore.clearRotaCache([selectedDate.value]);
+  await loadDay();
 }
 
 onMounted(async () => {
