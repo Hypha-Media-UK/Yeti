@@ -2,7 +2,7 @@
   <div v-if="isOpen" class="modal-overlay" @click.self="handleClose">
     <div class="modal-container">
       <div class="modal-header">
-        <h2 class="modal-title">Add Staff to {{ shiftType }} Shift Bank</h2>
+        <h2 class="modal-title">Add Staff to {{ capitalizeShiftType }} Shift Bank</h2>
         <button class="modal-close" @click="handleClose" aria-label="Close">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18" />
@@ -13,8 +13,8 @@
 
       <div class="modal-body">
         <p class="modal-description">
-          Select staff members to make available for the <strong>{{ shiftType }} Shift</strong> on <strong>{{ formatDate(currentDate) }}</strong>.
-          These staff will appear in the {{ shiftType }} shift panel and can be assigned to any department or service as needed.
+          Select staff members to make available for the <strong>{{ capitalizeShiftType }} Shift</strong> on <strong>{{ formatDate(currentDate) }}</strong>.
+          These staff will appear in the {{ capitalizeShiftType }} shift panel and can be assigned to any department or service as needed.
         </p>
 
         <!-- Search/Filter -->
@@ -71,7 +71,7 @@
           @click="handleSubmit"
           :disabled="selectedStaffIds.length === 0 || isSubmitting"
         >
-          {{ isSubmitting ? 'Adding...' : `Add ${selectedStaffIds.length} to ${shiftType} Shift` }}
+          {{ isSubmitting ? 'Adding...' : `Add ${selectedStaffIds.length} to ${capitalizeShiftType} Shift` }}
         </button>
       </div>
     </div>
@@ -87,7 +87,7 @@ import type { StaffMember } from '@shared/types/staff';
 
 const props = defineProps<{
   isOpen: boolean;
-  shiftType: 'Day' | 'Night';
+  shiftType: 'day' | 'night';
   currentDate: string;
 }>();
 
@@ -139,6 +139,11 @@ const filteredStaff = computed(() => {
   });
 });
 
+// Capitalize shift type for display
+const capitalizeShiftType = computed(() => {
+  return props.shiftType.charAt(0).toUpperCase() + props.shiftType.slice(1);
+});
+
 // Format date for display
 const formatDate = (dateStr: string) => {
   const date = new Date(dateStr + 'T00:00:00');
@@ -177,7 +182,7 @@ const handleSubmit = async () => {
         startTime: null,
         endTime: null,
         endDate: null,
-        notes: `Added to ${props.shiftType} shift bank via Bank button`
+        notes: `Added to ${capitalizeShiftType.value} shift bank via Bank button`
       })
     );
 

@@ -29,7 +29,7 @@
             :assignments="dayShifts"
             @staff-assignment="handleStaffAssignment"
             @staff-absence="handleStaffAbsence"
-            @open-bank="() => handleOpenBankModal('Day')"
+            @open-bank="() => handleOpenBankModal('day')"
           />
 
           <ShiftGroup
@@ -37,7 +37,7 @@
             :assignments="nightShifts"
             @staff-assignment="handleStaffAssignment"
             @staff-absence="handleStaffAbsence"
-            @open-bank="() => handleOpenBankModal('Night')"
+            @open-bank="() => handleOpenBankModal('night')"
           />
         </div>
 
@@ -307,7 +307,7 @@ const showTaskModal = ref(false);
 
 // Bank staff modal state
 const showBankStaffModal = ref(false);
-const bankModalShiftType = ref<'Day' | 'Night'>('Day');
+const bankModalShiftType = ref<'day' | 'night'>('day');
 
 // Categorize areas by area type (all areas, regardless of shift)
 const allDepartments = computed(() =>
@@ -635,7 +635,7 @@ function handleOpenTaskStatus() {
 }
 
 // Handle opening bank staff modal
-function handleOpenBankModal(shiftType: 'Day' | 'Night') {
+function handleOpenBankModal(shiftType: 'day' | 'night') {
   bankModalShiftType.value = shiftType;
   showBankStaffModal.value = true;
 }
