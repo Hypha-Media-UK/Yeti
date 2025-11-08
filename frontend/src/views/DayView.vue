@@ -29,7 +29,7 @@
             :assignments="dayShifts"
             @staff-assignment="handleStaffAssignment"
             @staff-absence="handleStaffAbsence"
-            @open-bank="handleOpenBankModal"
+            @open-bank="() => handleOpenBankModal('Day')"
           />
 
           <ShiftGroup
@@ -37,7 +37,7 @@
             :assignments="nightShifts"
             @staff-assignment="handleStaffAssignment"
             @staff-absence="handleStaffAbsence"
-            @open-bank="handleOpenBankModal"
+            @open-bank="() => handleOpenBankModal('Night')"
           />
         </div>
 
@@ -236,6 +236,8 @@
     <!-- Bank Staff Modal -->
     <BankStaffModal
       :is-open="showBankStaffModal"
+      :shift-type="bankModalShiftType"
+      :current-date="selectedDate"
       @close="showBankStaffModal = false"
       @staff-added="handleStaffAddedToBank"
     />
@@ -305,6 +307,7 @@ const showTaskModal = ref(false);
 
 // Bank staff modal state
 const showBankStaffModal = ref(false);
+const bankModalShiftType = ref<'Day' | 'Night'>('Day');
 
 // Categorize areas by area type (all areas, regardless of shift)
 const allDepartments = computed(() =>
@@ -632,14 +635,14 @@ function handleOpenTaskStatus() {
 }
 
 // Handle opening bank staff modal
-function handleOpenBankModal() {
+function handleOpenBankModal(shiftType: 'Day' | 'Night') {
+  bankModalShiftType.value = shiftType;
   showBankStaffModal.value = true;
 }
 
 // Handle staff added to bank
 async function handleStaffAddedToBank() {
-  // Clear cache and reload rota to show newly added pool staff
-  dayStore.clearRotaCache([selectedDate.value]);
+  // Reload rota to show newly added staff in shift panel
   await loadDay();
 }
 

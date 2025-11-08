@@ -2,7 +2,7 @@
   <div v-if="isOpen" class="modal-overlay" @click.self="handleClose">
     <div class="modal-container">
       <div class="modal-header">
-        <h2 class="modal-title">Add Staff to Bank (Pool)</h2>
+        <h2 class="modal-title">Add Staff to {{ shiftType }} Shift Bank</h2>
         <button class="modal-close" @click="handleClose" aria-label="Close">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18" />
@@ -13,7 +13,8 @@
 
       <div class="modal-body">
         <p class="modal-description">
-          Select staff members to add to the bank (pool). Bank staff are available for temporary assignments to any department or service.
+          Select staff members to make available for the <strong>{{ shiftType }} Shift</strong> on <strong>{{ formatDate(currentDate) }}</strong>.
+          These staff will appear in the {{ shiftType }} shift panel and can be assigned to any department or service as needed.
         </p>
 
         <!-- Search/Filter -->
@@ -47,18 +48,15 @@
             v-for="staff in filteredStaff"
             :key="staff.id"
             class="staff-checkbox-item"
-            :class="{ 'already-pool': staff.isPoolStaff }"
           >
             <input
               type="checkbox"
               :value="staff.id"
               v-model="selectedStaffIds"
-              :disabled="staff.isPoolStaff"
             />
             <div class="staff-info">
               <span class="staff-name">{{ staff.firstName }} {{ staff.lastName }}</span>
               <span class="staff-status">{{ staff.status }}</span>
-              <span v-if="staff.isPoolStaff" class="pool-badge">Already in Pool</span>
             </div>
           </label>
         </div>
@@ -73,7 +71,7 @@
           @click="handleSubmit"
           :disabled="selectedStaffIds.length === 0 || isSubmitting"
         >
-          {{ isSubmitting ? 'Adding...' : `Add ${selectedStaffIds.length} to Pool` }}
+          {{ isSubmitting ? 'Adding...' : `Add ${selectedStaffIds.length} to ${shiftType} Shift` }}
         </button>
       </div>
     </div>
@@ -83,10 +81,14 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { useStaffStore } from '@/stores/staff';
+import { useDayStore } from '@/stores/day';
+import api from '@/services/api';
 import type { StaffMember } from '@shared/types/staff';
 
 const props = defineProps<{
   isOpen: boolean;
+  shiftType: 'Day' | 'Night';
+  currentDate: string;
 }>();
 
 const emit = defineEmits<{
@@ -95,6 +97,7 @@ const emit = defineEmits<{
 }>();
 
 const staffStore = useStaffStore();
+const dayStore = useDayStore();
 const searchQuery = ref('');
 const selectedStaffIds = ref<number[]>([]);
 const isLoading = ref(false);
@@ -123,16 +126,29 @@ watch(() => props.isOpen, async (newValue) => {
 // Filter staff based on search query
 const filteredStaff = computed(() => {
   const query = searchQuery.value.toLowerCase().trim();
-  
+
+  const allStaff = staffStore.activeStaff;
+
   if (!query) {
-    return staffStore.activeStaff;
+    return allStaff;
   }
-  
-  return staffStore.activeStaff.filter(staff => {
+
+  return allStaff.filter(staff => {
     const fullName = `${staff.firstName} ${staff.lastName}`.toLowerCase();
     return fullName.includes(query);
   });
 });
+
+// Format date for display
+const formatDate = (dateStr: string) => {
+  const date = new Date(dateStr + 'T00:00:00');
+  return date.toLocaleDateString('en-GB', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+};
 
 const handleClose = () => {
   if (!isSubmitting.value) {
@@ -142,24 +158,38 @@ const handleClose = () => {
 
 const handleSubmit = async () => {
   if (selectedStaffIds.value.length === 0) return;
-  
+
   isSubmitting.value = true;
   error.value = null;
-  
+
   try {
-    // Update each selected staff member to set isPoolStaff = true
-    const updatePromises = selectedStaffIds.value.map(staffId =>
-      staffStore.updateStaff(staffId, { isPoolStaff: true })
+    // Create manual assignments for each selected staff member
+    // This makes them available for the specific shift on the specific date
+    const assignmentPromises = selectedStaffIds.value.map(staffId =>
+      api.createAssignment({
+        staffId,
+        assignmentDate: props.currentDate,
+        shiftType: props.shiftType,
+        areaType: null,
+        areaId: null,
+        shiftStart: null,
+        shiftEnd: null,
+        startTime: null,
+        endTime: null,
+        endDate: null,
+        notes: `Added to ${props.shiftType} shift bank via Bank button`
+      })
     );
-    
-    await Promise.all(updatePromises);
-    
-    // Emit success and close
+
+    await Promise.all(assignmentPromises);
+
+    // Clear cache and emit success
+    dayStore.clearRotaCache([props.currentDate]);
     emit('staffAdded');
     emit('close');
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to add staff to pool';
-    console.error('Error adding staff to pool:', err);
+    error.value = err instanceof Error ? err.message : 'Failed to add staff to shift bank';
+    console.error('Error adding staff to shift bank:', err);
   } finally {
     isSubmitting.value = false;
   }
@@ -307,24 +337,14 @@ const handleSubmit = async () => {
   transition: background-color 0.2s, border-color 0.2s;
 }
 
-.staff-checkbox-item:hover:not(.already-pool) {
+.staff-checkbox-item:hover {
   background-color: var(--bg-hover);
   border-color: var(--primary-color);
-}
-
-.staff-checkbox-item.already-pool {
-  opacity: 0.6;
-  cursor: not-allowed;
-  background-color: var(--bg-secondary);
 }
 
 .staff-checkbox-item input[type="checkbox"] {
   margin-right: 0.75rem;
   cursor: pointer;
-}
-
-.staff-checkbox-item.already-pool input[type="checkbox"] {
-  cursor: not-allowed;
 }
 
 .staff-info {
@@ -345,15 +365,6 @@ const handleSubmit = async () => {
   padding: 0.25rem 0.5rem;
   background: var(--bg-secondary);
   border-radius: 3px;
-}
-
-.pool-badge {
-  font-size: 0.875rem;
-  color: var(--success-color);
-  padding: 0.25rem 0.5rem;
-  background: var(--success-bg);
-  border-radius: 3px;
-  margin-left: auto;
 }
 
 .modal-footer {
