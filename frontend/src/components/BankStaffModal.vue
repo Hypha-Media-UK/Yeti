@@ -82,7 +82,7 @@
 import { ref, computed, watch } from 'vue';
 import { useStaffStore } from '@/stores/staff';
 import { useDayStore } from '@/stores/day';
-import api from '@/services/api';
+import { api } from '@/services/api';
 import type { StaffMember } from '@shared/types/staff';
 
 const props = defineProps<{
