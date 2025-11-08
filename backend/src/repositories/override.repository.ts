@@ -181,6 +181,67 @@ export class OverrideRepository {
       .map(row => this.mapRowToManualAssignment(row));
   }
 
+  async update(id: number, updates: Partial<Omit<ManualAssignment, 'id' | 'createdAt' | 'updatedAt'>>): Promise<ManualAssignment> {
+    // Convert lowercase shift type to capitalized for database enum if provided
+    const dbShiftType = updates.shiftType
+      ? (updates.shiftType === 'day' ? 'Day' : 'Night')
+      : undefined;
+
+    const updateData: any = {};
+
+    if (updates.staffId !== undefined) updateData.staff_id = updates.staffId;
+    if (updates.assignmentDate !== undefined) updateData.assignment_date = updates.assignmentDate;
+    if (dbShiftType !== undefined) updateData.shift_type = dbShiftType;
+    if (updates.areaType !== undefined) updateData.area_type = updates.areaType;
+    if (updates.areaId !== undefined) updateData.area_id = updates.areaId;
+    if (updates.shiftStart !== undefined) updateData.shift_start = updates.shiftStart;
+    if (updates.shiftEnd !== undefined) updateData.shift_end = updates.shiftEnd;
+    if (updates.startTime !== undefined) updateData.start_time = updates.startTime;
+    if (updates.endTime !== undefined) updateData.end_time = updates.endTime;
+    if (updates.endDate !== undefined) updateData.end_date = updates.endDate;
+    if (updates.notes !== undefined) updateData.notes = updates.notes;
+
+    const { data, error } = await supabase
+      .from('manual_assignments')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to update manual assignment: ${error.message}`);
+    }
+
+    if (!data) {
+      throw new Error('Manual assignment not found');
+    }
+
+    return this.mapRowToManualAssignment(data);
+  }
+
+  async findByStaffDateAndShift(staffId: number, date: string, shiftType: 'day' | 'night'): Promise<ManualAssignment | null> {
+    // Convert lowercase shift type to capitalized for database enum
+    const dbShiftType = shiftType === 'day' ? 'Day' : 'Night';
+
+    const { data, error } = await supabase
+      .from('manual_assignments')
+      .select('*')
+      .eq('staff_id', staffId)
+      .eq('assignment_date', date)
+      .eq('shift_type', dbShiftType)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows returned
+        return null;
+      }
+      throw new Error(`Failed to find manual assignment: ${error.message}`);
+    }
+
+    return data ? this.mapRowToManualAssignment(data) : null;
+  }
+
   async delete(id: number): Promise<boolean> {
     // First check if the assignment exists
     const { data: existing } = await supabase

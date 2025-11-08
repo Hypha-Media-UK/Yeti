@@ -192,22 +192,43 @@ export class RotaController {
         return;
       }
 
-      // Create the temporary assignment
-      const assignment = await this.overrideRepo.create({
-        staffId: parseInt(staffId),
+      // Check if a manual assignment already exists for this staff/date/shift
+      const existing = await this.overrideRepo.findByStaffDateAndShift(
+        parseInt(staffId),
         assignmentDate,
-        shiftType,
-        areaType,
-        areaId: parseInt(areaId),
-        shiftStart: null, // Use default shift times
-        shiftEnd: null,
-        startTime,
-        endTime,
-        endDate: endDate || null,
-        notes: notes || null,
-      });
+        shiftType
+      );
 
-      res.status(201).json({ assignment });
+      let assignment;
+
+      if (existing) {
+        // Update the existing assignment with the new area details
+        assignment = await this.overrideRepo.update(existing.id, {
+          areaType,
+          areaId: parseInt(areaId),
+          startTime,
+          endTime,
+          endDate: endDate || null,
+          notes: notes || null,
+        });
+        res.status(200).json({ assignment });
+      } else {
+        // Create a new temporary assignment
+        assignment = await this.overrideRepo.create({
+          staffId: parseInt(staffId),
+          assignmentDate,
+          shiftType,
+          areaType,
+          areaId: parseInt(areaId),
+          shiftStart: null, // Use default shift times
+          shiftEnd: null,
+          startTime,
+          endTime,
+          endDate: endDate || null,
+          notes: notes || null,
+        });
+        res.status(201).json({ assignment });
+      }
     } catch (error: any) {
       console.error('Error creating temporary assignment:', error);
 
