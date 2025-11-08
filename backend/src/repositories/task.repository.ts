@@ -8,9 +8,8 @@ interface TaskRow {
   origin_area_type: 'department' | 'service';
   destination_area_id: number;
   destination_area_type: 'department' | 'service';
-  task_type: string;
-  task_type_id: number | null;
-  task_detail: string;
+  task_type: string | null;
+  task_detail: string | null;
   task_item_id: number | null;
   requested_time: string;
   allocated_time: string;
@@ -40,7 +39,7 @@ export class TaskRepository extends BaseRepository<Task, TaskRow, CreateTaskInpu
       destinationAreaId: row.destination_area_id,
       destinationAreaType: row.destination_area_type,
       taskType: row.task_type as Task['taskType'],
-      taskTypeId: row.task_type_id,
+      taskTypeId: row.task_item?.task_type?.id ?? null, // Derive from task_item if available
       taskDetail: row.task_detail,
       taskItemId: row.task_item_id,
       requestedTime: row.requested_time,
@@ -67,9 +66,8 @@ export class TaskRepository extends BaseRepository<Task, TaskRow, CreateTaskInpu
       origin_area_type: input.originAreaType,
       destination_area_id: input.destinationAreaId,
       destination_area_type: input.destinationAreaType,
-      task_type: input.taskType,
-      task_type_id: input.taskTypeId ?? null,
-      task_detail: input.taskDetail,
+      task_type: input.taskType ?? null,
+      task_detail: input.taskDetail ?? null,
       task_item_id: input.taskItemId ?? null,
       requested_time: input.requestedTime,
       allocated_time: input.allocatedTime,
