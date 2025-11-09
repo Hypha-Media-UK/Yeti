@@ -101,8 +101,8 @@
     </div>
 
     <template #footer>
-      <button class="btn btn-secondary" @click="$emit('update:modelValue', false)">
-        Close
+      <button class="btn btn-primary" @click="$emit('update:modelValue', false)">
+        Update
       </button>
     </template>
   </BaseModal>
