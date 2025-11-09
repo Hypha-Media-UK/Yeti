@@ -423,17 +423,27 @@ export class AreaService {
       // OPTIMIZED: Get contracted hours from pre-fetched map instead of querying database
       const contractedHours = allContractedHoursMap.get(assignment.staffId) || [];
 
-      // Get shift times for this staff member
-      const times = await this.shiftTimeService.getShiftTimesForStaff(
-        staff,
-        assignment.shiftType,
-        date,
-        { contractedHoursMap: allContractedHoursMap }
-      );
+      // Priority 1: Use allocation times if this is a temporary area assignment with custom times
+      let shiftStart: string;
+      let shiftEnd: string;
 
-      // Default times if none found
-      const shiftStart = times?.start || (assignment.shiftType === 'day' ? '08:00:00' : '20:00:00');
-      const shiftEnd = times?.end || (assignment.shiftType === 'day' ? '20:00:00' : '08:00:00');
+      if (assignment.startTime && assignment.endTime) {
+        // Use the allocation's specific times
+        shiftStart = assignment.startTime;
+        shiftEnd = assignment.endTime;
+      } else {
+        // Priority 2: Get shift times for this staff member (contracted hours or default)
+        const times = await this.shiftTimeService.getShiftTimesForStaff(
+          staff,
+          assignment.shiftType,
+          date,
+          { contractedHoursMap: allContractedHoursMap }
+        );
+
+        // Priority 3: Default times if none found
+        shiftStart = times?.start || (assignment.shiftType === 'day' ? '08:00:00' : '20:00:00');
+        shiftEnd = times?.end || (assignment.shiftType === 'day' ? '20:00:00' : '08:00:00');
+      }
 
       staffAssignments.push({
         id: staff.id,
