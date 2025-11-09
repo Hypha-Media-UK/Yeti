@@ -154,13 +154,15 @@ export class RotaService {
     this.categorizeShifts(poolStaffAssignments, dayShifts, nightShifts);
 
     // 4. Process staff with contracted hours but no shift assignment
-    // Note: We no longer exclude staff with permanent allocations here
-    // They will appear in the shift pool and be marked with hasAreaAllocation flag
+    // Fetch all permanent allocations to exclude staff who are permanently assigned
+    const allAllocations = await this.allocationRepo.findAll();
+    const permanentlyAssignedStaffIds = new Set(allAllocations.map(a => a.staffId));
+
     const contractedHoursAssignments = await this.contractedHoursStaffService.processContractedHoursStaff(
       allStaff,
       targetDate,
       manuallyAssignedStaffIds,
-      new Set(), // Empty set - don't exclude anyone
+      permanentlyAssignedStaffIds,
       contractedHoursMap
     );
     this.categorizeShifts(contractedHoursAssignments, dayShifts, nightShifts);
@@ -175,16 +177,10 @@ export class RotaService {
       manuallyAssignedStaffIds
     );
 
-    // 6. Mark staff who have area allocations
-    // This allows the frontend to display them in a separate "Allocated" section in the pool
-    const allAllocations = await this.allocationRepo.findAll();
-    const permanentlyAssignedStaffIds = new Set(allAllocations.map(a => a.staffId));
-    this.markAllocatedStaff(dayShifts, nightShifts, permanentlyAssignedStaffIds);
-
-    // 7. Attach absence information
+    // 6. Attach absence information
     await this.attachAbsenceInfo(dayShifts, nightShifts, targetDate);
 
-    // 8. Sort shifts
+    // 7. Sort shifts
     this.sortShifts(dayShifts, targetDate, appZeroDate);
     this.sortShifts(nightShifts, targetDate, appZeroDate);
 
@@ -541,22 +537,6 @@ export class RotaService {
         dayShifts.push(assignment);
       } else {
         nightShifts.push(assignment);
-      }
-    }
-  }
-
-  /**
-   * Mark staff who have area allocations (departments/services)
-   * This allows the frontend to display them in a separate "Allocated" section
-   */
-  private markAllocatedStaff(
-    dayShifts: ShiftAssignment[],
-    nightShifts: ShiftAssignment[],
-    permanentlyAssignedStaffIds: Set<number>
-  ): void {
-    for (const shift of [...dayShifts, ...nightShifts]) {
-      if (permanentlyAssignedStaffIds.has(shift.staff.id)) {
-        shift.hasAreaAllocation = true;
       }
     }
   }
