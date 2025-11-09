@@ -72,12 +72,18 @@ export class ManualAssignmentService {
 
       manuallyAssignedStaffIds.add(staff.id);
 
-      const times = await this.shiftTimeService.getShiftTimesForStaff(
+      let times = await this.shiftTimeService.getShiftTimesForStaff(
         staff,
         assignment.shiftType,
         targetDate,
         { contractedHoursMap, appZeroDate }
       );
+
+      // If getShiftTimesForStaff returns null (e.g., staff has contracted hours but not for this day),
+      // fall back to default shift times for manual assignments
+      if (!times) {
+        times = this.shiftTimeService.getDefaultShiftTimes(assignment.shiftType);
+      }
 
       if (times) {
         const now = new Date();
