@@ -181,12 +181,38 @@ export class ContractedHoursStaffService {
     times: { start: string; end: string },
     date: string
   ): ShiftAssignment {
+    // Calculate status based on current time
+    const now = new Date();
+    const shiftStart = new Date(`${date}T${times.start}`);
+
+    // Handle overnight shifts: if end time is before start time, the shift ends the next day
+    let shiftEnd: Date;
+    const startMinutes = this.timeToMinutes(times.start);
+    const endMinutes = this.timeToMinutes(times.end);
+
+    if (endMinutes < startMinutes) {
+      // Overnight shift - end time is on the next day
+      const nextDay = new Date(shiftStart);
+      nextDay.setDate(nextDay.getDate() + 1);
+      shiftEnd = new Date(`${nextDay.toISOString().split('T')[0]}T${times.end}`);
+    } else {
+      // Same-day shift
+      shiftEnd = new Date(`${date}T${times.end}`);
+    }
+
+    let status: 'active' | 'pending' | 'expired' = 'active';
+    if (now < shiftStart) {
+      status = 'pending';
+    } else if (now > shiftEnd) {
+      status = 'expired';
+    }
+
     return {
       staff,
       shiftType,
       shiftStart: times.start,
       shiftEnd: times.end,
-      status: 'pending', // Staff with contracted hours start as pending
+      status,
       isManualAssignment: false,
       isFixedSchedule: false,
       assignmentDate: date,
