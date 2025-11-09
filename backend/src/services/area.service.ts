@@ -445,6 +445,30 @@ export class AreaService {
         shiftEnd = times?.end || (assignment.shiftType === 'day' ? '20:00:00' : '08:00:00');
       }
 
+      // Check if the allocation has expired
+      const now = new Date();
+      const allocationStart = new Date(`${date}T${shiftStart}`);
+
+      // Handle overnight shifts: if end time is before start time, the shift ends the next day
+      let allocationEnd: Date;
+      const startMinutes = this.timeToMinutes(shiftStart);
+      const endMinutes = this.timeToMinutes(shiftEnd);
+
+      if (endMinutes < startMinutes) {
+        // Overnight shift - end time is on the next day
+        const nextDay = new Date(allocationStart);
+        nextDay.setDate(nextDay.getDate() + 1);
+        allocationEnd = new Date(`${nextDay.toISOString().split('T')[0]}T${shiftEnd}`);
+      } else {
+        // Same-day shift
+        allocationEnd = new Date(`${date}T${shiftEnd}`);
+      }
+
+      // Skip expired allocations - they should return to the pool
+      if (now > allocationEnd) {
+        continue;
+      }
+
       staffAssignments.push({
         id: staff.id,
         firstName: staff.firstName,
@@ -618,6 +642,16 @@ export class AreaService {
     console.log(`[PERF] getStaffForSingleArea completed in ${totalTime}ms (${staff.length} staff)`);
 
     return staff;
+  }
+
+  /**
+   * Convert time string (HH:mm or HH:mm:ss) to minutes since midnight
+   */
+  private timeToMinutes(time: string): number {
+    const parts = time.split(':');
+    const hours = parseInt(parts[0], 10);
+    const minutes = parseInt(parts[1], 10);
+    return hours * 60 + minutes;
   }
 }
 

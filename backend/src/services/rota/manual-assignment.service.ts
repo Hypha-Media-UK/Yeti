@@ -66,6 +66,7 @@ export class ManualAssignmentService {
       manuallyAssignedStaffIds.add(staff.id);
 
       let times: { start: string; end: string } | null = null;
+      let allocationExpired = false;
 
       // Priority 1: Use allocation times if this is a temporary area assignment with custom times
       if (hasAreaAllocation && assignment.startTime && assignment.endTime) {
@@ -73,8 +74,35 @@ export class ManualAssignmentService {
           start: assignment.startTime,
           end: assignment.endTime
         };
-      } else {
-        // Priority 2: Get shift times for staff (contracted hours or custom shift times)
+
+        // Check if the allocation has expired
+        const now = new Date();
+        const allocationStart = new Date(`${targetDate}T${times.start}`);
+
+        // Handle overnight shifts: if end time is before start time, the shift ends the next day
+        let allocationEnd: Date;
+        const startMinutes = this.timeToMinutes(times.start);
+        const endMinutes = this.timeToMinutes(times.end);
+
+        if (endMinutes < startMinutes) {
+          // Overnight shift - end time is on the next day
+          const nextDay = new Date(allocationStart);
+          nextDay.setDate(nextDay.getDate() + 1);
+          allocationEnd = new Date(`${nextDay.toISOString().split('T')[0]}T${times.end}`);
+        } else {
+          // Same-day shift
+          allocationEnd = new Date(`${targetDate}T${times.end}`);
+        }
+
+        // If allocation has expired, fall back to contracted hours
+        if (now > allocationEnd) {
+          allocationExpired = true;
+          times = null; // Reset to recalculate based on contracted hours
+        }
+      }
+
+      // Priority 2: Get shift times for staff (contracted hours or custom shift times)
+      if (!times) {
         times = await this.shiftTimeService.getShiftTimesForStaff(
           staff,
           assignment.shiftType,
@@ -126,8 +154,9 @@ export class ManualAssignmentService {
           assignmentDate: targetDate,
         };
 
-        // Mark if this is a temporary area allocation
-        if (hasAreaAllocation) {
+        // Mark if this is a temporary area allocation that hasn't expired
+        // If the allocation has expired, the staff returns to the pool without the hasAreaAllocation flag
+        if (hasAreaAllocation && !allocationExpired) {
           shiftAssignment.hasAreaAllocation = true;
         }
 
