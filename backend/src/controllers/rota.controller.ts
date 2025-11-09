@@ -275,6 +275,45 @@ export class RotaController {
     }
   };
 
+  updateAssignment = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const id = parseInt(req.params.id);
+
+      if (isNaN(id)) {
+        res.status(400).json({ error: 'Invalid assignment ID' });
+        return;
+      }
+
+      const { startTime, endTime, endDate, notes } = req.body;
+
+      // Validate time format if provided (HH:mm:ss or HH:mm)
+      const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/;
+
+      if (startTime && !timeRegex.test(startTime)) {
+        res.status(400).json({ error: 'Start time must be in HH:mm or HH:mm:ss format' });
+        return;
+      }
+
+      if (endTime && !timeRegex.test(endTime)) {
+        res.status(400).json({ error: 'End time must be in HH:mm or HH:mm:ss format' });
+        return;
+      }
+
+      const updates: any = {};
+      if (startTime !== undefined) updates.startTime = startTime;
+      if (endTime !== undefined) updates.endTime = endTime;
+      if (endDate !== undefined) updates.endDate = endDate;
+      if (notes !== undefined) updates.notes = notes;
+
+      const assignment = await this.overrideRepo.update(id, updates);
+
+      res.json({ assignment });
+    } catch (error) {
+      console.error('Error updating assignment:', error);
+      res.status(500).json({ error: 'Failed to update assignment' });
+    }
+  };
+
   deleteAssignment = async (req: Request, res: Response): Promise<void> => {
     try {
       const id = parseInt(req.params.id);

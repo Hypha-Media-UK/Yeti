@@ -173,6 +173,13 @@ export const api = {
     return fetchApi<{ assignments: ManualAssignment[] }>(`/rota/assignments/temporary/${staffId}?date=${date}`);
   },
 
+  async updateAssignment(id: number, updates: { startTime?: string; endTime?: string; endDate?: string | null; notes?: string | null }): Promise<{ assignment: ManualAssignment }> {
+    return fetchApi<{ assignment: ManualAssignment }>(`/rota/assignments/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+  },
+
   async deleteAssignment(id: number): Promise<{ success: boolean }> {
     return fetchApi<{ success: boolean }>(`/rota/assignments/${id}`, {
       method: 'DELETE',

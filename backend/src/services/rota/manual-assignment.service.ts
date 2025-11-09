@@ -65,17 +65,28 @@ export class ManualAssignmentService {
 
       manuallyAssignedStaffIds.add(staff.id);
 
-      let times = await this.shiftTimeService.getShiftTimesForStaff(
-        staff,
-        assignment.shiftType,
-        targetDate,
-        { contractedHoursMap, appZeroDate }
-      );
+      let times: { start: string; end: string } | null = null;
 
-      // If getShiftTimesForStaff returns null (e.g., staff has contracted hours but not for this day),
-      // fall back to default shift times for manual assignments
-      if (!times) {
-        times = this.shiftTimeService.getDefaultShiftTimes(assignment.shiftType);
+      // Priority 1: Use allocation times if this is a temporary area assignment with custom times
+      if (hasAreaAllocation && assignment.startTime && assignment.endTime) {
+        times = {
+          start: assignment.startTime,
+          end: assignment.endTime
+        };
+      } else {
+        // Priority 2: Get shift times for staff (contracted hours or custom shift times)
+        times = await this.shiftTimeService.getShiftTimesForStaff(
+          staff,
+          assignment.shiftType,
+          targetDate,
+          { contractedHoursMap, appZeroDate }
+        );
+
+        // Priority 3: If getShiftTimesForStaff returns null (e.g., staff has contracted hours but not for this day),
+        // fall back to default shift times for manual assignments
+        if (!times) {
+          times = this.shiftTimeService.getDefaultShiftTimes(assignment.shiftType);
+        }
       }
 
       if (times) {

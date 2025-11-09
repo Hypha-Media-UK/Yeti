@@ -20,12 +20,13 @@
         </div>
 
         <div v-else class="assignments-list">
-          <div 
-            v-for="assignment in assignments" 
-            :key="assignment.id" 
+          <div
+            v-for="assignment in assignments"
+            :key="assignment.id"
             class="assignment-card"
           >
-            <div class="assignment-info">
+            <!-- View Mode -->
+            <div v-if="editingId !== assignment.id" class="assignment-info">
               <div class="assignment-header">
                 <strong>{{ getAreaName(assignment) }}</strong>
                 <span class="badge badge-shift" :class="`badge-${assignment.shiftType}`">
@@ -52,18 +53,82 @@
                 </div>
               </div>
             </div>
+
+            <!-- Edit Mode -->
+            <div v-else class="assignment-edit-form">
+              <div class="assignment-header">
+                <strong>{{ getAreaName(assignment) }}</strong>
+                <span class="badge badge-shift" :class="`badge-${assignment.shiftType}`">
+                  {{ assignment.shiftType === 'day' ? 'Day' : 'Night' }}
+                </span>
+              </div>
+              <div class="form-group">
+                <label>Start Time:</label>
+                <input
+                  type="time"
+                  v-model="editForm.startTime"
+                  class="form-input"
+                />
+              </div>
+              <div class="form-group">
+                <label>End Time:</label>
+                <input
+                  type="time"
+                  v-model="editForm.endTime"
+                  class="form-input"
+                />
+              </div>
+              <div class="form-group">
+                <label>Notes:</label>
+                <textarea
+                  v-model="editForm.notes"
+                  class="form-input"
+                  rows="2"
+                ></textarea>
+              </div>
+            </div>
+
+            <!-- Actions -->
             <div class="assignment-actions">
-              <button 
-                class="btn-icon btn-danger" 
-                @click="handleDelete(assignment.id)" 
-                title="Delete assignment"
-                :disabled="deleting === assignment.id"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                </svg>
-              </button>
+              <template v-if="editingId !== assignment.id">
+                <button
+                  class="btn-icon"
+                  @click="startEdit(assignment)"
+                  title="Edit assignment"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                </button>
+                <button
+                  class="btn-icon btn-danger"
+                  @click="handleDelete(assignment.id)"
+                  title="Delete assignment"
+                  :disabled="deleting === assignment.id"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                </button>
+              </template>
+              <template v-else>
+                <button
+                  class="btn btn-primary btn-sm"
+                  @click="saveEdit(assignment.id)"
+                  :disabled="saving"
+                >
+                  Save
+                </button>
+                <button
+                  class="btn btn-secondary btn-sm"
+                  @click="cancelEdit"
+                  :disabled="saving"
+                >
+                  Cancel
+                </button>
+              </template>
             </div>
           </div>
         </div>
@@ -106,6 +171,13 @@ const loading = ref(false);
 const error = ref('');
 const assignments = ref<ManualAssignment[]>([]);
 const deleting = ref<number | null>(null);
+const editingId = ref<number | null>(null);
+const saving = ref(false);
+const editForm = ref({
+  startTime: '',
+  endTime: '',
+  notes: ''
+});
 
 const loadAssignments = async () => {
   if (!props.staffMember?.id) {
@@ -175,6 +247,59 @@ const getAreaName = (assignment: ManualAssignment): string => {
 const formatDate = (dateStr: string): string => {
   const date = new Date(dateStr + 'T00:00:00');
   return date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+};
+
+const startEdit = (assignment: ManualAssignment) => {
+  editingId.value = assignment.id;
+  editForm.value = {
+    startTime: assignment.startTime?.substring(0, 5) || '',
+    endTime: assignment.endTime?.substring(0, 5) || '',
+    notes: assignment.notes || ''
+  };
+};
+
+const cancelEdit = () => {
+  editingId.value = null;
+  editForm.value = {
+    startTime: '',
+    endTime: '',
+    notes: ''
+  };
+};
+
+const saveEdit = async (assignmentId: number) => {
+  if (!editForm.value.startTime || !editForm.value.endTime) {
+    alert('Start time and end time are required');
+    return;
+  }
+
+  saving.value = true;
+
+  try {
+    const updates = {
+      startTime: editForm.value.startTime + ':00', // Add seconds
+      endTime: editForm.value.endTime + ':00',
+      notes: editForm.value.notes || null
+    };
+
+    const response = await api.updateAssignment(assignmentId, updates);
+
+    // Update the local assignment
+    const index = assignments.value.findIndex(a => a.id === assignmentId);
+    if (index !== -1) {
+      assignments.value[index] = response.assignment;
+    }
+
+    // Notify parent to refresh the main view
+    emit('deleted'); // Reusing this event to trigger refresh
+
+    cancelEdit();
+  } catch (err) {
+    console.error('Error updating assignment:', err);
+    alert('Failed to update assignment');
+  } finally {
+    saving.value = false;
+  }
 };
 
 // Load assignments when component is mounted (since v-if recreates the component each time)
@@ -298,6 +423,45 @@ watch(() => props.staffMember?.id, (newId, oldId) => {
 .badge-night {
   background-color: #2C3E50;
   color: #ECF0F1;
+}
+
+.assignment-edit-form {
+  flex: 1;
+  min-width: 0;
+}
+
+.form-group {
+  margin-bottom: var(--spacing-2);
+}
+
+.form-group label {
+  display: block;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-1);
+}
+
+.form-input {
+  width: 100%;
+  padding: var(--spacing-1) var(--spacing-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-button);
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+  background-color: var(--color-background);
+  transition: var(--transition-base);
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.btn-sm {
+  padding: var(--spacing-1) var(--spacing-2);
+  font-size: var(--font-size-small);
 }
 </style>
 
