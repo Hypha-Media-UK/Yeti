@@ -60,15 +60,8 @@ export class ManualAssignmentService {
       const staff = staffMap.get(assignment.staffId);
       if (!staff) continue;
 
-      // CRITICAL: Skip temporary area assignments
-      // Temporary area assignments have areaType and areaId set
-      // They should ONLY appear in the specific area card, NOT in shift pools
-      if (assignment.areaType && assignment.areaId) {
-        // This is a temporary area assignment, not a shift pool assignment
-        // Mark as manually assigned so they don't get cycle-based shifts
-        manuallyAssignedStaffIds.add(staff.id);
-        continue;
-      }
+      // Track whether this is a temporary area assignment
+      const hasAreaAllocation = !!(assignment.areaType && assignment.areaId);
 
       manuallyAssignedStaffIds.add(staff.id);
 
@@ -111,7 +104,7 @@ export class ManualAssignmentService {
           status = 'expired';
         }
 
-        shiftAssignments.push({
+        const shiftAssignment: ShiftAssignment = {
           staff,
           shiftType: assignment.shiftType,
           shiftStart: formatLocalTime(times.start),
@@ -120,7 +113,14 @@ export class ManualAssignmentService {
           isManualAssignment: true,
           isFixedSchedule: false,
           assignmentDate: targetDate,
-        });
+        };
+
+        // Mark if this is a temporary area allocation
+        if (hasAreaAllocation) {
+          shiftAssignment.hasAreaAllocation = true;
+        }
+
+        shiftAssignments.push(shiftAssignment);
       }
     }
 

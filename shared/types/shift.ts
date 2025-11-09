@@ -78,6 +78,7 @@ export interface ShiftAssignment {
   isFixedSchedule: boolean;
   assignmentDate: string;
   status: ShiftStatus; // Current status: active, pending, or expired
+  hasAreaAllocation?: boolean; // True if staff has been temporarily allocated to a department/service
 }
 
 export interface DayRota {
