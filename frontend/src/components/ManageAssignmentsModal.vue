@@ -25,110 +25,75 @@
             :key="assignment.id"
             class="assignment-card"
           >
-            <!-- View Mode -->
-            <div v-if="editingId !== assignment.id" class="assignment-info">
+            <div class="assignment-content">
               <div class="assignment-header">
                 <strong>{{ getAreaName(assignment) }}</strong>
                 <span class="badge badge-shift" :class="`badge-${assignment.shiftType}`">
                   {{ assignment.shiftType === 'day' ? 'Day' : 'Night' }}
                 </span>
               </div>
-              <div class="assignment-details">
-                <div class="detail-row">
-                  <span class="label">Time:</span>
-                  <span>{{ assignment.startTime?.substring(0, 5) }} - {{ assignment.endTime?.substring(0, 5) }}</span>
+
+              <div class="assignment-form">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Start Time:</label>
+                    <input
+                      type="time"
+                      :value="assignment.startTime?.substring(0, 5)"
+                      @input="updateAssignmentField(assignment.id, 'startTime', $event.target.value)"
+                      @blur="saveIfChanged(assignment)"
+                      class="form-input"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label>End Time:</label>
+                    <input
+                      type="time"
+                      :value="assignment.endTime?.substring(0, 5)"
+                      @input="updateAssignmentField(assignment.id, 'endTime', $event.target.value)"
+                      @blur="saveIfChanged(assignment)"
+                      class="form-input"
+                    />
+                  </div>
                 </div>
-                <div class="detail-row">
-                  <span class="label">Date:</span>
-                  <span>
+
+                <div class="form-group">
+                  <label>Date:</label>
+                  <div class="date-display">
                     {{ formatDate(assignment.assignmentDate) }}
                     <span v-if="assignment.endDate && assignment.endDate !== assignment.assignmentDate">
                       to {{ formatDate(assignment.endDate) }}
                     </span>
-                  </span>
+                  </div>
                 </div>
-                <div v-if="assignment.notes" class="detail-row">
-                  <span class="label">Notes:</span>
-                  <span>{{ assignment.notes }}</span>
-                </div>
-              </div>
-            </div>
 
-            <!-- Edit Mode -->
-            <div v-else class="assignment-edit-form">
-              <div class="assignment-header">
-                <strong>{{ getAreaName(assignment) }}</strong>
-                <span class="badge badge-shift" :class="`badge-${assignment.shiftType}`">
-                  {{ assignment.shiftType === 'day' ? 'Day' : 'Night' }}
-                </span>
-              </div>
-              <div class="form-group">
-                <label>Start Time:</label>
-                <input
-                  type="time"
-                  v-model="editForm.startTime"
-                  class="form-input"
-                />
-              </div>
-              <div class="form-group">
-                <label>End Time:</label>
-                <input
-                  type="time"
-                  v-model="editForm.endTime"
-                  class="form-input"
-                />
-              </div>
-              <div class="form-group">
-                <label>Notes:</label>
-                <textarea
-                  v-model="editForm.notes"
-                  class="form-input"
-                  rows="2"
-                ></textarea>
+                <div class="form-group">
+                  <label>Notes:</label>
+                  <textarea
+                    :value="assignment.notes || ''"
+                    @input="updateAssignmentField(assignment.id, 'notes', $event.target.value)"
+                    @blur="saveIfChanged(assignment)"
+                    class="form-input"
+                    rows="2"
+                    placeholder="Add notes..."
+                  ></textarea>
+                </div>
               </div>
             </div>
 
             <!-- Actions -->
             <div class="assignment-actions">
-              <template v-if="editingId !== assignment.id">
-                <button
-                  class="btn-icon"
-                  @click="startEdit(assignment)"
-                  title="Edit assignment"
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                  </svg>
-                </button>
-                <button
-                  class="btn-icon btn-danger"
-                  @click="handleDelete(assignment.id)"
-                  title="Delete assignment"
-                  :disabled="deleting === assignment.id"
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="3 6 5 6 21 6" />
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                  </svg>
-                </button>
-              </template>
-              <template v-else>
-                <button
-                  class="btn btn-primary btn-sm"
-                  @click="saveEdit(assignment.id)"
-                  :disabled="saving"
-                >
-                  Save
-                </button>
-                <button
-                  class="btn btn-secondary btn-sm"
-                  @click="cancelEdit"
-                  :disabled="saving"
-                >
-                  Cancel
-                </button>
-              </template>
+              <button
+                class="btn-icon btn-danger"
+                @click="handleDelete(assignment.id)"
+                title="Delete assignment"
+                :disabled="deleting === assignment.id"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+              </button>
             </div>
           </div>
         </div>
@@ -171,13 +136,9 @@ const loading = ref(false);
 const error = ref('');
 const assignments = ref<ManualAssignment[]>([]);
 const deleting = ref<number | null>(null);
-const editingId = ref<number | null>(null);
-const saving = ref(false);
-const editForm = ref({
-  startTime: '',
-  endTime: '',
-  notes: ''
-});
+
+// Track pending changes for each assignment
+const pendingChanges = ref<Map<number, { startTime?: string; endTime?: string; notes?: string }>>(new Map());
 
 const loadAssignments = async () => {
   if (!props.staffMember?.id) {
@@ -249,56 +210,70 @@ const formatDate = (dateStr: string): string => {
   return date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 };
 
-const startEdit = (assignment: ManualAssignment) => {
-  editingId.value = assignment.id;
-  editForm.value = {
-    startTime: assignment.startTime?.substring(0, 5) || '',
-    endTime: assignment.endTime?.substring(0, 5) || '',
-    notes: assignment.notes || ''
-  };
+// Update a field in the pending changes map
+const updateAssignmentField = (assignmentId: number, field: string, value: string) => {
+  const changes = pendingChanges.value.get(assignmentId) || {};
+  changes[field] = value;
+  pendingChanges.value.set(assignmentId, changes);
 };
 
-const cancelEdit = () => {
-  editingId.value = null;
-  editForm.value = {
-    startTime: '',
-    endTime: '',
-    notes: ''
-  };
-};
+// Save changes if any fields were modified
+const saveIfChanged = async (assignment: ManualAssignment) => {
+  const changes = pendingChanges.value.get(assignment.id);
+  if (!changes || Object.keys(changes).length === 0) {
+    return; // No changes to save
+  }
 
-const saveEdit = async (assignmentId: number) => {
-  if (!editForm.value.startTime || !editForm.value.endTime) {
-    alert('Start time and end time are required');
+  // Check if values actually changed from original
+  const hasChanges =
+    (changes.startTime !== undefined && changes.startTime !== assignment.startTime?.substring(0, 5)) ||
+    (changes.endTime !== undefined && changes.endTime !== assignment.endTime?.substring(0, 5)) ||
+    (changes.notes !== undefined && changes.notes !== (assignment.notes || ''));
+
+  if (!hasChanges) {
+    pendingChanges.value.delete(assignment.id);
     return;
   }
 
-  saving.value = true;
+  // Validate times
+  if (changes.startTime !== undefined || changes.endTime !== undefined) {
+    const startTime = changes.startTime ?? assignment.startTime?.substring(0, 5);
+    const endTime = changes.endTime ?? assignment.endTime?.substring(0, 5);
+
+    if (!startTime || !endTime) {
+      alert('Start time and end time are required');
+      // Reset the pending changes
+      pendingChanges.value.delete(assignment.id);
+      // Reload assignments to reset the form
+      await loadAssignments();
+      return;
+    }
+  }
 
   try {
-    const updates = {
-      startTime: editForm.value.startTime + ':00', // Add seconds
-      endTime: editForm.value.endTime + ':00',
-      notes: editForm.value.notes || null
-    };
+    const updates: any = {};
+    if (changes.startTime !== undefined) updates.startTime = changes.startTime + ':00';
+    if (changes.endTime !== undefined) updates.endTime = changes.endTime + ':00';
+    if (changes.notes !== undefined) updates.notes = changes.notes || null;
 
-    const response = await api.updateAssignment(assignmentId, updates);
+    const response = await api.updateAssignment(assignment.id, updates);
 
     // Update the local assignment
-    const index = assignments.value.findIndex(a => a.id === assignmentId);
+    const index = assignments.value.findIndex(a => a.id === assignment.id);
     if (index !== -1) {
       assignments.value[index] = response.assignment;
     }
 
+    // Clear pending changes for this assignment
+    pendingChanges.value.delete(assignment.id);
+
     // Notify parent to refresh the main view
     emit('deleted'); // Reusing this event to trigger refresh
-
-    cancelEdit();
   } catch (err) {
     console.error('Error updating assignment:', err);
     alert('Failed to update assignment');
-  } finally {
-    saving.value = false;
+    // Reload assignments to reset the form
+    await loadAssignments();
   }
 };
 
@@ -368,7 +343,7 @@ watch(() => props.staffMember?.id, (newId, oldId) => {
   box-shadow: var(--shadow-low);
 }
 
-.assignment-info {
+.assignment-content {
   flex: 1;
   min-width: 0;
 }
@@ -377,7 +352,7 @@ watch(() => props.staffMember?.id, (newId, oldId) => {
   display: flex;
   align-items: center;
   gap: var(--spacing-2);
-  margin-bottom: var(--spacing-2);
+  margin-bottom: var(--spacing-3);
 }
 
 .assignment-header strong {
@@ -385,22 +360,24 @@ watch(() => props.staffMember?.id, (newId, oldId) => {
   color: var(--color-text-primary);
 }
 
-.assignment-details {
+.assignment-form {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-1);
+  gap: var(--spacing-2);
 }
 
-.detail-row {
-  display: flex;
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: var(--spacing-2);
+}
+
+.date-display {
+  padding: var(--spacing-1) var(--spacing-2);
+  background-color: var(--color-surface);
+  border-radius: var(--radius-button);
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
-}
-
-.detail-row .label {
-  font-weight: var(--font-weight-semibold);
-  min-width: 50px;
 }
 
 .assignment-actions {
@@ -425,21 +402,16 @@ watch(() => props.staffMember?.id, (newId, oldId) => {
   color: #ECF0F1;
 }
 
-.assignment-edit-form {
-  flex: 1;
-  min-width: 0;
-}
-
 .form-group {
-  margin-bottom: var(--spacing-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
 }
 
 .form-group label {
-  display: block;
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
-  margin-bottom: var(--spacing-1);
 }
 
 .form-input {
@@ -459,9 +431,8 @@ watch(() => props.staffMember?.id, (newId, oldId) => {
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
 
-.btn-sm {
-  padding: var(--spacing-1) var(--spacing-2);
-  font-size: var(--font-size-small);
+.form-input::placeholder {
+  color: var(--color-text-tertiary);
 }
 </style>
 
