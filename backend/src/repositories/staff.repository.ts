@@ -297,5 +297,33 @@ export class StaffRepository extends BaseRepository<
       };
     });
   }
+
+  /**
+   * Custom method: Find staff with no shift assignment (shift_id = NULL)
+   * These staff might have contracted hours and should appear in the shift pool
+   */
+  async findStaffWithNoShift(): Promise<StaffMemberWithShift[]> {
+    const { data, error } = await this.client
+      .from(this.tableName)
+      .select('*')
+      .is('shift_id', null)
+      .eq('is_active', true)
+      .eq('is_pool_staff', false) // Exclude pool staff (they're handled separately)
+      .neq('status', 'Relief') // Exclude relief staff (they only work via manual assignments)
+      .order('last_name')
+      .order('first_name');
+
+    if (error) {
+      throw new Error(`Failed to find staff with no shift: ${error.message}`);
+    }
+
+    return (data || []).map((row: any) => {
+      const staff = this.mapRowToEntity(row);
+      return {
+        ...staff,
+        shift: null,
+      };
+    });
+  }
 }
 

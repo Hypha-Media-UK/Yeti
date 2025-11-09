@@ -15,17 +15,19 @@ import { CycleCalculationService } from './rota/cycle-calculation.service';
 import { ShiftTimeService } from './rota/shift-time.service';
 import { PoolStaffService } from './rota/pool-staff.service';
 import { ManualAssignmentService } from './rota/manual-assignment.service';
+import { ContractedHoursStaffService } from './rota/contracted-hours-staff.service';
 
 /**
  * RotaService (Refactored)
- * 
+ *
  * Main orchestrator for rota operations.
  * Delegates specialized logic to focused services:
  * - CycleCalculationService: Shift cycle calculations
  * - ShiftTimeService: Shift time calculations
  * - PoolStaffService: Pool staff processing
  * - ManualAssignmentService: Manual assignment processing
- * 
+ * - ContractedHoursStaffService: Staff with contracted hours but no shift
+ *
  * This service coordinates between these services and handles:
  * - Data fetching and caching
  * - Orchestration of the rota generation process
@@ -46,6 +48,7 @@ export class RotaService {
   private shiftTimeService: ShiftTimeService;
   private poolStaffService: PoolStaffService;
   private manualAssignmentService: ManualAssignmentService;
+  private contractedHoursStaffService: ContractedHoursStaffService;
 
   constructor() {
     // Initialize repositories
@@ -61,6 +64,7 @@ export class RotaService {
     this.shiftTimeService = new ShiftTimeService();
     this.poolStaffService = new PoolStaffService(this.staffRepo, this.cycleService, this.shiftTimeService);
     this.manualAssignmentService = new ManualAssignmentService(this.shiftTimeService);
+    this.contractedHoursStaffService = new ContractedHoursStaffService();
   }
 
   /**
@@ -92,8 +96,12 @@ export class RotaService {
     const allSupervisors = await this.staffRepo.findAll({ status: 'Supervisor' });
     console.log(`[ROTA] Found ${allSupervisors.length} supervisors`);
 
-    // Combine staff and supervisors
-    const allStaff = [...staffInActiveShifts, ...allSupervisors];
+    // Get staff with no shift assignment (they might have contracted hours)
+    const staffWithNoShift = await this.staffRepo.findStaffWithNoShift();
+    console.log(`[ROTA] Found ${staffWithNoShift.length} staff with no shift assignment`);
+
+    // Combine all staff
+    const allStaff = [...staffInActiveShifts, ...allSupervisors, ...staffWithNoShift];
 
     // Get manual assignments for current day only
     const manualAssignments = await this.manualAssignmentService.getManualAssignmentsForDate(targetDate);
@@ -145,7 +153,16 @@ export class RotaService {
     );
     this.categorizeShifts(poolStaffAssignments, dayShifts, nightShifts);
 
-    // 4. Get yesterday's night shift staff if still active (for task assignment only)
+    // 4. Process staff with contracted hours but no shift assignment
+    const contractedHoursAssignments = await this.contractedHoursStaffService.processContractedHoursStaff(
+      allStaff,
+      targetDate,
+      manuallyAssignedStaffIds,
+      contractedHoursMap
+    );
+    this.categorizeShifts(contractedHoursAssignments, dayShifts, nightShifts);
+
+    // 5. Get yesterday's night shift staff if still active (for task assignment only)
     // Night shifts typically run 20:00-08:00, so yesterday's night shift extends into today
     // We DON'T add them to dayShifts or nightShifts to keep the rota display clean
     const previousNightShift = await this.getYesterdayNightShiftIfActive(
@@ -155,10 +172,10 @@ export class RotaService {
       manuallyAssignedStaffIds
     );
 
-    // 5. Attach absence information
+    // 6. Attach absence information
     await this.attachAbsenceInfo(dayShifts, nightShifts, targetDate);
 
-    // 6. Sort shifts
+    // 7. Sort shifts
     this.sortShifts(dayShifts, targetDate, appZeroDate);
     this.sortShifts(nightShifts, targetDate, appZeroDate);
 
