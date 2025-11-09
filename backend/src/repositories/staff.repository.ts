@@ -301,6 +301,7 @@ export class StaffRepository extends BaseRepository<
   /**
    * Custom method: Find staff with no shift assignment (shift_id = NULL)
    * These staff might have contracted hours and should appear in the shift pool
+   * Excludes supervisors (handled separately), pool staff, and relief staff
    */
   async findStaffWithNoShift(): Promise<StaffMemberWithShift[]> {
     const { data, error } = await this.client
@@ -310,6 +311,7 @@ export class StaffRepository extends BaseRepository<
       .eq('is_active', true)
       .eq('is_pool_staff', false) // Exclude pool staff (they're handled separately)
       .neq('status', 'Relief') // Exclude relief staff (they only work via manual assignments)
+      .neq('status', 'Supervisor') // Exclude supervisors (they're handled separately)
       .order('last_name')
       .order('first_name');
 
