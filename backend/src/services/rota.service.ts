@@ -177,10 +177,14 @@ export class RotaService {
       manuallyAssignedStaffIds
     );
 
-    // 6. Attach absence information
+    // 6. Mark staff who have area allocations
+    // This allows the frontend to display them in a separate "Allocated" section in the pool
+    this.markAllocatedStaff(dayShifts, nightShifts, permanentlyAssignedStaffIds);
+
+    // 7. Attach absence information
     await this.attachAbsenceInfo(dayShifts, nightShifts, targetDate);
 
-    // 7. Sort shifts
+    // 8. Sort shifts
     this.sortShifts(dayShifts, targetDate, appZeroDate);
     this.sortShifts(nightShifts, targetDate, appZeroDate);
 
@@ -537,6 +541,22 @@ export class RotaService {
         dayShifts.push(assignment);
       } else {
         nightShifts.push(assignment);
+      }
+    }
+  }
+
+  /**
+   * Mark staff who have area allocations (departments/services)
+   * This allows the frontend to display them in a separate "Allocated" section
+   */
+  private markAllocatedStaff(
+    dayShifts: ShiftAssignment[],
+    nightShifts: ShiftAssignment[],
+    permanentlyAssignedStaffIds: Set<number>
+  ): void {
+    for (const shift of [...dayShifts, ...nightShifts]) {
+      if (permanentlyAssignedStaffIds.has(shift.staff.id)) {
+        shift.hasAreaAllocation = true;
       }
     }
   }

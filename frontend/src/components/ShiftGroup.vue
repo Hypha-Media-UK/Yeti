@@ -101,6 +101,46 @@
         </div>
       </div>
 
+      <!-- Allocated staff (separate container above absences) -->
+      <div v-if="getAllocatedStaff(assignments).length > 0" class="allocated-staff-container">
+        <div
+          v-for="assignment in getAllocatedStaff(assignments)"
+          :key="`${assignment.staff.id}-${assignment.assignmentDate}`"
+          class="staff-item staff-allocated"
+          :title="'Allocated to department/service • ' + getStaffItemTitle(assignment)"
+        >
+          <span class="staff-name">
+            {{ assignment.staff.firstName }} {{ assignment.staff.lastName }}
+          </span>
+          <div class="staff-right">
+            <span class="staff-time">{{ formatTime(assignment.shiftStart) }} - {{ formatTime(assignment.shiftEnd) }}</span>
+            <div class="staff-actions">
+              <button
+                class="btn-icon"
+                @click.stop="$emit('staffAssignment', assignment)"
+                title="Temporary Assignment"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+              </button>
+              <button
+                class="btn-icon btn-absence"
+                @click.stop="$emit('staffAbsence', assignment)"
+                title="Mark Absence"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Absent staff (separate container at bottom) -->
       <div v-if="getAbsentStaff(assignments).length > 0" class="absent-staff-container">
         <div
@@ -147,17 +187,28 @@ function isStaffAbsent(assignment: ShiftAssignment): boolean {
   return isAbsenceActive(assignment.staff.currentAbsence);
 }
 
-// Get supervisors (present only)
+// Get supervisors (present only, not allocated)
 function getSupervisors(assignments: ShiftAssignment[]): ShiftAssignment[] {
   return assignments.filter(assignment =>
-    assignment.staff.status === 'Supervisor' && !isStaffAbsent(assignment)
+    assignment.staff.status === 'Supervisor' &&
+    !isStaffAbsent(assignment) &&
+    !assignment.hasAreaAllocation
   );
 }
 
-// Get regular staff (present only, excluding supervisors)
+// Get regular staff (present only, excluding supervisors and allocated staff)
 function getRegularStaff(assignments: ShiftAssignment[]): ShiftAssignment[] {
   return assignments.filter(assignment =>
-    assignment.staff.status !== 'Supervisor' && !isStaffAbsent(assignment)
+    assignment.staff.status !== 'Supervisor' &&
+    !isStaffAbsent(assignment) &&
+    !assignment.hasAreaAllocation
+  );
+}
+
+// Get allocated staff (present only, staff who have been allocated to departments/services)
+function getAllocatedStaff(assignments: ShiftAssignment[]): ShiftAssignment[] {
+  return assignments.filter(assignment =>
+    assignment.hasAreaAllocation && !isStaffAbsent(assignment)
   );
 }
 
@@ -411,6 +462,30 @@ const groupClass = computed(() => ({
   border-radius: var(--radius-badge);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+/* Allocated staff container - appears above absences */
+.allocated-staff-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  padding-top: var(--spacing-2);
+  margin-top: var(--spacing-2);
+  border-top: 1px solid var(--color-border);
+}
+
+/* Allocated staff styling - pale orange background */
+.staff-item.staff-allocated {
+  background-color: rgba(251, 146, 60, 0.15) !important; /* Pale orange */
+  border: 1px solid rgba(251, 146, 60, 0.3);
+}
+
+.staff-item.staff-allocated:hover {
+  background-color: rgba(251, 146, 60, 0.2) !important;
+}
+
+.staff-item.staff-allocated .staff-time {
+  background-color: rgba(251, 146, 60, 0.2);
 }
 
 .absent-staff-container {
