@@ -154,15 +154,13 @@ export class RotaService {
     this.categorizeShifts(poolStaffAssignments, dayShifts, nightShifts);
 
     // 4. Process staff with contracted hours but no shift assignment
-    // Fetch all permanent allocations to exclude staff who are permanently assigned
-    const allAllocations = await this.allocationRepo.findAll();
-    const permanentlyAssignedStaffIds = new Set(allAllocations.map(a => a.staffId));
-
+    // Note: We no longer exclude staff with permanent allocations here
+    // They will appear in the shift pool and be marked with hasAreaAllocation flag
     const contractedHoursAssignments = await this.contractedHoursStaffService.processContractedHoursStaff(
       allStaff,
       targetDate,
       manuallyAssignedStaffIds,
-      permanentlyAssignedStaffIds,
+      new Set(), // Empty set - don't exclude anyone
       contractedHoursMap
     );
     this.categorizeShifts(contractedHoursAssignments, dayShifts, nightShifts);
@@ -179,6 +177,8 @@ export class RotaService {
 
     // 6. Mark staff who have area allocations
     // This allows the frontend to display them in a separate "Allocated" section in the pool
+    const allAllocations = await this.allocationRepo.findAll();
+    const permanentlyAssignedStaffIds = new Set(allAllocations.map(a => a.staffId));
     this.markAllocatedStaff(dayShifts, nightShifts, permanentlyAssignedStaffIds);
 
     // 7. Attach absence information
