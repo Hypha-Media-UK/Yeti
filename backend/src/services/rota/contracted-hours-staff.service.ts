@@ -55,7 +55,9 @@ export class ContractedHoursStaffService {
 
       // Check if they have contracted hours for this day
       const contractedHours = contractedHoursMap.get(staff.id) || [];
-      const targetDayOfWeek = new Date(targetDate + 'T00:00:00Z').getUTCDay();
+      // Convert JavaScript's getUTCDay() (0=Sunday, 6=Saturday) to database format (1=Monday, 7=Sunday)
+      const jsDay = new Date(targetDate + 'T00:00:00Z').getUTCDay();
+      const targetDayOfWeek = jsDay === 0 ? 7 : jsDay; // Sunday: 0 -> 7, Monday: 1 -> 1, ..., Saturday: 6 -> 6
       const hoursForToday = contractedHours.filter(ch => ch.dayOfWeek === targetDayOfWeek);
 
       if (hoursForToday.length === 0) {
@@ -176,17 +178,14 @@ export class ContractedHoursStaffService {
     date: string
   ): ShiftAssignment {
     return {
-      id: staff.id,
-      firstName: staff.firstName,
-      lastName: staff.lastName,
-      status: staff.status,
+      staff,
       shiftType,
       shiftStart: times.start,
       shiftEnd: times.end,
-      date,
-      isPoolStaff: false, // They're not pool staff, just appearing in pool due to contracted hours
-      earlyFinishDay: staff.earlyFinishDay || null,
-      currentAbsence: null,
+      status: 'pending', // Staff with contracted hours start as pending
+      isManualAssignment: false,
+      isFixedSchedule: false,
+      assignmentDate: date,
     };
   }
 }
