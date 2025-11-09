@@ -1,0 +1,13 @@
+# Apply these headers to all pages
+/*
+  # Prevent search engine indexing via HTTP headers
+  X-Robots-Tag: noindex, nofollow, noarchive, nosnippet
+  
+  # Security headers
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  
+  # Cache control
+  Cache-Control: private, no-cache, no-store, must-revalidate
+
