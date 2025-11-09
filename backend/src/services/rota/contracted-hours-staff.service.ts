@@ -18,10 +18,11 @@ export class ContractedHoursStaffService {
 
   /**
    * Process staff with contracted hours but no shift assignment
-   * 
+   *
    * @param allStaff - All staff members
    * @param targetDate - The date to process (YYYY-MM-DD format)
    * @param manuallyAssignedStaffIds - Set of staff IDs already processed via manual assignments
+   * @param permanentlyAssignedStaffIds - Set of staff IDs who have permanent allocations (should not appear in pool)
    * @param contractedHoursMap - Pre-fetched contracted hours to avoid N+1 queries
    * @returns Array of shift assignments for contracted hours staff
    */
@@ -29,6 +30,7 @@ export class ContractedHoursStaffService {
     allStaff: StaffMemberWithShift[],
     targetDate: string,
     manuallyAssignedStaffIds: Set<number>,
+    permanentlyAssignedStaffIds: Set<number>,
     contractedHoursMap: Map<number, StaffContractedHours[]>
   ): Promise<ShiftAssignment[]> {
     const assignments: ShiftAssignment[] = [];
@@ -38,11 +40,13 @@ export class ContractedHoursStaffService {
     // 2. NOT pool staff (they're handled separately)
     // 3. NOT Relief staff (they only work via manual assignments)
     // 4. Have contracted hours
-    const contractedHoursStaff = allStaff.filter(staff => 
+    // 5. NOT permanently assigned to an area (they appear in area cards, not shift pool)
+    const contractedHoursStaff = allStaff.filter(staff =>
       !staff.shift &&
       !staff.isPoolStaff &&
       staff.status !== 'Relief' &&
-      contractedHoursMap.has(staff.id)
+      contractedHoursMap.has(staff.id) &&
+      !permanentlyAssignedStaffIds.has(staff.id)
     );
 
     console.log(`[CONTRACTED HOURS] Found ${contractedHoursStaff.length} staff with contracted hours but no shift`);

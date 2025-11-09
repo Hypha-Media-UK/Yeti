@@ -154,10 +154,15 @@ export class RotaService {
     this.categorizeShifts(poolStaffAssignments, dayShifts, nightShifts);
 
     // 4. Process staff with contracted hours but no shift assignment
+    // Fetch all permanent allocations to exclude staff who are permanently assigned
+    const allAllocations = await this.allocationRepo.findAll();
+    const permanentlyAssignedStaffIds = new Set(allAllocations.map(a => a.staffId));
+
     const contractedHoursAssignments = await this.contractedHoursStaffService.processContractedHoursStaff(
       allStaff,
       targetDate,
       manuallyAssignedStaffIds,
+      permanentlyAssignedStaffIds,
       contractedHoursMap
     );
     this.categorizeShifts(contractedHoursAssignments, dayShifts, nightShifts);
