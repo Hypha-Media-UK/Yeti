@@ -49,8 +49,13 @@ WHERE shift_id IN (
 -- Keep the shifts that have staff assigned or have lower IDs
 DELETE FROM shifts
 WHERE name LIKE 'PTS%'
-  AND id NOT IN (25, 26, 27, 29, 30)
+  AND id NOT IN (25, 26, 29, 30)
   AND id IN (
     SELECT id FROM shifts WHERE name LIKE 'PTS%'
   );
+
+-- Activate all PTS shifts (some were marked inactive)
+UPDATE shifts
+SET is_active = true
+WHERE name LIKE 'PTS%' AND is_active = false;
 
